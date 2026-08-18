@@ -105,6 +105,33 @@ python scripts/chat.py cp-requisitos "briefing" --dry-run
 O script detecta automaticamente o Python com `crewai` instalado (`.venv` do
 projeto) e carrega o `.env`.
 
+## Usar o Claude Code como LLM das crews (scripts/claude_proxy.py)
+
+As crews CrewAI podem usar o **Claude Code como LLM** (via OAuth, sem precisar de
+`ANTHROPIC_API_KEY`). O `scripts/claude_proxy.py` expõe uma API OpenAI-compatível
+que delega cada chamada ao comando `claude -p`:
+
+```bash
+# 1. Inicia o proxy (porta 8090, evita conflito com frontends na 8080)
+python scripts/claude_proxy.py --port 8090
+
+# 2. Testa uma chamada
+python scripts/claude_proxy.py --test
+```
+
+Depois, configure o `.env` das skills para apontar para o proxy:
+
+```env
+LLM_MODEL=openai/claude-sonnet-4
+LLM_API_BASE=http://localhost:8090/v1
+LLM_API_KEY=***   # o proxy ignora, mas o CrewAI exige
+LLM_PROVIDER=openai
+```
+
+> **Nota:** o proxy usa o modelo padrão do Claude Code (não passa `--model` para
+> modelos genéricos). Para escolher um modelo específico, defina `CLAUDE_MODEL`
+> no ambiente (ex: `claude-opus-4`).
+
 ## Licença
 
 Uso interno. © Renato Sacramento Horta.
