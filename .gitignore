@@ -9,6 +9,11 @@ venv/
 outputs/
 *.log
 
+# Ambiente / segredos
+.env
+.env.local
+.env.*.local
+
 # Sistema
 .DS_Store
 Thumbs.db
