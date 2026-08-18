@@ -21,6 +21,12 @@ import traceback
 from pathlib import Path
 from datetime import datetime
 from crewai import Agent, Task, Crew, Process
+import sys as _sys
+from pathlib import Path as _Path
+_SKILLS_ROOT = _Path(__file__).resolve().parent.parent.parent  # skills/
+if str(_SKILLS_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_SKILLS_ROOT))
+from _shared.llm import build_crew_llm
 
 # ═══════════════════════════════════════════════════════════════════════════
 # AGENTES EMBUTIDOS (self-contained)
@@ -61,6 +67,7 @@ AGENTS = {
 
 
 def get_agent(slug: str) -> Agent:
+    _crew_llm = build_crew_llm()
     """Get a CrewAI Agent from the embedded definitions."""
     data = AGENTS.get(slug)
     if not data:
@@ -69,6 +76,7 @@ def get_agent(slug: str) -> Agent:
             role=slug.replace("-", " ").title(),
             goal="Complete the assigned task with excellence",
             backstory="Specialized AI agent",
+            llm=_crew_llm,
             verbose=True,
             allow_delegation=False,
         )
@@ -76,6 +84,7 @@ def get_agent(slug: str) -> Agent:
         role=data["role"],
         goal=data["goal"],
         backstory=data["backstory"],
+        llm=_crew_llm,
         verbose=True,
         allow_delegation=False,
     )

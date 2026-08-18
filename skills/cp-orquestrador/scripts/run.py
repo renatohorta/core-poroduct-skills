@@ -50,6 +50,12 @@ import subprocess
 import time
 from pathlib import Path
 from datetime import datetime
+import sys as _sys
+from pathlib import Path as _Path
+_SKILLS_ROOT = _Path(__file__).resolve().parent.parent.parent  # skills/
+if str(_SKILLS_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_SKILLS_ROOT))
+from _shared.llm import build_crew_llm
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURAÇÃO — caminhos das skills
@@ -529,6 +535,7 @@ NEXUS_AGENTS = {
 def nexus_get_agent(slug: str):
     """Get a CrewAI Agent from the embedded NEXUS definitions."""
     from crewai import Agent
+    _crew_llm = build_crew_llm()
     data = NEXUS_AGENTS.get(slug)
     if not data:
         name = slug.replace("-", " ").title()
@@ -537,6 +544,7 @@ def nexus_get_agent(slug: str):
             role=name,
             goal=f"Complete the assigned task with excellence as {name}",
             backstory=f"Specialized AI agent working as {name}.",
+            llm=_crew_llm,
             verbose=True,
             allow_delegation=False,
         )
@@ -544,6 +552,7 @@ def nexus_get_agent(slug: str):
         role=data["role"],
         goal=data["goal"],
         backstory=data["backstory"],
+        llm=_crew_llm,
         verbose=True,
         allow_delegation=False,
     )
@@ -1337,11 +1346,14 @@ def build_simulation_crew(briefing: str, mode: str, start_phase: str = None):
     }
 
     def get_agent(slug):
+        _crew_llm = build_crew_llm()
         data = AGENTS.get(slug)
         if not data:
             return Agent(role=slug, goal="Completar a tarefa", backstory="Agente especializado.",
+                         llm=_crew_llm,
                          verbose=True, allow_delegation=False)
         return Agent(role=data["role"], goal=data["goal"], backstory=data["backstory"],
+                     llm=_crew_llm,
                      verbose=True, allow_delegation=False)
 
     orquestrador = get_agent("orquestrador-de-pipeline")

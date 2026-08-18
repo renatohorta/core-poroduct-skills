@@ -77,6 +77,34 @@ Veja [docs/INSTALLATION.md](docs/INSTALLATION.md) para detalhes.
 As skills são **portáveis** — não contêm paths de SO/máquina hardcoded nem valores
 pessoais fixos. Paths de projeto usam env vars + defaults relativos.
 
+## LLM das skills (provider-agnostic)
+
+As skills CrewAI usam o **LLM do agente onde estão sendo chamadas** (Hermes/Claude),
+com fallback para um `.env` local. O helper `skills/_shared/llm.py` resolve o LLM
+na ordem:
+
+1. Env vars do agente (`LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_PROVIDER`)
+2. `.env` na raiz do projeto (mesma convenção do crewbotics-back)
+3. Detecção de chave por provider (`GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.)
+4. Default: `gemini/gemini-2.5-flash`
+
+Isso evita que as skills caiam no default OpenAI do CrewAI (`OPENAI_API_KEY is
+required`) mesmo com outro provider configurado.
+
+## Conversa direta com as skills (scripts/chat.py)
+
+O `scripts/chat.py` permite acionar qualquer skill cp-* de forma interativa,
+usando o LLM do `.env` (sem depender do agente):
+
+```bash
+python scripts/chat.py --list                          # lista as skills
+python scripts/chat.py cp-requisitos "sistema de agendamento"
+python scripts/chat.py cp-requisitos "briefing" --dry-run
+```
+
+O script detecta automaticamente o Python com `crewai` instalado (`.venv` do
+projeto) e carrega o `.env`.
+
 ## Licença
 
 Uso interno. © Renato Sacramento Horta.
