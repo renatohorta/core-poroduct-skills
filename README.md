@@ -30,6 +30,7 @@ Pipeline completo de desenvolvimento orquestrado por crews de agentes CrewAI.
 | `cp-competitive-analysis` | Inteligência competitiva (Mercado, Competidores, Pricing, Estrategista) |
 | `cp-goal-loop` | Loop autônomo de tentativa-e-correção até atingir sucesso |
 | `cp-manutencao` | Manutenção e evolução (bug-fix, refactor, improvement, full) |
+| `cp-agilista` | Esteira de execução — monitora backlog, despacha tarefas e gerencia feedback bidirecional (dúvidas, impedimentos, retomada) |
 
 ## Estrutura do repositório
 

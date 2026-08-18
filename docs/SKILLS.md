@@ -98,3 +98,12 @@ artefatos entre fases e aplica quality gates. Inclui o pipeline NEXUS nativo.
 - **Gatilho**: "corrigir bug", "refatorar", "melhorar código", "fazer manutenção"
 - **Agentes**: Analista de Bugs, Desenvolvedor de Correção, Refatoração, Analista de Impacto
 - **Modos**: bug-fix, refactor, improvement, full
+
+### cp-agilista
+**Esteira de Execução.** Monitora o backlog (local `.kanban/` ou Trello), despacha
+tarefas prontas para a `cp-orquestrador` e gerencia o loop bidirecional de feedback.
+
+- **Gatilho**: "agilista", "esteira de tarefas", "kanban", "monitorar backlog", "dúvida", "impedimento"
+- **Componentes**: CPAgilistaDaemon (polling), CPAgilistaFeedbackLoop (dúvidas/impedimentos/retomada), TrelloIntegration, LocalIntegration
+- **Eventos**: TASK_DISPATCHED, DUVIDA, IMPEDIMENTO, HUMAN_CLARIFICATION_RECEIVED
+- **Script**: `scripts/run.py` (`--daemon`, `--duvida`, `--impedimento`, `--resume`, `--init`)
