@@ -23,34 +23,31 @@
 
 ### 🔵 Backlog
 
-| ID | Item | Tipo | Prioridade |
-|----|------|------|-----------|
-| DT-05 | Declarar dependências (`requirements.txt`) | Débito técnico | Alta |
-| DT-02 | Criar suíte de smoke tests das skills | Débito técnico | Alta |
-| DT-03 | Validar contrato `invoke` × `argparse` automaticamente | Débito técnico | Alta |
-| DT-06 | Adicionar CI (dry-run do install + smoke tests) | Débito técnico | Média |
-| DT-04 | Autenticação no `claude_proxy.py` | Segurança | Média |
-| DOC-01 | Alinhar porta do proxy entre README e código | Doc/Bug | Baixa |
+_(vazio — todo o backlog levantado na inicializacao foi concluido em 2026-08-18)_
 
-**Sequência recomendada**: DT-05 → DT-02 / DT-03 → DT-06 → DT-04 → DOC-01.
-DT-07 (já corrigido) desbloqueou DT-02: com `--help` funcionando em todas as
-skills, o smoke test agora é escrevível.
+Trabalho novo entra por `.context/inbox/`.
 
 ### 🟡 Em andamento
 
 _(vazio)_
 
-### 🟢 Concluído
+### 🟢 Concluido
 
 | ID | Item | Data |
 |----|------|------|
-| BUG-03 | Quality gate passa a reprovar por exit code ≠ 0 | 2026-08-18 |
+| DT-02 | Suite de smoke tests (`--help`, `--dry-run`, exit codes) | 2026-08-18 |
+| DT-03 | Validacao do contrato `invoke` x `argparse` | 2026-08-18 |
+| DT-04 | Autenticacao opcional no `claude_proxy.py` (`CLAUDE_PROXY_TOKEN`) | 2026-08-18 |
+| DT-05 | `requirements.txt` + `requirements-dev.txt` | 2026-08-18 |
+| DT-06 | CI (GitHub Actions: Linux 3.12/3.13 + Windows informativo) | 2026-08-18 |
+| DOC-01 | Porta do proxy alinhada em 8090 | 2026-08-18 |
+| BUG-03 | Quality gate reprova por exit code != 0 | 2026-08-18 |
 | BUG-04 | Quality gate casa keywords por palavra inteira | 2026-08-18 |
-| BUG-05 | `cp-goal-loop` deriva passo único do `--goal` | 2026-08-18 |
-| DT-07 | `crewai` com import guardado nas 12 skills — `--help` sempre funciona | 2026-08-18 |
-| DT-08 | `require_llm()` falha cedo com mensagem acionável | 2026-08-18 |
-| DT-01 | `setup_console()` força UTF-8 no stdout/stderr | 2026-08-18 |
-| INIT-01 | Inicialização da documentação em `.context/` | 2026-08-18 |
+| BUG-05 | `cp-goal-loop` deriva passo unico do `--goal` | 2026-08-18 |
+| DT-07 | `crewai` com import guardado — `--help` em 15/15 | 2026-08-18 |
+| DT-08 | `require_llm()` falha cedo com mensagem acionavel | 2026-08-18 |
+| DT-01 | `setup_console()` forca UTF-8 no stdout/stderr | 2026-08-18 |
+| INIT-01 | Inicializacao da documentacao em `.context/` | 2026-08-18 |
 
 ## Convenções
 

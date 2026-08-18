@@ -1,4 +1,4 @@
-# DT-06 — Sem CI
+# DT-06 — Sem CI [Concluido]
 
 **Tipo**: Débito técnico · **Prioridade**: Média · **Aberto em**: 2026-08-18
 **Depende de**: DT-02, DT-05
@@ -21,3 +21,11 @@ Workflow (GitHub Actions) a cada push/PR:
 ## Critério de aceite
 
 - PR com skill quebrada é bloqueado pelo CI.
+
+
+---
+
+## Resolucao
+
+**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
+credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.

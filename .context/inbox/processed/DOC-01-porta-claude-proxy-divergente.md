@@ -1,4 +1,4 @@
-# DOC-01 — Porta do claude_proxy divergente entre README e código
+# DOC-01 — Porta do claude_proxy divergente entre README e código [Concluido]
 
 **Tipo**: Bug de documentação · **Severidade**: Baixa · **Aberto em**: 2026-08-18
 
@@ -21,3 +21,11 @@ Alinhar em **8090**: mudar `DEFAULT_PORT = 8090` e atualizar o docstring do mód
 
 - `python scripts/claude_proxy.py` sobe na 8090.
 - README, docstring e código citam a mesma porta.
+
+
+---
+
+## Resolucao
+
+**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
+credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.

@@ -1,4 +1,4 @@
-# DT-04 — `claude_proxy.py` sem autenticação
+# DT-04 — `claude_proxy.py` sem autenticação [Concluido]
 
 **Tipo**: Segurança · **Prioridade**: Média · **Aberto em**: 2026-08-18
 **Relacionado**: SEC-02 em `.context/docs/03-seguranca-lgpd.md`
@@ -27,3 +27,11 @@ Combina bem com o `.env` das skills, que já precisa preencher `LLM_API_KEY`
 
 - Com `CLAUDE_PROXY_TOKEN` setado, requisição sem o header correto recebe 401.
 - `.env.example` documenta a variável.
+
+
+---
+
+## Resolucao
+
+**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
+credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.

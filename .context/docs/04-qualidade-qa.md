@@ -8,19 +8,37 @@
 - [x] Concluído (diagnóstico inicial)
 - ⚠️ **Sem testes automatizados** — maior gap de qualidade do repositório
 
-## Estado atual (verificado em 2026-08-18)
+## Estado atual (2026-08-18, após a rodada de correções)
 
 | Métrica | Valor |
 |---------|-------|
 | Skills `cp-*` | 15 |
-| Scripts `run.py` | 15 |
-| Arquivos `.md` em `skills/` | 82 |
-| Testes automatizados | **0** |
-| Pipeline de CI | **Nenhum** |
-| Manifesto de dependências (`requirements.txt`/`pyproject.toml`) | **Nenhum** |
-| Linter/formatter configurado | **Nenhum** |
+| Testes automatizados | **158** (+1 skip: daemon do agilista) |
+| Tempo da suíte | ~2min, sem nenhuma credencial |
+| Pipeline de CI | ✅ GitHub Actions (Linux 3.12/3.13 bloqueante, Windows informativo) |
+| Manifesto de dependências | ✅ `requirements.txt` (crewai>=1.15,<2) + `requirements-dev.txt` |
+| Linter/formatter | ❌ Nenhum |
 
-## Estratégia de teste proposta
+### Cobertura da suíte
+
+| Arquivo | O que garante |
+|---------|---------------|
+| `tests/test_smoke.py` | `--help` em toda skill (mesmo sem `crewai`); `--dry-run` sem credencial; exit codes 2/3 com mensagem acionável |
+| `tests/test_contrato_invoke.py` | `invoke` × `argparse` — inclusive executando a linha que o orquestrador montaria |
+| `tests/test_quality_gate.py` | Regressão de BUG-03 e BUG-04 |
+| `tests/test_claude_proxy_auth.py` | Autenticação do proxy e bind em localhost |
+| `tests/test_higiene.py` | Segredos e paths de máquina em arquivo versionado |
+
+O teste `test_comando_montado_pelo_orquestrador_e_aceito` foi validado
+reintroduzindo o BUG-05: falhou apontando o comando exato e a mensagem da skill.
+
+**O que a suíte não cobre**: a lógica interna das crews (montagem de tasks,
+encadeamento entre agentes) e qualquer comportamento que dependa de resposta de
+LLM — deliberado, por serem caros e não-determinísticos.
+
+## Estratégia de teste — implementada
+
+
 
 Como as skills são scripts CLI self-contained, o teste de maior retorno é o
 **smoke test de contrato CLI** — barato, determinístico e pega a classe de bug

@@ -1,4 +1,4 @@
-# DT-03 — Contrato `invoke` não é validado contra o argparse real
+# DT-03 — Contrato `invoke` não é validado contra o argparse real [Concluido]
 
 **Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
 
@@ -29,3 +29,11 @@ documentação derivada desse teste.
 
 - Adicionar uma skill nova sem atualizar `CREWS` faz o teste falhar com mensagem
   apontando o campo divergente.
+
+
+---
+
+## Resolucao
+
+**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
+credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.

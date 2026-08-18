@@ -1,4 +1,4 @@
-# DT-05 — Dependências não declaradas
+# DT-05 — Dependências não declaradas [Concluido]
 
 **Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
 
@@ -20,3 +20,11 @@ nota em `docs/INSTALLATION.md` sobre criar um venv local para desenvolvimento.
 
 - `pip install -r requirements.txt` em venv limpo permite rodar
   `python scripts/chat.py --list` e um `--dry-run` de skill.
+
+
+---
+
+## Resolucao
+
+**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
+credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.

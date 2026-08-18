@@ -65,7 +65,8 @@ os.environ["PATH"] = os.pathsep.join([
 The `terminal` tool runs bash (git-bash/MSYS), not cmd.exe. SSH key paths must use MSYS-style forward slashes:
 
 ```bash
-GIT_SSH_COMMAND="ssh -i /c/Users/renat/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new"
+# $HOME em git-bash ja resolve para /c/Users/<usuario>
+GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new"
 ```
 
 ## Force-push to overwrite bot commits

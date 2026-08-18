@@ -23,18 +23,21 @@
 | Orquestração | ✅ Ponto único de entrada com quality gates e 12 modos |
 | Resolução de LLM | ✅ Provider-agnostic, com falha acionável (`require_llm`) |
 | Distribuição | ✅ `install.sh` (Hermes + Claude) |
-| Testes automatizados | ❌ Inexistentes (DT-02) — desbloqueado: `--help` funciona em 15/15 |
-| CI/CD | ❌ Inexistente (DT-06) |
-| Dependências declaradas | ❌ Inexistentes (DT-05) |
+| Testes automatizados | ✅ 158 testes, sem credencial de LLM (DT-02/DT-03) |
+| CI/CD | ✅ GitHub Actions: Linux 3.12/3.13 + Windows informativo (DT-06) |
+| Dependências declaradas | ✅ `requirements.txt` / `requirements-dev.txt` (DT-05) |
 
-## Próximos passos sugeridos
+## Proximos passos sugeridos
 
-Revisados após a rodada de correções de 2026-08-18:
+O backlog levantado na inicializacao foi integralmente concluido em 2026-08-18.
+Nao ha item aberto. Sugestoes para quando houver apetite:
 
-1. **DT-05** — declarar dependências (`requirements.txt`); desbloqueia DT-02/DT-06.
-2. **DT-02** — smoke tests (`--help` já funciona em 15/15, então é escrevível agora).
-3. **DT-03** — validar contrato `invoke` × `argparse` (pegaria BUG-05 antes).
-4. **DT-06** — CI amarrando os itens acima.
-5. **DT-04** / **DOC-01** — autenticação do proxy e alinhamento de porta.
+1. **`.gitattributes`** — o repo nao tem, e o Git converte LF->CRLF nos `.md` no
+   Windows. Outra maquina (ou o job Windows do CI) vera diffs de arquivo inteiro
+   sem mudanca real. `* text=auto eol=lf` resolve.
+2. **Cobertura de codigo** — a suite cobre contrato e tratamento de erro; a
+   logica interna das crews (montagem de tasks, encadeamento) segue sem teste.
+3. **Versionamento das skills** — sem versao nem changelog, nao da para saber
+   qual versao de uma skill esta instalada num agente.
 
 Backlog completo: `.context/docs/06-kanban.md`.

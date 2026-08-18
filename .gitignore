@@ -8,6 +8,9 @@ venv/
 # Artefatos de execução
 outputs/
 *.log
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Ambiente / segredos
 .env

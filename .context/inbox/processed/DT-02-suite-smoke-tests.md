@@ -1,4 +1,4 @@
-# DT-02 — Sem suíte de testes automatizados
+# DT-02 — Sem suíte de testes automatizados [Concluido]
 
 **Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
 
@@ -24,3 +24,11 @@ Nenhum teste deve chamar LLM real — caro e não-determinístico.
 
 - `pytest` roda em < 60s sem credencial de LLM configurada.
 - Uma skill com contrato CLI quebrado faz o teste falhar.
+
+
+---
+
+## Resolucao
+
+**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
+credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.

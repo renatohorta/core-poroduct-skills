@@ -38,6 +38,11 @@ Pipeline completo de desenvolvimento orquestrado por crews de agentes CrewAI.
 ```
 core-poroduct-skills/
 ├── README.md                 # Este arquivo
+├── requirements.txt          # Dependencias de runtime (crewai)
+├── requirements-dev.txt      # + pytest
+├── pytest.ini
+├── .github/workflows/ci.yml  # CI
+├── tests/                    # Suite (nao usa credencial de LLM)
 ├── docs/
 │   ├── INSTALLATION.md       # Como instalar/atualizar em Hermes e Claude
 │   ├── ARCHITECTURE.md       # Arquitetura da Fábrica de Software
@@ -71,6 +76,44 @@ core-poroduct-skills/
 ```
 
 Veja [docs/INSTALLATION.md](docs/INSTALLATION.md) para detalhes.
+
+## Desenvolvimento e testes
+
+```bash
+# Ambiente (uv e bem mais rapido que pip para as ~135 transitivas do crewai)
+uv venv --python 3.12 .venv
+uv pip install --python .venv -r requirements-dev.txt
+
+# Suite completa — nao precisa de nenhuma credencial de LLM
+.venv/Scripts/python.exe -m pytest        # Windows
+.venv/bin/python -m pytest                # Linux/macOS
+```
+
+A suite (158 testes) **nunca chama LLM**: testar o modelo e caro, lento e
+nao-deterministico, e nao pega os bugs que de fato ocorrem aqui — que sao de
+contrato CLI e de tratamento de erro.
+
+| Arquivo | O que garante |
+|---------|---------------|
+| `tests/test_smoke.py` | `--help` funciona em toda skill (mesmo sem `crewai`); `--dry-run` roda sem credencial; falta de LLM/lib sai com codigo e mensagem acionavel |
+| `tests/test_contrato_invoke.py` | O metadado `invoke` do orquestrador bate com o `argparse` real — inclusive rodando a linha de comando que o orquestrador montaria |
+| `tests/test_quality_gate.py` | O quality gate reprova por exit code e nao aprova por substring |
+| `tests/test_claude_proxy_auth.py` | Autenticacao do proxy e bind restrito a localhost |
+| `tests/test_higiene.py` | Nenhum segredo versionado, nenhum path de maquina no codigo |
+
+CI em `.github/workflows/ci.yml`: roda a suite em Python 3.12 e 3.13 no Linux
+(bloqueante) e no Windows (informativo), mais `install.sh --dry-run`.
+
+### Codigos de saida das skills
+
+| Codigo | Significado |
+|--------|-------------|
+| 0 | Sucesso |
+| 1 | Erro de uso (briefing ausente, argumento invalido) |
+| 2 | Nenhum LLM configurado |
+| 3 | `crewai` nao instalado |
+
+`--help` funciona sempre, e `--dry-run` inspeciona a crew sem credencial.
 
 ## Portabilidade
 

@@ -5,8 +5,26 @@ Este repositório é a **fonte única de verdade** das Core Product Skills. O sc
 
 ## Pré-requisitos
 
+Para **propagar** as skills (uso normal):
+
 - **bash** (Git Bash no Windows, ou bash nativo em Linux/macOS)
 - Acesso de escrita aos diretórios de skills dos agentes
+
+Para **executar** as skills, o agente hospedeiro precisa de `crewai` instalado.
+Sem ele, `--help` continua funcionando e a execução sai com código 3 e instrução
+de instalação (nunca com traceback).
+
+## Ambiente de desenvolvimento
+
+```bash
+uv venv --python 3.12 .venv
+uv pip install --python .venv -r requirements-dev.txt
+.venv/Scripts/python.exe -m pytest      # Windows  (.venv/bin/python no Unix)
+```
+
+> **Python 3.14**: o resolvedor do `pip` pode travar o `crewai` numa versão
+> antiga (0.11.x) por causa de metadados de wheels transitivos. Com `uv`, a
+> resolução chega em 1.15.x normalmente. Na dúvida, use 3.12 ou 3.13.
 
 ## Instalação
 

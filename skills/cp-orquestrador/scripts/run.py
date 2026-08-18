@@ -1663,7 +1663,7 @@ Skills complementares (modos):
     except ImportError:
         print("❌ crewai não instalado. Execute: pip install crewai")
         print("   Ou use --auto se preferir execução direta sem CrewAI.")
-        sys.exit(1)
+        sys.exit(3)  # codigo padronizado: 3 = crewai ausente (ver require_crewai)
 
     print("🚀 Montando crew de orquestração (simulação)...\n")
     crew = build_simulation_crew(briefing, mode, args.start_phase)

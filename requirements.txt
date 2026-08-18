@@ -1,0 +1,15 @@
+# Core Product Skills — dependências de runtime das skills cp-*
+#
+# Instalação:
+#   python -m venv .venv && .venv/bin/pip install -r requirements.txt
+#   # ou, com uv (bem mais rápido):
+#   uv venv --python 3.12 .venv && uv pip install --python .venv -r requirements.txt
+#
+# Python: 3.11–3.14. O resolvedor do pip em 3.14 pode travar `crewai` numa
+# versão antiga (0.11.x) por causa de metadados de wheels transitivos; se isso
+# acontecer, use `uv` (resolve 1.15.x normalmente) ou um Python 3.12/3.13.
+#
+# Só dependências DIRETAS ficam aqui. As ~135 transitivas (chromadb, litellm,
+# openai, pydantic, onnxruntime, numpy…) vêm por resolução.
+
+crewai>=1.15,<2
