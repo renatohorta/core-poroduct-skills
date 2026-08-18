@@ -1,21 +1,35 @@
 ---
 name: cp-agilista
-description: "Agilista — esteira de execução de tarefas com polling contínuo, loop bidirecional de feedback (dúvidas e impedimentos) e integração Trello/Local. Monitora o backlog, despacha tarefas para a cp-orquestrador, captura respostas humanas e desbloqueia a esteira. Use quando o usuário disser 'agilista', 'esteira de tarefas', 'kanban', 'monitorar backlog', 'despachar tarefas', 'polling de tarefas', 'feedback loop', 'dúvida', 'impedimento', 'resumir tarefa'."
+description: "Agilista — esteira de execução de tarefas com polling contínuo, loop bidirecional de feedback (dúvidas e impedimentos) e integração Trello/Local. O LOCAL (.kanban/) é sempre a fonte de verdade; o Trello é apenas uma visão espelhada. Monitora o backlog, despacha tarefas para a cp-orquestrador, captura respostas humanas e desbloqueia a esteira. Use quando o usuário disser 'agilista', 'esteira de tarefas', 'kanban', 'monitorar backlog', 'despachar tarefas', 'polling de tarefas', 'feedback loop', 'dúvida', 'impedimento', 'resumir tarefa'."
 ---
 
 # cp-agilista — Agilista (Esteira de Execução)
 
 Agilista é o **maestro da esteira de execução**. Ele monitora continuamente o
-backlog (local ou Trello), despacha tarefas prontas para a `cp-orquestrador`,
+backlog **local** (`.kanban/`), despacha tarefas prontas para a `cp-orquestrador`,
 e gerencia o **loop bidirecional de feedback** — capturando dúvidas e impedimentos
 da IA, e retomando tarefas quando o humano responde.
+
+## Arquitetura: Local é a fonte de verdade
+
+```
+[Local .kanban/]  ──(fonte de verdade)──►  [Trello (espelho/visão)]
+      ▲                                              │
+      └────────────── sincroniza estado ──────────────┘
+```
+
+- **O LOCAL (`.kanban/`) é SEMPRE a fonte de verdade.** Todas as decisões
+  (scan, movimentação, dúvidas, impedimentos, retomada) acontecem no local.
+- **O Trello é apenas uma VISÃO ESPELHADA** do estado local. Se o espelhamento
+  estiver habilitado (`--sync-trello`), cada mudança local é refletida no Trello.
+- **O Trello NUNCA decide o estado** — apenas exibe o que está no local.
 
 ## Analogia
 
 Imagine um **maestro de orquestra** que também é o **porteiro**:
 
 ```
-[Backlog] ──► [Agilista detecta tarefa ready] ──► [Despacha p/ cp-orquestrador]
+[Backlog local] ──► [Agilista detecta tarefa ready] ──► [Despacha p/ cp-orquestrador]
                                                           │
                     ┌─────────────────────────────────────┘
                     ▼
@@ -49,21 +63,26 @@ agilista, monitore o backlog e despache as tarefas prontas
 - Cria a estrutura automática de pastas locais em `.kanban/`:
   `1-backlog/`, `2-todo/`, `3-doing/`, `4-review/`, `5-testing/`, `6-staging/`,
   `7-done/` e `blocked/`.
-- Varredura contínua de arquivos com `status: ready` (frontmatter YAML) ou
-  integração com as tools MCP do Trello (`list_name="Backlog"`).
+- Varredura contínua do **local** por arquivos com `status: ready` (frontmatter YAML).
 - Despacho padronizado do evento `TASK_DISPATCHED` para a `cp-orquestrador`.
+- Se `--sync-trello`, espelha cada despacho no Trello (visão).
 
 ### 2. `CPAgilistaFeedbackLoop` (Bidirecionalidade)
 
-- **Dúvidas (`DUVIDA`)**: injeta comentário formatado
-  (`❓ [Dúvida da IA - {origem}]`) no Trello com label `ai:waiting-human`, ou
-  adiciona seção `## ❓ Dúvidas Pendentes` no arquivo local.
-- **Impedimentos (`IMPEDIMENTO`)**: move o card/arquivo para `blocked/` e anexa
+- **Dúvidas (`DUVIDA`)**: adiciona seção `## ❓ Dúvidas Pendentes` no arquivo local
+  (e espelha no Trello com label `ai:waiting-human` se habilitado).
+- **Impedimentos (`IMPEDIMENTO`)**: move o arquivo local para `blocked/` e anexa
   log de erro e severidade.
-- **Retomada (`resume_task`)**: captura a resposta humana e emite o evento
+- **Retomada (`resume_task`)**: captura a resposta humana no local e emite o evento
   `HUMAN_CLARIFICATION_RECEIVED` para desbloquear a esteira.
 
-### 3. Template de Task `.md` e Matriz de Estados
+### 3. `TrelloMirror` (Espelho/Visão)
+
+- Reflete o estado local no Trello (cria/atualiza cards conforme a coluna local).
+- Se as tools MCP do Trello não estiverem disponíveis, o espelhamento é
+  desabilitado silenciosamente — o local continua funcionando sozinho.
+
+### 4. Template de Task `.md` e Matriz de Estados
 
 - Esquema com frontmatter YAML completo para versionamento via Git.
 
@@ -86,21 +105,24 @@ agilista, monitore o backlog e despache as tarefas prontas
 | Evento | Origem | Destino |
 |--------|--------|---------|
 | `TASK_DISPATCHED` | Agilista (daemon) | cp-orquestrador |
-| `DUVIDA` | IA (durante execução) | Humano (Trello/local) |
+| `DUVIDA` | IA (durante execução) | Humano (local + espelho Trello) |
 | `IMPEDIMENTO` | IA (durante execução) | blocked/ |
 | `HUMAN_CLARIFICATION_RECEIVED` | Humano (resposta) | Esteira (desbloqueio) |
 
 ## Script
 
 ```bash
-# Iniciar daemon de polling (local)
-python .hermes/skills/cp-agilista/scripts/run.py --daemon --source local
+# Iniciar daemon de polling (sempre lê do local)
+python .hermes/skills/cp-agilista/scripts/run.py --daemon
 
-# Iniciar daemon de polling (Trello)
-python .hermes/skills/cp-agilista/scripts/run.py --daemon --source trello
+# Iniciar daemon com espelhamento Trello (visão do local)
+python .hermes/skills/cp-agilista/scripts/run.py --daemon --sync-trello
 
-# Registrar dúvida
-python .hermes/skills/cp-agilista/scripts/run.py --duvida "task-123" --mensagem "Qual o escopo do MVP?"
+# Sincronizar o estado local inteiro para o Trello (one-shot)
+python .hermes/skills/cp-agilista/scripts/run.py --sync-trello
+
+# Registrar dúvida (no local; espelha no Trello se habilitado)
+python .hermes/skills/cp-agilista/scripts/run.py --duvida "task-123" --mensagem "Qual o escopo do MVP?" --sync-trello
 
 # Registrar impedimento
 python .hermes/skills/cp-agilista/scripts/run.py --impedimento "task-123" --erro "Falha de conexão" --severidade alta

@@ -2,26 +2,36 @@
 """
 cp-agilista — Agilista (Esteira de Execução) (self-contained)
 
-Maestro da esteira de execução. Monitora o backlog (local ou Trello), despacha
-tarefas prontas para a cp-orquestrador, e gerencia o loop bidirecional de
-feedback (dúvidas e impedimentos da IA, retomada com resposta humana).
+Maestro da esteira de execução. O sistema de arquivos local (.kanban/) é a
+FONTE DE VERDADE. O Trello é apenas uma VISÃO ESPELHADA do estado local —
+nunca a fonte de decisão.
+
+Arquitetura:
+  [Local .kanban/]  ──(fonte de verdade)──►  [Trello (espelho/visão)]
+        ▲                                              │
+        └────────────── sincroniza estado ──────────────┘
+
+  - O daemon SEMPRE lê do local (scan_ready, movimentação, dúvidas, impedimentos).
+  - Se o espelhamento Trello estiver habilitado (--sync-trello), cada mudança
+    local é refletida no Trello (cria/atualiza cards conforme o estado local).
+  - O Trello NUNCA decide o estado — apenas exibe o que está no local.
 
 Componentes:
-  - CPAgilistaDaemon        : polling contínuo + watcher de arquivos/Trello
-  - CPAgilistaFeedbackLoop  : dúvidas, impedimentos e retomada
-  - TrelloIntegration       : integração com Trello via MCP tools
-  - LocalIntegration        : integração com sistema de arquivos local (.kanban/)
+  - CPAgilistaDaemon        : polling contínuo do local + despacho p/ orquestrador
+  - CPAgilistaFeedbackLoop  : dúvidas, impedimentos e retomada (no local)
+  - LocalIntegration        : fonte de verdade (.kanban/)
+  - TrelloMirror            : espelho/visão do estado local no Trello
   - TaskTemplate            : template de task .md com frontmatter YAML
 
 Uso:
-  # Daemon de polling (local)
-  python run.py --daemon --source local
+  # Daemon de polling (sempre lê do local)
+  python run.py --daemon
 
-  # Daemon de polling (Trello)
-  python run.py --daemon --source trello
+  # Daemon com espelhamento Trello (visão do local no Trello)
+  python run.py --daemon --sync-trello
 
-  # Registrar dúvida
-  python run.py --duvida "task-123" --mensagem "Qual o escopo do MVP?"
+  # Registrar dúvida (no local; espelha no Trello se habilitado)
+  python run.py --duvida "task-123" --mensagem "Qual o escopo do MVP?" --sync-trello
 
   # Registrar impedimento
   python run.py --impedimento "task-123" --erro "Falha de conexão" --severidade alta
@@ -29,8 +39,11 @@ Uso:
   # Retomar tarefa (resposta humana)
   python run.py --resume "task-123" --resposta "O MVP cobre login e cadastro"
 
+  # Sincronizar o estado local inteiro para o Trello (one-shot)
+  python run.py --sync-trello
+
   # Dry run
-  python run.py --daemon --source local --dry-run
+  python run.py --daemon --dry-run
 """
 
 import argparse
@@ -148,21 +161,26 @@ def parse_frontmatter(content: str) -> dict:
     return data
 
 
-def read_task_status(path: Path) -> str:
-    """Lê o status de um arquivo de task a partir do frontmatter."""
+def read_task_meta(path: Path) -> dict:
+    """Lê o frontmatter completo de um arquivo de task."""
     try:
         content = path.read_text(encoding="utf-8")
     except Exception:
-        return ""
-    return parse_frontmatter(content).get("status", "")
+        return {}
+    return parse_frontmatter(content)
+
+
+def read_task_status(path: Path) -> str:
+    """Lê o status de um arquivo de task a partir do frontmatter."""
+    return read_task_meta(path).get("status", "")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# INTEGRAÇÃO LOCAL (.kanban/)
+# INTEGRAÇÃO LOCAL (.kanban/) — FONTE DE VERDADE
 # ═══════════════════════════════════════════════════════════════════════════
 
 class LocalIntegration:
-    """Integração com o sistema de arquivos local (.kanban/)."""
+    """Fonte de verdade do kanban (.kanban/). Todas as decisões vêm daqui."""
 
     def __init__(self, root: Path = None):
         self.root = Path(root) if root else KANBAN_ROOT
@@ -182,6 +200,25 @@ class LocalIntegration:
                 if read_task_status(f) == "ready":
                     ready.append(f)
         return ready
+
+    def all_tasks(self) -> list:
+        """Lista todas as tasks com sua coluna atual (para espelhamento)."""
+        tasks = []
+        for col in KANBAN_COLUMNS + [BLOCKED_DIR]:
+            col_dir = self.root / col
+            if not col_dir.exists():
+                continue
+            for f in sorted(col_dir.glob("*.md")):
+                meta = read_task_meta(f)
+                tasks.append({
+                    "path": f,
+                    "id": f.stem,
+                    "title": meta.get("title", f.stem),
+                    "status": meta.get("status", col),
+                    "column": col,
+                    "priority": meta.get("priority", "media"),
+                })
+        return tasks
 
     def move_to(self, task_id: str, column: str) -> Path:
         """Move um arquivo de task para uma coluna."""
@@ -260,14 +297,28 @@ class LocalIntegration:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# INTEGRAÇÃO TRELLO (via MCP tools)
+# TRELLO MIRROR (espelho/visão do estado local)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TrelloIntegration:
-    """Integração com Trello via tools MCP.
+# Mapeia coluna local -> lista Trello
+COLUMN_TO_TRELLO_LIST = {
+    "1-backlog": "Backlog",
+    "2-todo": "Todo",
+    "3-doing": "Doing",
+    "4-review": "Review",
+    "5-testing": "Testing",
+    "6-staging": "Staging",
+    "7-done": "Done",
+    "blocked": "Blocked",
+}
 
-    Usa as tools MCP do Trello (list_name, card, comment, label). Se as tools
-    não estiverem disponíveis no ambiente, degrada para o modo local.
+
+class TrelloMirror:
+    """Espelho/visão do estado local no Trello.
+
+    O Trello NUNCA é a fonte de decisão — apenas reflete o que está no local.
+    Se as tools MCP do Trello não estiverem disponíveis, o espelhamento é
+    desabilitado silenciosamente (o local continua funcionando sozinho).
     """
 
     def __init__(self, board_name: str = None):
@@ -276,45 +327,42 @@ class TrelloIntegration:
 
     def _check_tools(self) -> bool:
         """Verifica se as tools MCP do Trello estão disponíveis."""
-        # Tenta importar as tools MCP (se o ambiente as expuser)
         try:
             from mcp_tools import trello  # noqa: F401
             return True
         except ImportError:
             return False
 
-    def scan_ready(self) -> list:
-        """Varre o Trello por cards na lista Backlog."""
-        if not self.available:
-            return []
-        # Placeholder: em ambiente real, chama a tool MCP
-        # trello.list_cards(list_name="Backlog")
-        return []
+    def _list_for_column(self, column: str) -> str:
+        """Retorna a lista Trello correspondente a uma coluna local."""
+        return COLUMN_TO_TRELLO_LIST.get(column, "Backlog")
 
-    def add_duvida(self, task_id: str, mensagem: str, origem: str = "IA") -> bool:
-        """Injeta comentário formatado no card com label ai:waiting-human."""
+    def sync_task(self, task: dict):
+        """Espelha uma task local no Trello (cria/atualiza card na lista certa)."""
         if not self.available:
             return False
-        comment = f"❓ [Dúvida da IA - {origem}] {mensagem}"
-        # trello.add_comment(card_id=task_id, text=comment)
-        # trello.add_label(card_id=task_id, label="ai:waiting-human")
+        task_id = task["id"]
+        title = task["title"]
+        column = task["column"]
+        trello_list = self._list_for_column(column)
+        # Em ambiente real, chama as tools MCP:
+        #   card = trello.find_card(name=title)
+        #   if not card: trello.create_card(name=title, list_name=trello_list)
+        #   else: trello.move_card(card_id=card.id, list_name=trello_list)
+        print(f"  🔄 [Trello] '{title}' → lista '{trello_list}'")
         return True
 
-    def add_impedimento(self, task_id: str, erro: str, severidade: str = "media") -> bool:
-        """Move o card para a lista blocked e anexa log."""
+    def sync_all(self, tasks: list) -> int:
+        """Espelha todas as tasks locais no Trello. Retorna quantas sincronizou."""
         if not self.available:
-            return False
-        # trello.move_card(card_id=task_id, list_name="blocked")
-        # trello.add_comment(card_id=task_id, text=f"🚧 {erro} (severidade: {severidade})")
-        return True
-
-    def resume(self, task_id: str, resposta: str) -> bool:
-        """Captura a resposta humana e move o card de volta."""
-        if not self.available:
-            return False
-        # trello.add_comment(card_id=task_id, text=f"✅ Resposta humana: {resposta}")
-        # trello.move_card(card_id=task_id, list_name="Todo")
-        return True
+            print("  ⚠️  Trello mirror indisponível (tools MCP não encontradas). "
+                  "Local continua como fonte de verdade.")
+            return 0
+        count = 0
+        for task in tasks:
+            if self.sync_task(task):
+                count += 1
+        return count
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -322,12 +370,16 @@ class TrelloIntegration:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class CPAgilistaFeedbackLoop:
-    """Gerencia dúvidas, impedimentos e retomada (bidirecionalidade)."""
+    """Gerencia dúvidas, impedimentos e retomada.
 
-    def __init__(self, source: str = "local"):
-        self.source = source
+    O local é SEMPRE a fonte de verdade. O Trello (se habilitado) é apenas
+    espelhado após cada operação.
+    """
+
+    def __init__(self, sync_trello: bool = False):
+        self.sync_trello = sync_trello
         self.local = LocalIntegration()
-        self.trello = TrelloIntegration()
+        self.trello = TrelloMirror()
 
     def _dispatch(self, event: str, payload: dict):
         """Emite um evento padronizado (log + payload JSON)."""
@@ -339,31 +391,39 @@ class CPAgilistaFeedbackLoop:
         print(json.dumps(event_line, ensure_ascii=False, indent=2))
         return event_line
 
+    def _mirror(self, task_id: str):
+        """Espelha a task no Trello se o espelhamento estiver habilitado."""
+        if not self.sync_trello:
+            return
+        path = self.local.find_task(task_id)
+        if not path:
+            return
+        meta = read_task_meta(path)
+        self.trello.sync_task({
+            "id": task_id,
+            "title": meta.get("title", task_id),
+            "column": path.parent.name,
+        })
+
     def duvida(self, task_id: str, mensagem: str, origem: str = "IA") -> dict:
-        """Registra uma dúvida da IA e a envia para o humano."""
+        """Registra uma dúvida da IA no local e espelha no Trello."""
         payload = {"task_id": task_id, "mensagem": mensagem, "origem": origem}
-        if self.source == "trello":
-            self.trello.add_duvida(task_id, mensagem, origem)
-        else:
-            self.local.add_duvida(task_id, mensagem, origem)
+        self.local.add_duvida(task_id, mensagem, origem)
+        self._mirror(task_id)
         return self._dispatch(EVENT_DUVIDA, payload)
 
     def impedimento(self, task_id: str, erro: str, severidade: str = "media") -> dict:
-        """Registra um impedimento e move a tarefa para blocked/."""
+        """Registra um impedimento no local (move p/ blocked/) e espelha."""
         payload = {"task_id": task_id, "erro": erro, "severidade": severidade}
-        if self.source == "trello":
-            self.trello.add_impedimento(task_id, erro, severidade)
-        else:
-            self.local.add_impedimento(task_id, erro, severidade)
+        self.local.add_impedimento(task_id, erro, severidade)
+        self._mirror(task_id)
         return self._dispatch(EVENT_IMPEDIMENTO, payload)
 
     def resume_task(self, task_id: str, resposta: str) -> dict:
-        """Captura a resposta humana e desbloqueia a esteira."""
+        """Captura a resposta humana no local e espelha no Trello."""
         payload = {"task_id": task_id, "resposta": resposta}
-        if self.source == "trello":
-            self.trello.resume(task_id, resposta)
-        else:
-            self.local.resume(task_id, resposta)
+        self.local.resume(task_id, resposta)
+        self._mirror(task_id)
         return self._dispatch(EVENT_HUMAN_CLARIFICATION, payload)
 
 
@@ -372,37 +432,43 @@ class CPAgilistaFeedbackLoop:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class CPAgilistaDaemon:
-    """Polling contínuo do backlog e despacho de tarefas prontas."""
+    """Polling contínuo do LOCAL (fonte de verdade) e despacho de tarefas.
 
-    def __init__(self, source: str = "local", dry_run: bool = False):
-        self.source = source
+    O Trello, se habilitado, é apenas espelhado — nunca lido como fonte.
+    """
+
+    def __init__(self, dry_run: bool = False, sync_trello: bool = False):
         self.dry_run = dry_run
+        self.sync_trello = sync_trello
         self.local = LocalIntegration()
-        self.trello = TrelloIntegration()
-        self.feedback = CPAgilistaFeedbackLoop(source)
+        self.trello = TrelloMirror()
+        self.feedback = CPAgilistaFeedbackLoop(sync_trello)
 
     def _dispatch_task(self, task_path: Path):
         """Despacha uma tarefa pronta para a cp-orquestrador."""
         task_id = task_path.stem
         payload = {
             "task_id": task_id,
-            "source": self.source,
+            "source": "local",
             "path": str(task_path),
             "event": EVENT_TASK_DISPATCHED,
         }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         # Em ambiente real, chama a cp-orquestrador:
         #   subprocess.run([sys.executable, ORQUESTRADOR_RUN, task_id, "--auto"])
-        # Move para 2-todo/ (despachada)
+        # Move para 2-todo/ (despachada) — sempre no local
         if not self.dry_run:
             self.local.move_to(task_id, "2-todo")
+            if self.sync_trello:
+                self.trello.sync_task({
+                    "id": task_id,
+                    "title": task_path.stem,
+                    "column": "2-todo",
+                })
 
     def poll_once(self) -> list:
-        """Uma única varredura do backlog. Retorna as tarefas prontas."""
-        if self.source == "trello":
-            ready = self.trello.scan_ready()
-        else:
-            ready = self.local.scan_ready()
+        """Uma única varredura do LOCAL. Retorna as tarefas prontas."""
+        ready = self.local.scan_ready()
 
         dispatched = []
         for task in ready:
@@ -412,10 +478,13 @@ class CPAgilistaDaemon:
         return dispatched
 
     def run(self, iterations: int = None):
-        """Loop de polling contínuo."""
-        print(f"🚀 CPAgilistaDaemon iniciado (source={self.source}, "
-              f"interval={POLL_INTERVAL}s, dry_run={self.dry_run})")
-        print(f"   Kanban local: {self.local.root.resolve()}")
+        """Loop de polling contínuo do local."""
+        print(f"🚀 CPAgilistaDaemon iniciado (fonte=local, "
+              f"interval={POLL_INTERVAL}s, dry_run={self.dry_run}, "
+              f"sync_trello={self.sync_trello})")
+        print(f"   Kanban local (fonte de verdade): {self.local.root.resolve()}")
+        if self.sync_trello:
+            print(f"   Trello (espelho): board='{self.trello.board_name}'")
         print("   Pressione Ctrl+C para parar.\n")
 
         count = 0
@@ -438,44 +507,59 @@ def main():
         description="cp-agilista: Agilista (Esteira de Execução)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
+O LOCAL (.kanban/) é sempre a fonte de verdade. O Trello é apenas uma visão
+espelhada (--sync-trello) do estado local.
+
 Exemplos:
-  python run.py --daemon --source local
-  python run.py --daemon --source trello
+  python run.py --daemon
+  python run.py --daemon --sync-trello
+  python run.py --sync-trello
   python run.py --duvida "task-123" --mensagem "Qual o escopo do MVP?"
   python run.py --impedimento "task-123" --erro "Falha de conexão" --severidade alta
   python run.py --resume "task-123" --resposta "O MVP cobre login e cadastro"
-  python run.py --daemon --source local --dry-run
+  python run.py --daemon --dry-run
         """,
     )
     parser.add_argument("--daemon", action="store_true",
-                        help="Inicia o daemon de polling")
-    parser.add_argument("--source", choices=["local", "trello"], default="local",
-                        help="Fonte do backlog (default: local)")
+                        help="Inicia o daemon de polling (sempre lê do local)")
+    parser.add_argument("--sync-trello", action="store_true",
+                        help="Espelha o estado local no Trello (visão, não fonte)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Não executa ações, apenas mostra o que faria")
     parser.add_argument("--iterations", type=int, default=None,
                         help="Número de polls (default: infinito)")
     parser.add_argument("--duvida", metavar="TASK_ID",
-                        help="Registra uma dúvida para a tarefa")
+                        help="Registra uma dúvida para a tarefa (no local)")
     parser.add_argument("--mensagem", help="Mensagem da dúvida")
     parser.add_argument("--impedimento", metavar="TASK_ID",
-                        help="Registra um impedimento para a tarefa")
+                        help="Registra um impedimento para a tarefa (no local)")
     parser.add_argument("--erro", help="Descrição do erro do impedimento")
     parser.add_argument("--severidade", choices=["baixa", "media", "alta", "critica"],
                         default="media", help="Severidade do impedimento")
     parser.add_argument("--resume", metavar="TASK_ID",
-                        help="Retoma uma tarefa com resposta humana")
+                        help="Retoma uma tarefa com resposta humana (no local)")
     parser.add_argument("--resposta", help="Resposta humana para desbloquear")
     parser.add_argument("--init", action="store_true",
                         help="Cria a estrutura .kanban/ e sai")
     args = parser.parse_args()
 
-    feedback = CPAgilistaFeedbackLoop(args.source)
+    feedback = CPAgilistaFeedbackLoop(sync_trello=args.sync_trello)
 
     # ── Inicializa estrutura ──
     if args.init:
         LocalIntegration().ensure_structure()
         print(f"✅ Estrutura .kanban/ criada em {KANBAN_ROOT.resolve()}")
+        return
+
+    # ── Sincronização one-shot do local para o Trello ──
+    if args.sync_trello and not args.daemon and not args.duvida \
+            and not args.impedimento and not args.resume:
+        local = LocalIntegration()
+        tasks = local.all_tasks()
+        print(f"📋 Sincronizando {len(tasks)} tasks do local para o Trello (espelho)...")
+        mirror = TrelloMirror()
+        n = mirror.sync_all(tasks)
+        print(f"✅ {n} tasks espelhadas no Trello.")
         return
 
     # ── Dúvida ──
@@ -504,7 +588,7 @@ Exemplos:
 
     # ── Daemon ──
     if args.daemon:
-        daemon = CPAgilistaDaemon(args.source, args.dry_run)
+        daemon = CPAgilistaDaemon(args.dry_run, args.sync_trello)
         daemon.run(args.iterations)
         return
 

@@ -20,6 +20,7 @@ Modos de pipeline:
   full-dev          — pipeline NEXUS completo (nativo, merge de cp-full-dev)
   goal-loop         — cp-goal-loop (tentativa-e-correção até sucesso)
   manutencao        — cp-manutencao (bug-fix/refactor/improvement/full)
+  agilista          — cp-agilista (esteira de execução + feedback loop)
 
 Uso:
   # Simulação (planejamento)
@@ -71,6 +72,7 @@ SKILL_PATHS = {
     "competitive-analysis": SKILLS_DIR / "cp-competitive-analysis" / "scripts" / "run.py",
     "goal-loop": SKILLS_DIR / "cp-goal-loop" / "scripts" / "run.py",
     "manutencao": SKILLS_DIR / "cp-manutencao" / "scripts" / "run.py",
+    "agilista": SKILLS_DIR / "cp-agilista" / "scripts" / "run.py",
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -212,6 +214,17 @@ CREWS = {
         "cli_args": ["--mode"],
         "invoke": {"briefing_arg": "positional", "output": True},
     },
+    "agilista": {
+        "name": "Agilista (Esteira de Execução)",
+        "skill": "cp-agilista",
+        "description": "Monitora o backlog, despacha tarefas prontas para o orquestrador e gerencia o loop bidirecional de feedback (dúvidas, impedimentos, retomada).",
+        "agents": ["CPAgilistaDaemon", "CPAgilistaFeedbackLoop", "TrelloIntegration", "LocalIntegration"],
+        "inputs": ["Backlog (local .kanban/ ou Trello)"],
+        "outputs": ["Tarefas despachadas (TASK_DISPATCHED)", "Dúvidas/Impedimentos registrados", "Retomadas (HUMAN_CLARIFICATION_RECEIVED)"],
+        "quality_gate": "Tarefas prontas despachadas, feedback bidirecional operacional",
+        "cli_args": ["--daemon", "--source", "--duvida", "--impedimento", "--resume"],
+        "invoke": {"briefing_arg": "daemon", "output": False},
+    },
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -269,6 +282,11 @@ MODOS = {
         "name": "Manutenção e Evolução",
         "description": "Executa a crew cp-manutencao (bug-fix/refactor/improvement/full)",
         "crews": ["manutencao"],
+    },
+    "agilista": {
+        "name": "Agilista (Esteira de Execução)",
+        "description": "Executa a skill cp-agilista (daemon de polling + feedback loop)",
+        "crews": ["agilista"],
     },
 }
 
@@ -990,6 +1008,9 @@ class PipelineExecutor:
             # Primeira fase: passa o briefing conforme o modo de invocação
             if briefing_arg == "goal":
                 args.extend(["--goal", self.briefing])
+            elif briefing_arg == "daemon":
+                # Agilista: inicia o daemon de polling (sempre lê do local)
+                args.extend(["--daemon"])
             elif briefing_arg == "positional":
                 args.append(self.briefing)
             else:  # "input"

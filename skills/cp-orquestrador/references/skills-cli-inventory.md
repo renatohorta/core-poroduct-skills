@@ -8,7 +8,7 @@ posicional. Cada skill tem interface própria.
 ## Como o orquestrador aciona (metadado `invoke` no `CREWS`)
 
 Cada crew carrega `invoke` com dois campos:
-- `briefing_arg`: `positional` (arg posicional), `goal` (`--goal`), ou `input` (`--input`)
+- `briefing_arg`: `positional` (arg posicional), `goal` (`--goal`), `input` (`--input`), ou `daemon` (sem posicional — monta `--daemon --source local`)
 - `output`: `True` se a skill aceita `--output`, `False` caso contrário
 
 O `_build_cli_args` lê esse metadado. Se uma skill nova for adicionada sem o
@@ -36,6 +36,7 @@ skills que não aceitam `--output` (argparse rejeita flag desconhecido).
 | cp-competitive-analysis | posicional (`context`) / `--input` | SIM | — |
 | cp-goal-loop | **`--goal` (obrigatório)** | **NÃO** | `--steps`, `--steps-file`, `--max-attempts`, `--max-time` |
 | cp-manutencao | posicional (`descricao`) / `--input` | SIM | `--mode bug-fix/refactor/improvement/full` |
+| cp-agilista | **`--daemon` (sem posicional)** | **NÃO** | `--sync-trello`, `--duvida`, `--impedimento`, `--resume`, `--init` |
 
 > **`cp-full-dev` foi fundido no orquestrador (eliminado).** O pipeline NEXUS (7 fases,
 > 39 agentes) agora roda nativamente via `NexusExecutor` no `run.py` do orquestrador.
@@ -45,8 +46,11 @@ skills que não aceitam `--output` (argparse rejeita flag desconhecido).
 ## Pitfalls
 - `cp-goal-loop` NÃO tem argumento posicional — o briefing entra só via `--goal`.
   Passar o briefing como posicional faz o argparse falhar.
-- `cp-bug-fix` e `cp-goal-loop` NÃO aceitam `--output`. Passar
+- `cp-bug-fix`, `cp-goal-loop` e `cp-agilista` NÃO aceitam `--output`. Passar
   esse flag faz o argparse rejeitar (argumento desconhecido).
+- `cp-agilista` NÃO tem argumento posicional — só `--daemon`/`--duvida`/`--impedimento`/
+  `--resume`/`--init`. O orquestrador usa `briefing_arg: "daemon"` para montar
+  `--daemon --source local`.
 - O NEXUS (`full-dev`) é nativo: não use `SKILL_PATHS`/`CREWS` para ele — o
   `main()` desvia para `NexusExecutor` quando `mode == "full-dev"`.
 
