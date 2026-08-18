@@ -126,6 +126,10 @@ fi
 
 if [[ "$DO_CLAUDE" -eq 1 ]]; then
   echo "📦 Claude Code → $CLAUDE_SKILLS_DIR"
+  # Copia o helper compartilhado _shared para a raiz de skills (não é skill)
+  if [[ -d "$SKILLS_SRC/_shared" ]]; then
+    copy_skill "$SKILLS_SRC/_shared" "$CLAUDE_SKILLS_DIR/_shared" "_shared"
+  fi
   for s in "${SKILLS[@]}"; do
     copy_skill "$SKILLS_SRC/$s" "$CLAUDE_SKILLS_DIR/$s" "$s"
   done
