@@ -47,6 +47,7 @@ import sys
 import json
 import os
 import subprocess
+import re
 import time
 from pathlib import Path
 from datetime import datetime
@@ -55,7 +56,9 @@ from pathlib import Path as _Path
 _SKILLS_ROOT = _Path(__file__).resolve().parent.parent.parent  # skills/
 if str(_SKILLS_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_SKILLS_ROOT))
-from _shared.llm import build_crew_llm
+from _shared.llm import build_crew_llm, require_llm, setup_console
+
+setup_console()  # DT-01: UTF-8 no stdout/stderr (console Windows e cp1252)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURAÇÃO — caminhos das skills
@@ -883,6 +886,7 @@ class NexusExecutor:
             print(f"{'='*60}\n")
 
             try:
+                require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
                 crew = nexus_build_phase_crew(pk, phase, self.requirement, self.project_name)
                 print(f"  [>] Executando {len(phase['agents'])} agentes...")
                 result = crew.kickoff()
@@ -1052,22 +1056,42 @@ class PipelineExecutor:
 
         return args
 
-    def _check_quality_gate(self, crew_key: str, output_text: str) -> dict:
+    @staticmethod
+    def _count_keywords(keywords: list, text_upper: str) -> int:
+        """Conta keywords casando por PALAVRA INTEIRA.
+
+        BUG-04: com `kw in text`, a keyword de sucesso "OK" casava dentro de
+        "TOKEN" e "BROKEN" — e "invalid API token" (o erro mais comum quando
+        falta credencial) era classificado como PASS.
+        """
+        return sum(1 for kw in keywords
+                   if re.search(r"\b" + re.escape(kw) + r"\b", text_upper))
+
+    def _check_quality_gate(self, crew_key: str, output_text: str,
+                            returncode: int = 0) -> dict:
         """Analisa a saída da skill e determina se o quality gate passou."""
+        # BUG-03: exit code != 0 e FAIL incondicional. Antes, uma skill que
+        # morria com traceback nao continha nenhuma fail_keyword, caia no ramo
+        # default (WARN) e o pipeline seguia reportando sucesso.
+        if returncode != 0:
+            return {"status": "FAIL",
+                    "detail": f"Skill terminou com exit code {returncode}"}
+
         output_upper = output_text.upper()
 
         # Palavras-chave de falha
         fail_keywords = ["FAIL", "FALHOU", "REPROVADO", "NEGADO", "BLOQUEADO",
-                         "CRÍTICO", "CRITICAL", "VULNERABILIDADE CRÍTICA"]
+                         "CRÍTICO", "CRITICAL", "VULNERABILIDADE CRÍTICA",
+                         "TRACEBACK", "MODULENOTFOUNDERROR"]
         # Palavras-chave de warning
         warn_keywords = ["WARN", "RESSALVA", "ATENÇÃO", "PENDENTE", "ALERTA"]
         # Palavras-chave de sucesso
         pass_keywords = ["PASS", "APROVADO", "SUCESSO", "CONCLUÍDO", "OK",
                          "ZERO VULNERABILIDADES", "COBERTURA"]
 
-        fail_score = sum(1 for kw in fail_keywords if kw in output_upper)
-        warn_score = sum(1 for kw in warn_keywords if kw in output_upper)
-        pass_score = sum(1 for kw in pass_keywords if kw in output_upper)
+        fail_score = self._count_keywords(fail_keywords, output_upper)
+        warn_score = self._count_keywords(warn_keywords, output_upper)
+        pass_score = self._count_keywords(pass_keywords, output_upper)
 
         if fail_score > pass_score:
             return {"status": "FAIL", "detail": "Palavras-chave de falha detectadas na saída"}
@@ -1190,7 +1214,7 @@ class PipelineExecutor:
                 self._document_to_context(ck, output)
 
                 # Quality gate
-                gate = self._check_quality_gate(ck, output)
+                gate = self._check_quality_gate(ck, output, result.returncode)
                 self.gate_results[ck] = gate
 
                 print(f"  ⏱️  {elapsed:.1f}s | Quality Gate: {gate['status']}")
@@ -1659,6 +1683,7 @@ Skills complementares (modos):
         print(f"  {tn} → {agent_name}")
     print()
 
+    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
     print("🚀 Executando simulação do pipeline...\n")
     result = crew.kickoff()
     result_str = str(result)

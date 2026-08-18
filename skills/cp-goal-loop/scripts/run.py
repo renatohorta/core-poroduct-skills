@@ -20,13 +20,19 @@ import time
 import traceback
 from pathlib import Path
 from datetime import datetime
-from crewai import Agent, Task, Crew, Process
+try:
+    from crewai import Agent, Task, Crew, Process
+except ImportError:  # DT-07: a lib so e exigida na execucao real, nao no --help
+    Agent = Task = Crew = Process = None
 import sys as _sys
 from pathlib import Path as _Path
 _SKILLS_ROOT = _Path(__file__).resolve().parent.parent.parent  # skills/
 if str(_SKILLS_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_SKILLS_ROOT))
-from _shared.llm import build_crew_llm
+from _shared.llm import (build_crew_llm, require_crewai, require_llm,
+                         setup_console)
+
+setup_console()  # DT-01: UTF-8 no stdout/stderr (console Windows e cp1252)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # AGENTES EMBUTIDOS (self-contained)
@@ -232,14 +238,20 @@ def main():
     )
     args = parser.parse_args()
 
+    require_crewai()  # DT-07: mensagem acionavel em vez de traceback
+
     # --- Parse steps ---
     if args.steps:
         steps = [s.strip() for s in args.steps.split(",") if s.strip()]
     elif args.steps_file:
         steps = json.loads(Path(args.steps_file).read_text())
     else:
-        print("[!] Forneca --steps ou --steps-file")
-        sys.exit(1)
+        # BUG-05: sem --steps, deriva um passo unico do proprio objetivo. O
+        # orquestrador (modo goal-loop) so envia --goal, e exigir --steps aqui
+        # quebrava o exemplo documentado no SKILL.md. O loop de
+        # tentativa-e-correcao continua valido com um passo so.
+        steps = [args.goal]
+        print("[i] --steps nao informado: usando o objetivo como passo unico.")
 
     if not steps:
         print("[!] Lista de passos vazia")
@@ -260,6 +272,8 @@ def main():
     if args.dry_run:
         print("[i] DRY RUN — plano exibido. Remova --dry-run para executar.")
         return
+
+    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
 
     # --- Main loop ---
     start_time = time.time()

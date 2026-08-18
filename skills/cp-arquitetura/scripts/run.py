@@ -16,13 +16,19 @@ import sys
 import json
 from pathlib import Path
 from datetime import datetime
-from crewai import Agent, Task, Crew, Process
+try:
+    from crewai import Agent, Task, Crew, Process
+except ImportError:  # DT-07: a lib so e exigida na execucao real, nao no --help
+    Agent = Task = Crew = Process = None
 import sys as _sys
 from pathlib import Path as _Path
 _SKILLS_ROOT = _Path(__file__).resolve().parent.parent.parent  # skills/
 if str(_SKILLS_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_SKILLS_ROOT))
-from _shared.llm import build_crew_llm
+from _shared.llm import (build_crew_llm, require_crewai, require_llm,
+                         setup_console)
+
+setup_console()  # DT-01: UTF-8 no stdout/stderr (console Windows e cp1252)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # AGENTES EMBUTIDOS
@@ -409,6 +415,8 @@ def main():
     )
     args = parser.parse_args()
 
+    require_crewai()  # DT-07: mensagem acionavel em vez de traceback
+
     # --- Resolve briefing ---
     briefing = None
     if args.input_file:
@@ -436,6 +444,7 @@ def main():
         return
 
     print("🚀 Executando crew de arquitetura e design...\n")
+    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
     result = crew.kickoff()
     result_str = str(result)
 

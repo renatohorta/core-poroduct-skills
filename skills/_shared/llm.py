@@ -171,6 +171,61 @@ def build_crew_llm(root: Path = None):
         return None
 
 
+def require_crewai(exit_code: int = 3):
+    """Garante que o crewai esteja instalado; caso contrario sai com mensagem clara.
+
+    Chamar DEPOIS de parse_args(), para que `--help` continue funcionando sem a lib.
+    """
+    try:
+        import crewai  # noqa: F401
+    except ImportError:
+        print()
+        print("[X] crewai nao instalado - necessario para executar esta skill.")
+        print("    Instale com:  pip install crewai")
+        print("    (--help continua funcionando sem a lib.)")
+        sys.exit(exit_code)
+
+
+def require_llm(root: Path = None, exit_code: int = 2):
+    """Retorna um crewai.LLM configurado, ou sai com mensagem acionavel.
+
+    Existe porque `build_crew_llm()` retorna None quando nao ha chave: repassar
+    esse None ao Agent faz o CrewAI cair no default OpenAI e falhar mais adiante
+    com `OPENAI_API_KEY is required`. Chamar imediatamente antes do
+    `crew.kickoff()` - nunca no caminho de `--dry-run`, que deve continuar
+    funcionando sem credencial.
+    """
+    llm = build_crew_llm(root)
+    if llm is None:
+        cfg = get_llm_config(root)
+        print()
+        print("[X] Nenhum LLM configurado - esta skill precisa de um para executar.")
+        print(f"    Modelo resolvido: {cfg['model']} (sem chave)")
+        print("    Configure uma das opcoes:")
+        print("      - Env vars: LLM_MODEL, LLM_API_KEY (e LLM_API_BASE se aplicavel)")
+        print("      - Arquivo .env na raiz do projeto (veja .env.example)")
+        print("      - Chave de provider: GEMINI_API_KEY, OPENAI_API_KEY,")
+        print("        ANTHROPIC_API_KEY, GROQ_API_KEY, ...")
+        print("    Para inspecionar a skill sem LLM, use --dry-run.")
+        sys.exit(exit_code)
+    return llm
+
+
+def setup_console():
+    """Forca UTF-8 no stdout/stderr.
+
+    O console do Windows usa cp1252 e derruba a skill com UnicodeEncodeError ao
+    imprimir emoji ou box-drawing. `errors="replace"` garante que nenhum ambiente
+    exotico interrompa a execucao.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 def get_agent_llm():
     """Retorna o LLM do agente (Hermes/Claude) via CLI, se disponível.
 
