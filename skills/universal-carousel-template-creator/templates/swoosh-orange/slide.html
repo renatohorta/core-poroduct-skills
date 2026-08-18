@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carousel Slide — Swoosh Orange</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #FC6F15;
+    --bg-deep: #E96713;
+    --text-cream: #F9DEC8;
+    --title-dark: #3A1A08;
+    --swoosh: #F7C7A7;
+    --swoosh-soft: #F4A673;
+  }
+
+  html, body {
+    width: 1080px;
+    height: 1350px;
+    overflow: hidden;
+  }
+
+  body {
+    position: relative;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, var(--bg) 0%, var(--bg) 55%, var(--bg-deep) 100%);
+    color: var(--text-cream);
+    padding: 96px 88px 110px 88px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .header {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .kicker {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-cream);
+    line-height: 1.15;
+  }
+  .subtitle {
+    font-size: 30px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    color: var(--text-cream);
+    opacity: 0.92;
+    line-height: 1.25;
+  }
+
+  .title-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 40px 0;
+  }
+  .title {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1.06;
+    letter-spacing: -1px;
+    color: var(--title-dark);
+    max-width: 900px;
+    word-wrap: break-word;
+  }
+  .body {
+    margin-top: 56px;
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--title-dark);
+    opacity: 0.88;
+    max-width: 820px;
+    white-space: pre-line;
+  }
+
+  .footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+  }
+  .handle {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--text-cream);
+    letter-spacing: 1px;
+    z-index: 2;
+  }
+  .pagination {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-cream);
+    opacity: 0.85;
+    letter-spacing: 2px;
+    z-index: 2;
+  }
+
+  .swoosh {
+    position: absolute;
+    right: -180px;
+    bottom: -210px;
+    width: 760px;
+    height: 460px;
+    background: linear-gradient(160deg, var(--swoosh) 0%, var(--swoosh-soft) 100%);
+    transform: rotate(-32deg);
+    border-radius: 40px;
+    opacity: 0.95;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.18);
+  }
+  .swoosh::after {
+    content: "";
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    right: 40px;
+    bottom: 40px;
+    border: 3px solid rgba(255,255,255,0.45);
+    border-radius: 30px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="kicker">{{KICKER}}</div>
+    <div class="subtitle">{{SUBTITLE}}</div>
+  </div>
+
+  <div class="title-block">
+    <div class="title">{{TITLE}}</div>
+    <div class="body">{{BODY}}</div>
+  </div>
+
+  <div class="footer">
+    <div class="handle">{{AUTHOR_HANDLE}}</div>
+    <div class="pagination">{{SLIDE_NUM}} / {{TOTAL_SLIDES}}</div>
+  </div>
+
+  <div class="swoosh"></div>
+
+</body>
+</html>

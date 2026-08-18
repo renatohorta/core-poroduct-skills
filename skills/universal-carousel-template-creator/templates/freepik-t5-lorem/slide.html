@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lorem Ipsum Carousel</title>
+<style>
+  @font-face{font-family:'AbhayaLibre';src:url('../_shared_fonts/AbhayaLibre-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-Light.ttf') format('truetype');font-weight:300;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+  body{font-family:'Poppins',sans-serif;-webkit-font-smoothing:antialiased;}
+  :root{--brown:#844C19;--cream:#FAF2E7;--gold:#C29B6F;--deep:#553214;--ink:#2A1A0D;}
+
+  [data-layout]{position:absolute;inset:0;display:none;overflow:hidden;}
+  [data-layout].active{display:block;}
+  .topbar{position:absolute;left:0;right:0;top:0;height:80px;display:flex;align-items:center;justify-content:space-between;padding:0 60px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:20px;}
+  .brandbar{position:absolute;left:60px;right:60px;bottom:50px;display:flex;justify-content:space-between;align-items:center;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:22px;}
+  .wrap{padding:150px 70px 0;height:100%;}
+  .abhaya{font-family:'AbhayaLibre',Georgia,serif;font-weight:400;}
+  .eyebrow{font-weight:600;letter-spacing:.3em;text-transform:uppercase;font-size:21px;color:var(--gold);}
+
+  /* HERO */
+  [data-layout="hero"]{background:var(--brown);}
+  [data-layout="hero"] .topbar,[data-layout="hero"] .brandbar{color:var(--cream);}
+  [data-layout="hero"] .eyebrow{color:var(--gold);}
+  [data-layout="hero"] .wrap{padding-top:200px;}
+  [data-layout="hero"] h1{font-family:'AbhayaLibre',serif;font-size:116px;line-height:1.06;color:var(--cream);margin-top:20px;}
+  [data-layout="hero"] .lead{font-weight:300;font-size:36px;color:var(--cream);margin-top:40px;max-width:780px;line-height:1.6;opacity:.9;}
+  [data-layout="hero"] .cta-row{margin-top:54px;}
+  [data-layout="hero"] .cta{display:inline-block;background:var(--cream);color:var(--brown);font-weight:600;font-size:24px;letter-spacing:.18em;text-transform:uppercase;padding:20px 50px;}
+
+  /* CARD light */
+  [data-layout="card"]{background:var(--cream);}
+  [data-layout="card"] .topbar,[data-layout="card"] .brandbar{color:var(--brown);}
+  .cards{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:36px;}
+  .card{background:#fff;border:1px solid var(--gold);padding:44px 50px;}
+  .card h3{font-family:'AbhayaLibre',serif;font-size:54px;color:var(--brown);}
+  .card p{font-weight:400;font-size:32px;color:var(--deep);margin-top:12px;line-height:1.6;}
+
+  /* LIST */
+  [data-layout="list"]{background:var(--brown);}
+  [data-layout="list"] .topbar,[data-layout="list"] .brandbar{color:var(--cream);}
+  .list-wrap{position:absolute;inset:0;padding:180px 70px;display:flex;flex-direction:column;justify-content:center;gap:40px;}
+  .list-row{display:flex;gap:34px;align-items:flex-start;}
+  .list-row .n{flex:0 0 auto;width:90px;height:90px;border-radius:50%;background:var(--gold);color:#fff;font-family:'AbhayaLibre',serif;font-size:48px;display:flex;align-items:center;justify-content:center;}
+  .list-row h3{font-family:'AbhayaLibre',serif;font-size:46px;color:var(--cream);}
+  .list-row p{font-weight:300;font-size:30px;color:var(--cream);margin-top:6px;line-height:1.6;opacity:.9;}
+
+  /* QUOTE */
+  [data-layout="quote"]{background:var(--cream);}
+  [data-layout="quote"] .topbar,[data-layout="quote"] .brandbar{color:var(--brown);}
+  .quote-wrap{position:absolute;inset:0;padding:170px 90px;display:flex;flex-direction:column;justify-content:center;text-align:center;align-items:center;}
+  .quote-wrap .q{font-family:'AbhayaLibre',serif;font-size:88px;line-height:1.15;color:var(--brown);}
+  .quote-wrap .q-src{font-weight:500;font-size:32px;color:var(--gold);margin-top:40px;}
+  .quote-wrap .q-emoji{font-size:100px;margin-bottom:24px;}
+
+  /* CTA */
+  [data-layout="cta"]{background:var(--cream);}
+  [data-layout="cta"] .topbar,[data-layout="cta"] .brandbar{color:var(--brown);}
+  .cta-wrap{position:absolute;inset:0;padding:180px 80px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  .cta-wrap .cta-title{font-family:'AbhayaLibre',serif;font-size:108px;line-height:1.05;color:var(--brown);}
+  .cta-wrap .cta-sub{font-weight:400;font-size:36px;color:var(--deep);margin-top:32px;max-width:760px;line-height:1.6;}
+  .cta-wrap .btn{margin-top:50px;display:inline-block;background:var(--brown);color:var(--cream);font-weight:600;font-size:26px;letter-spacing:.18em;text-transform:uppercase;padding:22px 56px;}
+</style>
+</head>
+<body>
+  <section data-layout="hero" class="active">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <h1>{{TITLE}}</h1>
+      <p class="lead">{{BODY}}</p>
+      <div class="cta-row"><span class="cta">{{NEXT_LABEL}}</span></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="card">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="cards">
+      <div class="card"><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div>
+      <div class="card"><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="list">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="list-wrap">
+      <div class="list-row"><div class="n">{{ITEM_1_NUM}}</div><div><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_2_NUM}}</div><div><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_3_NUM}}</div><div><h3>{{ITEM_3_TITLE}}</h3><p>{{ITEM_3_BODY}}</p></div></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="quote">
+    <div class="quote-wrap">
+      <div class="q-emoji">{{QUOTE_EMOJI}}</div>
+      <div class="q">{{TITLE}}</div>
+      <div class="q-src">{{BODY}}</div>
+    </div>
+    <div class="brandbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+  </section>
+
+  <section data-layout="cta">
+    <div class="cta-wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="cta-title" style="margin-top:20px;">{{TITLE}}</div>
+      <p class="cta-sub">{{BODY}}</p>
+      <span class="btn">{{NEXT_LABEL}}</span>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <script>
+    (function(){var t="{{LAYOUT}}";document.querySelectorAll('[data-layout]').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-layout')===t);});})();
+  </script>
+</body>
+</html>

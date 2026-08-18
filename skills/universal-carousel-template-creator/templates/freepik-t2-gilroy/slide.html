@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adaptiv Carousel Slide</title>
+<style>
+  /* Freepik template 2 — coral/adaptiv. Montserrat + Lobster (Gilroy ExtraBold -> Montserrat-800) */
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-300.ttf') format('truetype');font-weight:300;}
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-400.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-600.ttf') format('truetype');font-weight:600;}
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-700.ttf') format('truetype');font-weight:700;}
+  @font-face{font-family:'Gilroy';src:url('../_shared_fonts/Montserrat-700.ttf') format('truetype');font-weight:800;}
+  @font-face{font-family:'Gilroy';src:url('../_shared_fonts/Montserrat-300.ttf') format('truetype');font-weight:300;}
+  @font-face{font-family:'Lobster';src:url('../_shared_fonts/Lobster-Regular.ttf') format('truetype');font-weight:400;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+  body{font-family:'Montserrat',sans-serif;-webkit-font-smoothing:antialiased;}
+  :root{--coral:#FF6148;--coral-deep:#FF4D2E;--orange:#FF8C42;--cream:#FFF4EA;--ink:#161616;--ink-soft:#4A4A55;--white:#FFFFFF;}
+
+  [data-layout]{position:absolute;inset:0;display:none;overflow:hidden;}
+  [data-layout].active{display:block;}
+  .eyebrow{font-family:'Lobster',cursive;font-size:52px;color:var(--coral-deep);}
+  .handle-strip{position:absolute;left:64px;right:64px;bottom:54px;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:30px;text-transform:uppercase;letter-spacing:2px;color:var(--ink);}
+  .handle-strip .pageno{font-weight:800;color:var(--coral-deep);}
+  .handle-strip .pageno small{font-weight:400;font-size:24px;color:var(--ink-soft);}
+
+  /* COVER */
+  [data-layout="cover"]{background:linear-gradient(135deg,var(--orange) 0%,var(--coral) 55%,var(--coral-deep) 100%);}
+  [data-layout="cover"] .dots{position:absolute;width:520px;height:520px;top:60px;left:-140px;background-image:radial-gradient(rgba(255,255,255,.4) 6px,transparent 7px);background-size:40px 40px;opacity:.5;}
+  [data-layout="cover"] .blob{position:absolute;border-radius:50%;}
+  [data-layout="cover"] .blob-a{width:600px;height:600px;background:rgba(255,255,255,.16);top:-200px;right:-160px;}
+  [data-layout="cover"] .blob-b{width:460px;height:460px;background:rgba(22,22,22,.08);bottom:-180px;left:-140px;}
+  .cover-content{position:absolute;inset:0;padding:120px 96px 180px;display:flex;flex-direction:column;justify-content:center;}
+  .cover-title{font-family:'Gilroy',sans-serif;font-weight:800;font-size:128px;line-height:1.02;color:var(--ink);text-transform:uppercase;letter-spacing:-2px;margin-top:30px;}
+  .cover-title .amp{font-family:'Lobster',cursive;color:#fff;text-transform:none;}
+  .cover-body{margin-top:42px;font-weight:300;font-size:40px;line-height:1.5;color:var(--ink);max-width:820px;}
+
+  /* INTRO */
+  [data-layout="intro"]{background:var(--cream);}
+  [data-layout="intro"] .arc{position:absolute;border-radius:50%;}
+  [data-layout="intro"] .arc-a{width:640px;height:640px;border:44px solid var(--coral);top:-230px;right:-200px;}
+  [data-layout="intro"] .arc-b{width:480px;height:480px;border:30px solid var(--orange);bottom:-170px;left:-170px;opacity:.6;}
+  .intro-inner{position:absolute;inset:0;padding:140px 96px 190px;display:flex;flex-direction:column;justify-content:center;}
+  .intro-tag{display:inline-block;align-self:flex-start;font-weight:800;font-size:26px;text-transform:uppercase;letter-spacing:3px;color:var(--ink);background:var(--coral);padding:14px 30px;border-radius:50px;margin-bottom:50px;}
+  .intro-title{font-family:'Gilroy',sans-serif;font-weight:800;font-size:96px;line-height:1.05;color:var(--ink);text-transform:uppercase;}
+  .intro-title .hl{font-family:'Lobster',cursive;font-weight:400;color:var(--coral-deep);text-transform:none;}
+  .intro-body{margin-top:40px;font-weight:400;font-size:38px;line-height:1.55;color:var(--ink-soft);max-width:850px;}
+
+  /* LIST */
+  [data-layout="list"]{background:var(--coral-deep);}
+  [data-layout="list"] .arc{position:absolute;width:700px;height:700px;border:40px solid rgba(255,255,255,.14);border-radius:50%;top:-240px;left:-230px;}
+  .list-head{position:absolute;top:110px;left:96px;right:96px;}
+  .list-title{font-family:'Gilroy',sans-serif;font-weight:800;font-size:72px;color:#fff;text-transform:uppercase;letter-spacing:-1px;margin-top:20px;}
+  .list-items{position:absolute;top:330px;left:96px;right:96px;bottom:190px;display:flex;flex-direction:column;gap:44px;}
+  .list-item{display:flex;gap:38px;align-items:flex-start;}
+  .list-num{flex:0 0 auto;width:96px;height:96px;border-radius:50%;background:#fff;color:var(--coral-deep);font-family:'Gilroy',sans-serif;font-weight:800;font-size:46px;display:flex;align-items:center;justify-content:center;}
+  .list-item-title{font-family:'Gilroy',sans-serif;font-weight:800;font-size:40px;color:#fff;text-transform:uppercase;line-height:1.2;}
+  .list-item-body{margin-top:10px;font-weight:400;font-size:29px;line-height:1.5;color:rgba(255,255,255,.88);max-width:740px;}
+
+  /* QUOTE */
+  [data-layout="quote"]{background:linear-gradient(160deg,var(--ink) 0%,#2E2E38 60%,var(--ink) 100%);}
+  [data-layout="quote"] .blob{position:absolute;border-radius:50%;}
+  [data-layout="quote"] .blob-a{width:520px;height:520px;background:var(--coral);top:-160px;left:-160px;}
+  [data-layout="quote"] .blob-b{width:380px;height:380px;background:var(--orange);bottom:-130px;right:-110px;}
+  .quote-content{position:absolute;inset:0;padding:150px 110px 200px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  .quote-mark{font-family:'Lobster',cursive;font-size:150px;color:var(--coral);line-height:.8;margin-bottom:20px;}
+  .quote-text{font-family:'Gilroy',sans-serif;font-weight:800;font-size:84px;line-height:1.15;color:#fff;text-transform:uppercase;}
+  .quote-text .hl{color:var(--orange);}
+  .quote-sub{margin-top:44px;font-weight:400;font-size:34px;color:rgba(255,255,255,.75);max-width:760px;}
+
+  /* CTA */
+  [data-layout="cta"]{background:linear-gradient(140deg,var(--coral) 0%,var(--orange) 100%);}
+  [data-layout="cta"] .arc{position:absolute;width:680px;height:680px;border:40px solid rgba(255,255,255,.18);border-radius:50%;bottom:-240px;right:-200px;}
+  [data-layout="cta"] .dots{position:absolute;width:480px;height:480px;top:60px;left:-140px;background-image:radial-gradient(rgba(22,22,22,.2) 6px,transparent 7px);background-size:40px 40px;opacity:.4;}
+  .cta-content{position:absolute;inset:0;padding:150px 110px 210px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  .cta-title{font-family:'Gilroy',sans-serif;font-weight:800;font-size:118px;line-height:1.03;color:var(--ink);text-transform:uppercase;letter-spacing:-2px;margin-top:30px;}
+  .cta-title .amp{font-family:'Lobster',cursive;color:#fff;}
+  .cta-sub{margin-top:36px;font-weight:300;font-size:38px;line-height:1.5;color:var(--ink);max-width:820px;}
+  .cta-btn{margin-top:56px;display:inline-block;font-family:'Gilroy',sans-serif;font-weight:800;font-size:36px;text-transform:uppercase;letter-spacing:1px;color:#fff;background:var(--ink);padding:28px 64px;border-radius:60px;}
+</style>
+</head>
+<body>
+  <section data-layout="cover" class="active">
+    <div class="dots"></div><div class="blob blob-a"></div><div class="blob blob-b"></div>
+    <div class="cover-content">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <h1 class="cover-title">{{TITLE}}</h1>
+      <p class="cover-body">{{BODY}}</p>
+    </div>
+    <div class="handle-strip"><span>{{HANDLE}}</span><span class="pageno">{{SLIDE_NUM}} <small>/ {{TOTAL_SLIDES}}</small></span></div>
+  </section>
+
+  <section data-layout="intro">
+    <div class="arc arc-a"></div><div class="arc arc-b"></div>
+    <div class="intro-inner">
+      <span class="intro-tag">{{EYEBROW}}</span>
+      <h2 class="intro-title">{{TITLE}}</h2>
+      <p class="intro-body">{{BODY}}</p>
+    </div>
+    <div class="handle-strip"><span>{{HANDLE}}</span><span class="pageno">{{SLIDE_NUM}} <small>/ {{TOTAL_SLIDES}}</small></span></div>
+  </section>
+
+  <section data-layout="list">
+    <div class="arc"></div>
+    <div class="list-head"><div class="eyebrow" style="color:#FFD9C9;">{{EYEBROW}}</div><h2 class="list-title">{{TITLE}}</h2></div>
+    <div class="list-items">
+      <div class="list-item"><div class="list-num">{{ITEM_1_NUM}}</div><div><div class="list-item-title">{{ITEM_1_TITLE}}</div><div class="list-item-body">{{ITEM_1_BODY}}</div></div></div>
+      <div class="list-item"><div class="list-num">{{ITEM_2_NUM}}</div><div><div class="list-item-title">{{ITEM_2_TITLE}}</div><div class="list-item-body">{{ITEM_2_BODY}}</div></div></div>
+      <div class="list-item"><div class="list-num">{{ITEM_3_NUM}}</div><div><div class="list-item-title">{{ITEM_3_TITLE}}</div><div class="list-item-body">{{ITEM_3_BODY}}</div></div></div>
+    </div>
+    <div class="handle-strip" style="color:#fff;"><span>{{HANDLE}}</span><span class="pageno" style="color:#fff;">{{SLIDE_NUM}} <small style="color:rgba(255,255,255,.6);">/ {{TOTAL_SLIDES}}</small></span></div>
+  </section>
+
+  <section data-layout="quote">
+    <div class="blob blob-a"></div><div class="blob blob-b"></div>
+    <div class="quote-content">
+      <div class="quote-mark">&ldquo;</div>
+      <h2 class="quote-text">{{TITLE}}</h2>
+      <p class="quote-sub">{{BODY}}</p>
+    </div>
+    <div class="handle-strip" style="color:#fff;"><span>{{HANDLE}}</span><span class="pageno" style="color:#FF9F6B;">{{SLIDE_NUM}} <small style="color:rgba(255,255,255,.6);">/ {{TOTAL_SLIDES}}</small></span></div>
+  </section>
+
+  <section data-layout="cta">
+    <div class="arc"></div><div class="dots"></div>
+    <div class="cta-content">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <h2 class="cta-title">{{TITLE}}</h2>
+      <p class="cta-sub">{{BODY}}</p>
+      <span class="cta-btn">{{NEXT_LABEL}}</span>
+    </div>
+    <div class="handle-strip"><span>{{HANDLE}}</span><span class="pageno">{{SLIDE_NUM}} <small>/ {{TOTAL_SLIDES}}</small></span></div>
+  </section>
+
+  <script>
+    (function(){
+      var t="{{LAYOUT}}";
+      document.querySelectorAll('[data-layout]').forEach(function(el){
+        el.classList.toggle('active', el.getAttribute('data-layout')===t);
+      });
+    })();
+  </script>
+</body>
+</html>

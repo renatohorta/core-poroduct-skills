@@ -1,0 +1,81 @@
+{
+  "template_id": "modern-minimal-coral",
+  "meta": {
+    "author_name": "RENATO SACRAMENTO",
+    "category_hashtag": "#roadtrip",
+    "handle": "@renato.academy",
+    "year": "2026"
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "layout_type": "cover",
+      "title": "8 LUGARES\nINCRÍVEIS\nDE CARRO\nSAINDO DE\nBELO HORIZONTE",
+      "underline_accent": true,
+      "arrow_type": "loop_bottom_right"
+    },
+    {
+      "slide_number": 2,
+      "layout_type": "content",
+      "title": "SERRA\nDO CIPÓ\nMG",
+      "body_text": "A uma hora de BH: cânions, cachoeiras e trilhas cercadas de natureza. Perfeita para o primeiro dia.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 3,
+      "layout_type": "content",
+      "title": "OURO\nPRETO E A\nESTRADA\nREAL",
+      "body_text": "História, pedras e a charmosa rota dos tropeiros, a poucos quilômetros de casa.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 4,
+      "layout_type": "content",
+      "title": "CHAPADA\nDIAMANTINA\nBA",
+      "body_text": "O Vale do Pati e as águas mais lindas do Nordeste esperam por você.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 5,
+      "layout_type": "content",
+      "title": "JALAPÃO\nTO",
+      "body_text": "Dunas de areia branca, fervedouros cristalinos e um pôr do sol inesquecível.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 6,
+      "layout_type": "content",
+      "title": "BONITO\nMS",
+      "body_text": "Flutuar em rios transparentes entre peixes coloridos. Natureza pura em cada mergulho.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 7,
+      "layout_type": "content",
+      "title": "FOZ DO\nIGUAÇU\nPR",
+      "body_text": "As cataratas que dividem Brasil, Argentina e Paraguai. Um espetáculo da natureza.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 8,
+      "layout_type": "content",
+      "title": "SALTA E\nHUMAHUACA\nARGENTINA",
+      "body_text": "A estrada mais colorida da América do Sul, entre montanhas que parecem pintadas.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 9,
+      "layout_type": "content",
+      "title": "DESERTO\nDO ATACAMA\nCHILE",
+      "body_text": "O céu mais limpo do mundo no fim da estrada. A viagem que fecha o roteiro com chave de ouro.",
+      "arrow_type": "pointing_right"
+    },
+    {
+      "slide_number": 10,
+      "layout_type": "cta",
+      "title": "GUARDE\nESTA LISTA\nE PLANEJE A\nPRÓXIMA\nAVENTURA",
+      "show_bookmark_icon": true,
+      "arrow_type": "pointing_left"
+    }
+  ]
+}

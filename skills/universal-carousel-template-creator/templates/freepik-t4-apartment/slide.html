@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Decorate Carousel</title>
+<style>
+  @font-face{font-family:'AbrilFatface';src:url('../_shared_fonts/AbrilFatface-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'RobotoCondensed';src:url('../_shared_fonts/RobotoCondensed-400.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'RobotoCondensed';src:url('../_shared_fonts/RobotoCondensed-700.ttf') format('truetype');font-weight:700;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+  body{font-family:'RobotoCondensed','Arial',sans-serif;-webkit-font-smoothing:antialiased;}
+  :root{--bg:#D2DBBE;--card:#F1EEE0;--ink:#2E3527;--accent:#A6AF94;--teal:#1B4046;--line:#B9B89F;}
+
+  [data-layout]{position:absolute;inset:0;display:none;overflow:hidden;}
+  [data-layout].active{display:block;}
+  .topbar{position:absolute;left:0;right:0;top:0;height:86px;display:flex;align-items:center;justify-content:space-between;padding:0 60px;font-family:'RobotoCondensed';font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);font-size:22px;}
+  .brandbar{position:absolute;left:60px;right:60px;bottom:52px;display:flex;justify-content:space-between;align-items:center;font-family:'RobotoCondensed';font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:22px;color:var(--ink);}
+  .wrap{padding:140px 70px 0;height:100%;}
+  .serif{font-family:'AbrilFatface',Georgia,serif;font-weight:400;}
+  .eyebrow{font-family:'RobotoCondensed';font-weight:700;letter-spacing:.34em;text-transform:uppercase;font-size:22px;color:var(--teal);}
+
+  /* HERO */
+  [data-layout="hero"]{background:var(--bg);}
+  [data-layout="hero"] .wrap{padding-top:220px;text-align:center;}
+  [data-layout="hero"] h1{font-family:'AbrilFatface',Georgia,serif;font-size:120px;line-height:1.05;color:var(--ink);margin-top:16px;}
+  [data-layout="hero"] h1 .lt{display:block;}
+  [data-layout="hero"] .lead{font-family:'RobotoCondensed';font-weight:400;font-size:40px;color:var(--ink);margin:40px auto 0;max-width:760px;line-height:1.5;}
+  [data-layout="hero"] .cta-row{margin-top:56px;}
+  [data-layout="hero"] .cta{display:inline-block;background:var(--teal);color:#F1EEE0;font-weight:700;font-size:26px;letter-spacing:.2em;text-transform:uppercase;padding:20px 52px;}
+
+  /* TITLE-BODY cards */
+  [data-layout="card"]{background:var(--bg);}
+  .cards{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:34px;}
+  .card{background:var(--card);border:1px solid var(--line);padding:44px 52px;}
+  .card h3{font-family:'AbrilFatface',Georgia,serif;font-size:48px;color:var(--ink);}
+  .card p{font-family:'RobotoCondensed';font-weight:400;font-size:34px;color:var(--ink);margin-top:12px;line-height:1.5;}
+
+  /* LIST with numbers */
+  [data-layout="list"]{background:var(--card);}
+  .list-wrap{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:30px;}
+  .list-row{display:flex;gap:34px;align-items:flex-start;}
+  .list-row .n{flex:0 0 auto;width:92px;height:92px;border-radius:50%;background:var(--teal);color:#F1EEE0;font-family:'AbrilFatface',serif;font-size:46px;display:flex;align-items:center;justify-content:center;}
+  .list-row h3{font-family:'AbrilFatface',Georgia,serif;font-size:44px;color:var(--ink);}
+  .list-row p{font-family:'RobotoCondensed';font-size:32px;color:var(--ink);margin-top:6px;line-height:1.5;}
+
+  /* QUOTE */
+  [data-layout="quote"]{background:var(--teal);}
+  [data-layout="quote"] .quote-wrap{position:absolute;inset:0;padding:160px 90px;display:flex;flex-direction:column;justify-content:center;text-align:center;align-items:center;}
+  [data-layout="quote"] .q{font-family:'AbrilFatface',Georgia,serif;font-size:84px;line-height:1.15;color:#F1EEE0;}
+  [data-layout="quote"] .q-src{font-family:'RobotoCondensed';font-size:36px;color:#D2DBBE;margin-top:40px;}
+  [data-layout="quote"] .q-emoji{font-size:96px;margin-bottom:24px;}
+
+  /* CTA / COLLAB */
+  [data-layout="cta"]{background:var(--bg);}
+  [data-layout="cta"] .cta-wrap{position:absolute;inset:0;padding:170px 80px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  [data-layout="cta"] .cta-title{font-family:'AbrilFatface',Georgia,serif;font-size:104px;line-height:1.05;color:var(--ink);}
+  [data-layout="cta"] .cta-sub{font-family:'RobotoCondensed';font-size:38px;color:var(--ink);margin-top:34px;max-width:760px;line-height:1.5;}
+  [data-layout="cta"] .btn{margin-top:52px;display:inline-block;background:var(--teal);color:#F1EEE0;font-weight:700;font-size:28px;letter-spacing:.2em;text-transform:uppercase;padding:22px 58px;}
+</style>
+</head>
+<body>
+  <section data-layout="hero" class="active">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <h1><span class="lt">{{TITLE_L1}}</span><span class="lt">{{TITLE_L2}}</span></h1>
+      <p class="lead">{{BODY}}</p>
+      <div class="cta-row"><span class="cta">{{NEXT_LABEL}}</span></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="card">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="cards">
+      <div class="card"><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div>
+      <div class="card"><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="list">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="list-wrap">
+      <div class="list-row"><div class="n">{{ITEM_1_NUM}}</div><div><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_2_NUM}}</div><div><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_3_NUM}}</div><div><h3>{{ITEM_3_TITLE}}</h3><p>{{ITEM_3_BODY}}</p></div></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="quote">
+    <div class="quote-wrap">
+      <div class="q-emoji">{{QUOTE_EMOJI}}</div>
+      <div class="q">{{TITLE}}</div>
+      <div class="q-src">{{BODY}}</div>
+    </div>
+    <div class="brandbar" style="color:#F1EEE0;"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+  </section>
+
+  <section data-layout="cta">
+    <div class="cta-wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="cta-title" style="margin-top:20px;">{{TITLE}}</div>
+      <p class="cta-sub">{{BODY}}</p>
+      <span class="btn">{{NEXT_LABEL}}</span>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <script>
+    (function(){var t="{{LAYOUT}}";document.querySelectorAll('[data-layout]').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-layout')===t);});})();
+  </script>
+</body>
+</html>

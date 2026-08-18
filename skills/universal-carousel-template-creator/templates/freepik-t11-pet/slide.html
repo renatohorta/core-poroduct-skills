@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pet Tips Carousel</title>
+<style>
+  @font-face{font-family:'Gaegu';src:url('../_shared_fonts/Gaegu-Bold.ttf') format('truetype');font-weight:700;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;}
+  @font-face{font-family:'Poppins';src:url('../_shared_fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+  body{font-family:'Poppins','Arial',sans-serif;-webkit-font-smoothing:antialiased;}
+  :root{--amber:#E4B97A;--sand:#E0D3CA;--deep:#5A4128;--ink:#6B4F35;--card:#F3EDE6;--line:#D5C9C0;}
+
+  [data-layout]{position:absolute;inset:0;display:none;overflow:hidden;}
+  [data-layout].active{display:block;}
+  .topbar{position:absolute;left:0;right:0;top:0;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 60px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:20px;color:var(--deep);}
+  .brandbar{position:absolute;left:60px;right:60px;bottom:52px;display:flex;justify-content:space-between;align-items:center;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:21px;color:var(--deep);}
+  .wrap{padding:150px 70px 0;height:100%;}
+  .gaegu{font-family:'Gaegu',cursive;font-weight:700;}
+  .eyebrow{font-weight:700;letter-spacing:.26em;text-transform:uppercase;font-size:20px;color:var(--deep);}
+
+  /* HERO */
+  [data-layout="hero"]{background:var(--amber);}
+  [data-layout="hero"] .wrap{padding-top:210px;text-align:center;}
+  [data-layout="hero"] .gaegu{font-size:150px;line-height:.95;color:#fff;margin-top:16px;}
+  [data-layout="hero"] .lead{font-weight:500;font-size:34px;color:var(--deep);margin:44px auto 0;max-width:760px;line-height:1.7;}
+  [data-layout="hero"] .cta-row{margin-top:54px;}
+  [data-layout="hero"] .cta{display:inline-block;background:var(--deep);color:#fff;font-weight:700;font-size:24px;letter-spacing:.14em;text-transform:uppercase;padding:20px 50px;border-radius:40px;}
+
+  /* TIPS list */
+  [data-layout="tips"]{background:var(--sand);}
+  .tips-wrap{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:32px;}
+  .tip-row{background:var(--card);border-radius:30px;padding:34px 44px;display:flex;gap:34px;align-items:flex-start;box-shadow:0 18px 44px rgba(90,65,40,.10);}
+  .tip-row .n{flex:0 0 auto;width:84px;height:84px;border-radius:50%;background:var(--amber);color:#fff;font-family:'Gaegu',cursive;font-size:48px;display:flex;align-items:center;justify-content:center;}
+  .tip-row h3{font-family:'Gaegu',cursive;font-size:52px;color:var(--deep);line-height:1;}
+  .tip-row p{font-weight:500;font-size:29px;color:var(--ink);margin-top:8px;line-height:1.6;}
+
+  /* CARD */
+  [data-layout="card"]{background:var(--amber);}
+  .cards{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:36px;}
+  .card{background:var(--card);border-radius:30px;padding:44px 50px;}
+  .card h3{font-family:'Gaegu',cursive;font-size:56px;color:var(--deep);}
+  .card p{font-weight:500;font-size:30px;color:var(--ink);margin-top:10px;line-height:1.6;}
+
+  /* CTA */
+  [data-layout="cta"]{background:var(--deep);}
+  [data-layout="cta"] .topbar,[data-layout="cta"] .brandbar{color:var(--amber);}
+  .cta-wrap{position:absolute;inset:0;padding:180px 80px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  .cta-wrap .eyebrow{color:var(--amber);}
+  .cta-wrap .gaegu{font-size:130px;color:#fff;line-height:.95;}
+  .cta-wrap .cta-sub{font-weight:500;font-size:32px;color:var(--sand);margin-top:34px;max-width:760px;line-height:1.7;}
+  .cta-wrap .btn{margin-top:48px;display:inline-block;background:var(--amber);color:var(--deep);font-weight:700;font-size:26px;letter-spacing:.14em;text-transform:uppercase;padding:22px 56px;border-radius:40px;}
+</style>
+</head>
+<body>
+  <section data-layout="hero" class="active">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="gaegu">{{TITLE}}</div>
+      <p class="lead">{{BODY}}</p>
+      <div class="cta-row"><span class="cta">{{NEXT_LABEL}}</span></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="tips">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="tips-wrap">
+      <div class="tip-row"><div class="n">{{ITEM_1_NUM}}</div><div><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div></div>
+      <div class="tip-row"><div class="n">{{ITEM_2_NUM}}</div><div><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div></div>
+      <div class="tip-row"><div class="n">{{ITEM_3_NUM}}</div><div><h3>{{ITEM_3_TITLE}}</h3><p>{{ITEM_3_BODY}}</p></div></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="card">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="cards">
+      <div class="card"><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div>
+      <div class="card"><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="cta">
+    <div class="cta-wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="gaegu" style="margin-top:16px;">{{TITLE}}</div>
+      <p class="cta-sub">{{BODY}}</p>
+      <span class="btn">{{NEXT_LABEL}}</span>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <script>
+    (function(){var t="{{LAYOUT}}";document.querySelectorAll('[data-layout]').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-layout')===t);});})();
+  </script>
+</body>
+</html>

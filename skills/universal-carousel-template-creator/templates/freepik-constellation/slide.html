@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constellation Carousel Slide</title>
+<style>
+  /* ============================================================
+     DESIGN EXTRACTED FROM "carousel-instagram-post-design"
+     (Freepik template, ID 11378430) — theme: constellations/astrology.
+     Canvas 1080x1350 (4:5). Preview 2000x2000 showed a 2x2 grid
+     of 4 square slides scaled to 4:5.
+     Palette: bg lavender #CDC4FB, ink indigo #7E7AF5,
+     white cards #FFFFFF, accent purple #7070F0, pink #E890D0.
+     ============================================================ */
+  @font-face{font-family:'Poppins';src:url('fonts/Poppins-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Poppins';src:url('fonts/Poppins-Medium.ttf') format('truetype');font-weight:500;}
+  @font-face{font-family:'Poppins';src:url('fonts/Poppins-SemiBold.ttf') format('truetype');font-weight:600;}
+  @font-face{font-family:'Poppins';src:url('fonts/Poppins-Bold.ttf') format('truetype');font-weight:700;}
+  @font-face{font-family:'Poppins';src:url('fonts/Poppins-ExtraBold.ttf') format('truetype');font-weight:800;}
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  :root{
+    --bg:#CDC4FB;         /* lavanda */
+    --ink:#7E7AF5;        /* índigo do texto */
+    --card:#FFFFFF;
+    --accent:#7070F0;     /* roxo estrelas */
+    --pink:#E890D0;
+    --card-radius:44px;
+  }
+
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+
+  body{
+    font-family:'Poppins',-apple-system,'Segoe UI',Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .slide{
+    width:1080px;height:1350px;
+    padding:70px 70px 80px;
+    display:flex;flex-direction:column;
+    position:relative;overflow:hidden;
+  }
+
+  /* ---- Constelação decorativa (estrelas + linhas) ---- */
+  .stars{position:absolute;pointer-events:none;opacity:.55;}
+  .stars svg{width:100%;height:100%;}
+  .stars.tr{top:-60px;right:-60px;width:420px;height:420px;}
+  .stars.bl{bottom:-80px;left:-80px;width:460px;height:460px;opacity:.4;}
+
+  /* ---- Topo: logo / etapa ---- */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:30px;z-index:2;
+  }
+  .brand{font-size:30px;font-weight:700;letter-spacing:1px;}
+  .step{
+    font-size:28px;font-weight:600;opacity:.85;
+    padding:10px 26px;background:rgba(255,255,255,.7);
+    border-radius:100px;
+  }
+
+  /* ---- Conteúdo ---- */
+  .content{flex:1;display:flex;flex-direction:column;justify-content:center;gap:44px;z-index:2;}
+
+  /* LAYOUT A: Cover */
+  .cover-eyebrow{
+    font-size:34px;font-weight:600;letter-spacing:3px;
+    text-transform:uppercase;opacity:.85;
+  }
+  .cover-title{
+    font-size:120px;font-weight:800;line-height:1.08;letter-spacing:-1px;
+    max-width:940px;
+  }
+  .cover-sub{font-size:46px;font-weight:500;line-height:1.45;max-width:900px;opacity:.9;}
+
+  /* LAYOUT B: Title + paragraph */
+  .title{font-size:92px;font-weight:800;line-height:1.12;letter-spacing:-0.5px;max-width:940px;}
+  .para{font-size:44px;font-weight:500;line-height:1.55;max-width:940px;opacity:.92;}
+
+  /* Card branco */
+  .card{
+    background:var(--card);
+    border-radius:var(--card-radius);
+    padding:56px 60px;
+    box-shadow:0 24px 60px rgba(90,80,180,.16);
+    max-width:940px;
+  }
+  .card .title{font-size:76px;}
+  .card .para{font-size:42px;}
+
+  /* LAYOUT C: Steps/timeline (zodíaco) */
+  .steps{display:flex;flex-direction:column;gap:26px;}
+  .step-row{
+    background:var(--card);border-radius:34px;padding:34px 44px;
+    display:flex;align-items:center;gap:30px;
+    box-shadow:0 20px 50px rgba(90,80,180,.14);
+  }
+  .step-row .num{
+    font-size:42px;font-weight:800;color:#fff;
+    background:var(--ink);width:86px;height:86px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .step-row h3{font-size:46px;font-weight:700;line-height:1.2;}
+  .step-row p{font-size:36px;font-weight:500;line-height:1.4;opacity:.85;margin-top:4px;}
+
+  /* LAYOUT D: Closing / CTA */
+  .closing-title{font-size:104px;font-weight:800;line-height:1.1;max-width:940px;}
+  .closing-sub{font-size:46px;font-weight:500;line-height:1.5;max-width:900px;opacity:.92;}
+  .cta{
+    align-self:flex-start;margin-top:20px;
+    background:var(--ink);color:#fff;
+    font-size:44px;font-weight:700;
+    padding:28px 56px;border-radius:100px;
+  }
+
+  /* ---- Rodapé ---- */
+  .footer{
+    margin-top:auto;z-index:2;
+    display:flex;justify-content:space-between;align-items:center;
+    padding-top:34px;
+  }
+  .footer .handle{font-size:32px;font-weight:600;opacity:.9;}
+  .footer .cta-link{font-size:30px;font-weight:600;opacity:.75;}
+</style>
+</head>
+<body>
+  <div class="slide">
+
+    <!-- constelação decorativa -->
+    <div class="stars tr">
+      <svg viewBox="0 0 300 300" fill="none">
+        <path d="M30 40 L90 90 L160 60 L210 130 L270 110" stroke="#7070F0" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="30" cy="40" r="7" fill="#7070F0"/><circle cx="90" cy="90" r="7" fill="#7070F0"/>
+        <circle cx="160" cy="60" r="7" fill="#7070F0"/><circle cx="210" cy="130" r="7" fill="#7070F0"/>
+        <circle cx="270" cy="110" r="7" fill="#7070F0"/>
+        <circle cx="60" cy="160" r="5" fill="#E890D0"/><circle cx="250" cy="40" r="5" fill="#E890D0"/>
+        <path d="M60 160 L130 200 L200 170 L260 220" stroke="#E890D0" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="60" cy="160" r="5" fill="#E890D0"/><circle cx="130" cy="200" r="5" fill="#E890D0"/>
+        <circle cx="200" cy="170" r="5" fill="#E890D0"/><circle cx="260" cy="220" r="5" fill="#E890D0"/>
+      </svg>
+    </div>
+    <div class="stars bl">
+      <svg viewBox="0 0 300 300" fill="none">
+        <path d="M40 260 L100 210 L170 240 L230 180 L280 200" stroke="#7070F0" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="40" cy="260" r="6" fill="#7070F0"/><circle cx="100" cy="210" r="6" fill="#7070F0"/>
+        <circle cx="170" cy="240" r="6" fill="#7070F0"/><circle cx="230" cy="180" r="6" fill="#7070F0"/>
+        <circle cx="280" cy="200" r="6" fill="#7070F0"/>
+        <circle cx="90" cy="130" r="5" fill="#E890D0"/><circle cx="200" cy="90" r="5" fill="#E890D0"/>
+      </svg>
+    </div>
+
+    <div class="topbar">
+      <div class="brand">{{BRAND}}</div>
+      <div class="step">{{STEP_LABEL}}</div>
+    </div>
+
+    <div class="content">
+      <!-- LAYOUT A: Cover -->
+      <div class="layout" data-layout="A">
+        <div class="cover-eyebrow">{{EYEBROW}}</div>
+        <div class="cover-title">{{TITLE}}</div>
+        <div class="cover-sub">{{BODY}}</div>
+      </div>
+
+      <!-- LAYOUT B: Title + paragraph -->
+      <div class="layout" data-layout="B">
+        <div class="title">{{TITLE}}</div>
+        <div class="para">{{BODY}}</div>
+      </div>
+
+      <!-- LAYOUT B2: Title + paragraph inside white card -->
+      <div class="layout" data-layout="B2">
+        <div class="card">
+          <div class="title">{{TITLE}}</div>
+          <div class="para">{{BODY}}</div>
+        </div>
+      </div>
+
+      <!-- LAYOUT C: Steps -->
+      <div class="layout" data-layout="C">
+        <div class="title">{{TITLE}}</div>
+        <div class="steps">
+          <div class="step-row"><div class="num">{{ITEM_1_NUM}}</div><div><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div></div>
+          <div class="step-row"><div class="num">{{ITEM_2_NUM}}</div><div><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div></div>
+          <div class="step-row"><div class="num">{{ITEM_3_NUM}}</div><div><h3>{{ITEM_3_TITLE}}</h3><p>{{ITEM_3_BODY}}</p></div></div>
+        </div>
+      </div>
+
+      <!-- LAYOUT D: Closing / CTA -->
+      <div class="layout" data-layout="D">
+        <div class="closing-title">{{TITLE}}</div>
+        <div class="closing-sub">{{BODY}}</div>
+        <div class="cta">{{CTA_LABEL}}</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="handle">{{HANDLE}}</div>
+      <div class="cta-link">{{NEXT_LABEL}}</div>
+    </div>
+
+  </div>
+
+  <script>
+    (function(){
+      var t="{{LAYOUT}}";
+      document.querySelectorAll('.layout').forEach(function(el){
+        el.style.display=(el.getAttribute('data-layout')===t)?'flex':'none';
+      });
+    })();
+  </script>
+</body>
+</html>

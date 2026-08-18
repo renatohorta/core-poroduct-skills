@@ -1,0 +1,160 @@
+{
+  "templates": [
+    {
+      "template_id": "modern-minimal-coral",
+      "name": "Minimalist Editorial Coral",
+      "file": "modern-minimal-coral.md",
+      "colors": [
+        "#F2EDE4",
+        "#0D0D0D",
+        "#FF522B"
+      ],
+      "best_for": "Editorial minimalista, branding, papel artesanal",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-beige-orange",
+      "name": "Beige & Orange Microblog (Harper Russo)",
+      "file": "crewbotics-beige-orange.md",
+      "colors": [
+        "#f2ede0",
+        "#050505",
+        "#f95f34"
+      ],
+      "best_for": "Microblog/branding, bege + laranja",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-bw-productivity",
+      "name": "Black & White Productivity (Daniel Gallego)",
+      "file": "crewbotics-bw-productivity.md",
+      "colors": [
+        "#090706",
+        "#ffffff",
+        "#dde706"
+      ],
+      "best_for": "Produtividade/time block, preto e branco",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-bw-marketing-tips",
+      "name": "B&W Marketing Tips (Reallygreatsite)",
+      "file": "crewbotics-bw-marketing-tips.md",
+      "colors": [
+        "#fafafa",
+        "#000000",
+        "#1e1e1e"
+      ],
+      "best_for": "Dicas de marketing, P&B minimalista",
+      "n_slides": 7
+    },
+    {
+      "template_id": "crewbotics-bw-red",
+      "name": "B&W + Red Personal Branding (Daniel Gallego)",
+      "file": "crewbotics-bw-red.md",
+      "colors": [
+        "#140d0f",
+        "#ffffff",
+        "#f33c02"
+      ],
+      "best_for": "Personal branding, P&B + vermelho",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-blue-running",
+      "name": "Blue Running Tips (Borchelle)",
+      "file": "crewbotics-blue-running.md",
+      "colors": [
+        "#122733",
+        "#ffffff",
+        "#ffffff"
+      ],
+      "best_for": "Dicas de corrida, azul dinâmico",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-green-business",
+      "name": "Green Business (Salford & Co.)",
+      "file": "crewbotics-green-business.md",
+      "colors": [
+        "#1f3721",
+        "#ffffff",
+        "#1cf231"
+      ],
+      "best_for": "Como começar um negócio, verde",
+      "n_slides": 5
+    },
+    {
+      "template_id": "crewbotics-orange-social",
+      "name": "Orange Social Media Tips (Connor Hamilton)",
+      "file": "crewbotics-orange-social.md",
+      "colors": [
+        "#fd6f15",
+        "#000000",
+        "#000000"
+      ],
+      "best_for": "Dicas de mídia social, laranja",
+      "n_slides": 5
+    },
+    {
+      "template_id": "crewbotics-orange-black",
+      "name": "Orange & Black Branding (Harper Russo)",
+      "file": "crewbotics-orange-black.md",
+      "colors": [
+        "#f2e9eb",
+        "#000000",
+        "#f34714"
+      ],
+      "best_for": "Branding, laranja/preto",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-purple-marketing",
+      "name": "Purple Marketing + AI (Daniel Gallego)",
+      "file": "crewbotics-purple-marketing.md",
+      "colors": [
+        "#191a1a",
+        "#ffffff",
+        "#7c6af1"
+      ],
+      "best_for": "Marketing moderno + IA, roxo/preto/branco",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-sage-advertising",
+      "name": "Sage Advertising (Reallygreatsite)",
+      "file": "crewbotics-sage-advertising.md",
+      "colors": [
+        "#626048",
+        "#ffffff",
+        "#ffe4cc"
+      ],
+      "best_for": "O que saber antes de anunciar, sage",
+      "n_slides": 7
+    },
+    {
+      "template_id": "crewbotics-yellow-black",
+      "name": "Yellow & Black Microblog (Harper Russo)",
+      "file": "crewbotics-yellow-black.md",
+      "colors": [
+        "#161616",
+        "#ffffff",
+        "#f0c405"
+      ],
+      "best_for": "Microblog marketing, amarelo/preto",
+      "n_slides": 6
+    },
+    {
+      "template_id": "crewbotics-yellow-green-habits",
+      "name": "Yellow & Green Habit Tips (Thynk Unlimited)",
+      "file": "crewbotics-yellow-green-habits.md",
+      "colors": [
+        "#efda50",
+        "#000000",
+        "#2d2611"
+      ],
+      "best_for": "Dicas de hábitos, amarelo/verde",
+      "n_slides": 5
+    }
+  ]
+}

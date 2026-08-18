@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carousel Advertising</title>
+<style>
+  @font-face{font-family:'BebasNeue';src:url('../_shared_fonts/BebasNeue-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'GreatVibes';src:url('../_shared_fonts/GreatVibes-Regular.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-400.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-500.ttf') format('truetype');font-weight:500;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+  body{font-family:'Montserrat','Arial',sans-serif;-webkit-font-smoothing:antialiased;}
+  :root{--navy:#021E57;--red:#D30045;--white:#fff;--soft:#8D94A3;}
+
+  [data-layout]{position:absolute;inset:0;display:none;overflow:hidden;}
+  [data-layout].active{display:block;}
+  .topbar{position:absolute;left:0;right:0;top:0;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 60px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;font-size:21px;}
+  .brandbar{position:absolute;left:60px;right:60px;bottom:52px;display:flex;justify-content:space-between;align-items:center;font-weight:500;letter-spacing:.16em;text-transform:uppercase;font-size:22px;}
+  .wrap{padding:150px 70px 0;height:100%;}
+  .bebas{font-family:'BebasNeue','Arial',sans-serif;font-weight:400;}
+  .script{font-family:'GreatVibes',cursive;}
+  .eyebrow{font-family:'Montserrat';font-weight:500;letter-spacing:.3em;text-transform:uppercase;font-size:20px;color:var(--red);}
+
+  /* HERO navy */
+  [data-layout="hero"]{background:var(--navy);}
+  [data-layout="hero"] .topbar,[data-layout="hero"] .brandbar{color:#fff;}
+  [data-layout="hero"] .wrap{padding-top:200px;}
+  [data-layout="hero"] h1{font-family:'BebasNeue',sans-serif;font-size:150px;line-height:1;color:#fff;margin-top:16px;letter-spacing:.01em;}
+  [data-layout="hero"] h1 .red{color:var(--red);}
+  [data-layout="hero"] .lead{font-weight:400;font-size:34px;color:#fff;margin-top:40px;max-width:780px;line-height:1.6;opacity:.92;}
+  [data-layout="hero"] .cta-row{margin-top:54px;}
+  [data-layout="hero"] .cta{display:inline-block;background:var(--red);color:#fff;font-weight:500;font-size:24px;letter-spacing:.16em;text-transform:uppercase;padding:20px 52px;}
+
+  /* CARD light */
+  [data-layout="card"]{background:#fff;}
+  [data-layout="card"] .topbar,[data-layout="card"] .brandbar{color:var(--navy);}
+  .cards{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:36px;}
+  .card{background:#F6F7F9;border-left:14px solid var(--red);padding:44px 50px;}
+  .card h3{font-family:'BebasNeue',sans-serif;font-size:48px;color:var(--navy);letter-spacing:.03em;}
+  .card p{font-weight:400;font-size:30px;color:var(--soft);margin-top:10px;line-height:1.6;}
+
+  /* LIST navy */
+  [data-layout="list"]{background:var(--navy);}
+  [data-layout="list"] .topbar,[data-layout="list"] .brandbar{color:#fff;}
+  .list-wrap{position:absolute;inset:0;padding:180px 70px;display:flex;flex-direction:column;justify-content:center;gap:36px;}
+  .list-row{display:flex;gap:34px;align-items:flex-start;}
+  .list-row .n{flex:0 0 auto;width:88px;height:88px;background:var(--red);color:#fff;font-family:'BebasNeue',sans-serif;font-size:50px;display:flex;align-items:center;justify-content:center;}
+  .list-row h3{font-family:'BebasNeue',sans-serif;font-size:46px;color:#fff;letter-spacing:.03em;}
+  .list-row p{font-weight:400;font-size:29px;color:#fff;margin-top:6px;line-height:1.6;opacity:.88;}
+
+  /* CTA */
+  [data-layout="cta"]{background:var(--red);}
+  [data-layout="cta"] .topbar,[data-layout="cta"] .brandbar{color:#fff;}
+  .cta-wrap{position:absolute;inset:0;padding:180px 80px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  .cta-wrap .eyebrow{color:#fff;}
+  .cta-wrap .cta-title{font-family:'BebasNeue',sans-serif;font-size:140px;line-height:1;color:#fff;letter-spacing:.01em;margin-top:16px;}
+  .cta-wrap .cta-sub{font-weight:400;font-size:32px;color:#fff;margin-top:30px;max-width:760px;line-height:1.6;}
+  .cta-wrap .btn{margin-top:48px;display:inline-block;background:var(--navy);color:#fff;font-weight:500;font-size:26px;letter-spacing:.16em;text-transform:uppercase;padding:22px 56px;}
+</style>
+</head>
+<body>
+  <section data-layout="hero" class="active">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <h1>{{TITLE}}</h1>
+      <p class="lead">{{BODY}}</p>
+      <div class="cta-row"><span class="cta">{{NEXT_LABEL}}</span></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="card">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="cards">
+      <div class="card"><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div>
+      <div class="card"><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="list">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="list-wrap">
+      <div class="list-row"><div class="n">{{ITEM_1_NUM}}</div><div><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_2_NUM}}</div><div><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_3_NUM}}</div><div><h3>{{ITEM_3_TITLE}}</h3><p>{{ITEM_3_BODY}}</p></div></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="cta">
+    <div class="cta-wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="cta-title">{{TITLE}}</div>
+      <p class="cta-sub">{{BODY}}</p>
+      <span class="btn">{{NEXT_LABEL}}</span>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <script>
+    (function(){var t="{{LAYOUT}}";document.querySelectorAll('[data-layout]').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-layout')===t);});})();
+  </script>
+</body>
+</html>

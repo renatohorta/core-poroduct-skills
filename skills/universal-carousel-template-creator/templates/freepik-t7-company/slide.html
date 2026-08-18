@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Company Carousel</title>
+<style>
+  @font-face{font-family:'LibreBaskerville';src:url('../_shared_fonts/LibreBaskerville-400.ttf') format('truetype');font-weight:400;}
+  @font-face{font-family:'LibreBaskerville';src:url('../_shared_fonts/LibreBaskerville-700.ttf') format('truetype');font-weight:700;}
+  @font-face{font-family:'Montserrat';src:url('../_shared_fonts/Montserrat-600.ttf') format('truetype');font-weight:600;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;overflow:hidden;}
+  body{font-family:'Montserrat','Arial',sans-serif;-webkit-font-smoothing:antialiased;}
+  :root{--rose:#B5656F;--rose-light:#DE9FA7;--bg:#FEEBEF;--white:#FFFFFF;--ink:#4A2C31;--line:#ECD2D7;}
+
+  [data-layout]{position:absolute;inset:0;display:none;overflow:hidden;}
+  [data-layout].active{display:block;}
+  .topbar{position:absolute;left:0;right:0;top:0;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 60px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:20px;color:var(--rose);}
+  .brandbar{position:absolute;left:60px;right:60px;bottom:52px;display:flex;justify-content:space-between;align-items:center;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:21px;color:var(--rose);}
+  .wrap{padding:150px 70px 0;height:100%;}
+  .serif{font-family:'LibreBaskerville',Georgia,serif;}
+  .eyebrow{font-weight:600;letter-spacing:.3em;text-transform:uppercase;font-size:19px;color:var(--rose);}
+
+  /* HERO */
+  [data-layout="hero"]{background:var(--bg);}
+  [data-layout="hero"] .wrap{padding-top:220px;text-align:center;}
+  [data-layout="hero"] .serif{font-size:100px;line-height:1.08;color:var(--rose);margin-top:18px;}
+  [data-layout="hero"] .lead{font-weight:600;font-size:30px;color:var(--ink);margin:40px auto 0;max-width:720px;line-height:1.7;}
+
+  /* CARD */
+  [data-layout="card"]{background:var(--white);}
+  [data-layout="card"] .topbar,[data-layout="card"] .brandbar{color:var(--rose);}
+  .cards{position:absolute;inset:0;padding:170px 70px;display:flex;flex-direction:column;justify-content:center;gap:40px;}
+  .card{background:var(--bg);border:1px solid var(--line);padding:48px 54px;}
+  .card h3{font-family:'LibreBaskerville',serif;font-weight:700;font-size:44px;color:var(--rose);}
+  .card p{font-weight:400;font-size:32px;color:var(--ink);margin-top:12px;line-height:1.6;}
+
+  /* LIST */
+  [data-layout="list"]{background:var(--bg);}
+  .list-wrap{position:absolute;inset:0;padding:180px 70px;display:flex;flex-direction:column;justify-content:center;gap:38px;}
+  .list-row{display:flex;gap:34px;align-items:flex-start;background:var(--white);border:1px solid var(--line);padding:30px 40px;}
+  .list-row .n{flex:0 0 auto;width:86px;height:86px;border-radius:50%;background:var(--rose);color:#fff;font-family:'LibreBaskerville',serif;font-weight:700;font-size:40px;display:flex;align-items:center;justify-content:center;}
+  .list-row h3{font-family:'LibreBaskerville',serif;font-weight:700;font-size:38px;color:var(--rose);}
+  .list-row p{font-weight:400;font-size:28px;color:var(--ink);margin-top:6px;line-height:1.6;}
+
+  /* CTA */
+  [data-layout="cta"]{background:var(--rose);}
+  [data-layout="cta"] .topbar,[data-layout="cta"] .brandbar{color:var(--bg);}
+  .cta-wrap{position:absolute;inset:0;padding:180px 80px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+  .cta-wrap .eyebrow{color:var(--bg);}
+  .cta-wrap .cta-title{font-family:'LibreBaskerville',serif;font-weight:700;font-size:92px;line-height:1.08;color:#fff;margin-top:20px;}
+  .cta-wrap .cta-sub{font-weight:400;font-size:32px;color:var(--bg);margin-top:30px;max-width:740px;line-height:1.6;}
+  .cta-wrap .btn{margin-top:48px;display:inline-block;background:#fff;color:var(--rose);font-weight:600;font-size:24px;letter-spacing:.16em;text-transform:uppercase;padding:22px 54px;}
+</style>
+</head>
+<body>
+  <section data-layout="hero" class="active">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="serif">{{TITLE}}</div>
+      <p class="lead">{{BODY}}</p>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="card">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="cards">
+      <div class="card"><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div>
+      <div class="card"><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="list">
+    <div class="topbar"><span>{{HANDLE}}</span><span>{{SLIDE_NUM}}/{{TOTAL_SLIDES}}</span></div>
+    <div class="list-wrap">
+      <div class="list-row"><div class="n">{{ITEM_1_NUM}}</div><div><h3>{{ITEM_1_TITLE}}</h3><p>{{ITEM_1_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_2_NUM}}</div><div><h3>{{ITEM_2_TITLE}}</h3><p>{{ITEM_2_BODY}}</p></div></div>
+      <div class="list-row"><div class="n">{{ITEM_3_NUM}}</div><div><h3>{{ITEM_3_TITLE}}</h3><p>{{ITEM_3_BODY}}</p></div></div>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <section data-layout="cta">
+    <div class="cta-wrap">
+      <div class="eyebrow">{{EYEBROW}}</div>
+      <div class="cta-title">{{TITLE}}</div>
+      <p class="cta-sub">{{BODY}}</p>
+      <span class="btn">{{NEXT_LABEL}}</span>
+    </div>
+    <div class="brandbar"><span>{{BRAND}}</span><span>{{HANDLE}}</span></div>
+  </section>
+
+  <script>
+    (function(){var t="{{LAYOUT}}";document.querySelectorAll('[data-layout]').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-layout')===t);});})();
+  </script>
+</body>
+</html>
