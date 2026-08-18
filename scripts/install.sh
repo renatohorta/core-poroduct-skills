@@ -75,8 +75,8 @@ CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 # As skills cp-* e de carrossel vivem na categoria "creative" no Hermes.
 HERMES_CATEGORY="creative"
 
-# ── Lista de skills ──
-mapfile -t SKILLS < <(ls -1 "$SKILLS_SRC" 2>/dev/null | grep -v '^\.' || true)
+# ── Lista de skills (exclui _shared, que é helper compartilhado, não skill) ──
+mapfile -t SKILLS < <(ls -1 "$SKILLS_SRC" 2>/dev/null | grep -v '^\.' | grep -v '^_shared$' || true)
 if [[ ${#SKILLS[@]} -eq 0 ]]; then
   echo "❌ Nenhuma skill encontrada em $SKILLS_SRC"
   exit 1
@@ -114,6 +114,10 @@ echo ""
 
 if [[ "$DO_HERMES" -eq 1 ]]; then
   echo "📦 Hermes Agent → $HERMES_SKILLS_DIR/$HERMES_CATEGORY"
+  # Copia o helper compartilhado _shared para a raiz de skills (não é skill)
+  if [[ -d "$SKILLS_SRC/_shared" ]]; then
+    copy_skill "$SKILLS_SRC/_shared" "$HERMES_SKILLS_DIR/_shared" "_shared"
+  fi
   for s in "${SKILLS[@]}"; do
     copy_skill "$SKILLS_SRC/$s" "$HERMES_SKILLS_DIR/$HERMES_CATEGORY/$s" "$s"
   done
