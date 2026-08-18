@@ -73,6 +73,7 @@ SKILL_PATHS = {
     "goal-loop": SKILLS_DIR / "cp-goal-loop" / "scripts" / "run.py",
     "manutencao": SKILLS_DIR / "cp-manutencao" / "scripts" / "run.py",
     "agilista": SKILLS_DIR / "cp-agilista" / "scripts" / "run.py",
+    "inicializador-doc": SKILLS_DIR / "cp-inicializador-doc" / "scripts" / "run.py",
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -225,6 +226,17 @@ CREWS = {
         "cli_args": ["--daemon", "--source", "--duvida", "--impedimento", "--resume"],
         "invoke": {"briefing_arg": "daemon", "output": False},
     },
+    "inicializador-doc": {
+        "name": "Inicializador de Documentação",
+        "skill": "cp-inicializador-doc",
+        "description": "Centraliza o contexto do projeto em .context/ (fonte de verdade única), cria ponteiros CLAUDE.md/AGENT.md e gera a estrutura de documentação por disciplina.",
+        "agents": ["InicializadorDoc"],
+        "inputs": ["Diretório do projeto"],
+        "outputs": [".context/ (docs, inbox, tracking)", "CLAUDE.md", "AGENT.md"],
+        "quality_gate": "Estrutura .context/ criada, ponteiros na raiz, vision.md ingerido",
+        "cli_args": ["--dir", "--dry-run"],
+        "invoke": {"briefing_arg": "dir", "output": False},
+    },
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -287,6 +299,11 @@ MODOS = {
         "name": "Agilista (Esteira de Execução)",
         "description": "Executa a skill cp-agilista (daemon de polling + feedback loop)",
         "crews": ["agilista"],
+    },
+    "inicializador-doc": {
+        "name": "Inicializador de Documentação",
+        "description": "Executa a skill cp-inicializador-doc (estrutura .context/ + ponteiros)",
+        "crews": ["inicializador-doc"],
     },
 }
 
@@ -1011,6 +1028,9 @@ class PipelineExecutor:
             elif briefing_arg == "daemon":
                 # Agilista: inicia o daemon de polling (sempre lê do local)
                 args.extend(["--daemon"])
+            elif briefing_arg == "dir":
+                # Inicializador-doc: usa o diretório atual (sem briefing posicional)
+                args.extend(["--dir", str(Path.cwd())])
             elif briefing_arg == "positional":
                 args.append(self.briefing)
             else:  # "input"
@@ -1048,6 +1068,55 @@ class PipelineExecutor:
             return {"status": "PASS", "detail": "Indicadores de sucesso detectados"}
         else:
             return {"status": "WARN", "detail": "Não foi possível determinar o resultado — revise manualmente"}
+
+    # Mapeia crew -> arquivo de disciplina em .context/docs/
+    CONTEXT_DOC_MAP = {
+        "requisitos": "01-requisitos.md",
+        "arquitetura": "02-arquitetura.md",
+        "implementacao": "02-arquitetura.md",
+        "testes": "04-qualidade-qa.md",
+        "seguranca": "03-seguranca-lgpd.md",
+        "devops": "05-devops-operacoes.md",
+        "documentacao": "04-qualidade-qa.md",
+        "qualidade": "04-qualidade-qa.md",
+        "bug-fix": "04-qualidade-qa.md",
+        "competitive-analysis": "01-requisitos.md",
+        "goal-loop": "05-devops-operacoes.md",
+        "manutencao": "02-arquitetura.md",
+        "agilista": "06-kanban.md",
+    }
+
+    def _document_to_context(self, crew_key: str, output_text: str):
+        """Documenta o artefato da fase em .context/docs/<disciplina>.md.
+
+        Toda skill cp-* documenta seus artefatos na estrutura .context/ (fonte
+        de verdade do projeto). O arquivo de disciplina é criado/atualizado com
+        a saída da fase.
+        """
+        doc_file = self.CONTEXT_DOC_MAP.get(crew_key)
+        if not doc_file:
+            return None
+        # .context/ fica na raiz do projeto (cwd do orquestrador)
+        context_dir = Path.cwd() / ".context" / "docs"
+        context_dir.mkdir(parents=True, exist_ok=True)
+        dest = context_dir / doc_file
+
+        crew = CREWS[crew_key]
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        block = (
+            f"\n\n## Artefato — {crew['name']} ({now})\n\n"
+            f"```\n{output_text[:4000]}\n```\n"
+        )
+        # Se o arquivo já existe, anexa; senão cria com cabeçalho
+        if dest.exists():
+            dest.write_text(dest.read_text(encoding="utf-8") + block, encoding="utf-8")
+        else:
+            dest.write_text(
+                f"# {crew['name']}\n\n> Documento gerido pela skill `{crew['skill']}`.\n"
+                + block,
+                encoding="utf-8",
+            )
+        return dest
 
     def run(self) -> dict:
         """Executa o pipeline completo."""
@@ -1107,6 +1176,9 @@ class PipelineExecutor:
                 out_path = self._get_artifact_path(ck)
                 out_path.write_text(output, encoding="utf-8")
                 self.artifacts[ck] = out_path
+
+                # Documenta o artefato em .context/docs/ (fonte de verdade)
+                self._document_to_context(ck, output)
 
                 # Quality gate
                 gate = self._check_quality_gate(ck, output)

@@ -20,7 +20,7 @@ Orquestrador central do pipeline NEXUS. Coordena a execução de todas as crews 
 ## Todas as skills cp-* acionáveis
 
 O orquestrador é o **ponto único de entrada** para TODAS as skills `cp-*`. Além das 8
-fases do pipeline, ele aciona as 5 skills complementares via modos dedicados:
+fases do pipeline, ele aciona as 6 skills complementares via modos dedicados:
 
 | Modo | Skill | O que faz |
 |------|-------|-----------|
@@ -29,6 +29,8 @@ fases do pipeline, ele aciona as 5 skills complementares via modos dedicados:
 | `full-dev` | **nativo** (merge de `cp-full-dev`) | Pipeline NEXUS completo (Discovery → ... → Operate), agora embutido no orquestrador |
 | `goal-loop` | `cp-goal-loop` | Loop autônomo de tentativa-e-correção até atingir sucesso |
 | `manutencao` | `cp-manutencao` | Manutenção/evolução (bug-fix, refactor, improvement, full) |
+| `agilista` | `cp-agilista` | Esteira de execução: monitora backlog, despacha tarefas e gerencia feedback bidirecional (dúvidas, impedimentos, retomada) |
+| `inicializador-doc` | `cp-inicializador-doc` | Inicializa a documentação: centraliza o contexto em `.context/` (fonte de verdade única) e cria ponteiros CLAUDE.md/AGENT.md |
 
 > **Nota:** o `cp-full-dev` foi **fundido** no orquestrador. O pipeline NEXUS (7 fases,
 > 39 agentes) agora roda nativamente via `NexusExecutor` — não depende mais da skill
@@ -36,14 +38,52 @@ fases do pipeline, ele aciona as 5 skills complementares via modos dedicados:
 > detecção automática de modo (full/sprint/micro) e quality gates por fase.
 
 Cada skill é acionada respeitando sua interface CLI (metadado `invoke` no `CREWS`):
-- `briefing_arg`: `positional` (arg posicional), `goal` (`--goal`, ex. goal-loop) ou `input` (`--input`)
-- `output`: `True` se a skill aceita `--output`, `False` caso contrário (bug-fix, full-dev, goal-loop)
+- `briefing_arg`: `positional` (arg posicional), `goal` (`--goal`, ex. goal-loop),
+  `input` (`--input`, fases do pipeline), `daemon` (sem briefing posicional —
+  monta `--daemon`, ex. agilista) ou `dir` (monta `--dir <cwd>`, ex. inicializador-doc)
+- `output`: `True` se a skill aceita `--output`, `False` caso contrário
 
 > ⚠️ NÃO assuma que toda skill aceita `--output` nem que o briefing entra como
 > posicional — cada skill tem contrato CLI próprio. Ver
 > `references/skills-cli-inventory.md` para o inventário completo por skill e o
 > snippet de verificação. Pitfalls: `cp-goal-loop` só recebe briefing via `--goal`;
-> `cp-bug-fix`/`cp-full-dev`/`cp-goal-loop` rejeitam `--output`.
+> `cp-bug-fix`/`cp-goal-loop`/`cp-agilista` rejeitam `--output`; `cp-agilista` não
+> tem argumento posicional (só `--daemon`/`--duvida`/`--impedimento`/`--resume`);
+> `cp-inicializador-doc` não tem posicional (só `--dir`/`--dry-run`).
+
+## Regra de documentação em `.context/`
+
+Toda skill `cp-*` documenta seus artefatos na estrutura **`.context/`** (fonte de
+verdade única do projeto). O `cp-inicializador-doc` cria a estrutura; o orquestrador
+escreve automaticamente o artefato de cada fase no arquivo de disciplina correto:
+
+| Crew | Arquivo em `.context/docs/` |
+|------|------------------------------|
+| requisitos, competitive-analysis | `01-requisitos.md` |
+| arquitetura, implementacao, manutencao | `02-arquitetura.md` |
+| seguranca | `03-seguranca-lgpd.md` |
+| testes, documentacao, qualidade, bug-fix | `04-qualidade-qa.md` |
+| devops, goal-loop | `05-devops-operacoes.md` |
+| agilista | `06-kanban.md` |
+
+O `cp-agilista` também gera `.context/docs/06-kanban.md` com o estado do kanban
+via `--doc`.
+
+### Como adicionar uma skill nova ao orquestrador
+
+Para conectar uma nova skill `cp-*` ao fluxo, edite `scripts/run.py` em 4 pontos:
+1. **`SKILL_PATHS`** — adicione `"<chave>": SKILLS_DIR / "cp-<nome>" / "scripts" / "run.py"`
+2. **`CREWS`** — adicione a crew com `name`, `skill`, `agents`, `inputs`, `outputs`,
+   `quality_gate`, `cli_args` e o metadado `invoke` (o `briefing_arg` DEVE refletir
+   como a skill realmente recebe o briefing — teste com `_build_cli_args`).
+3. **`MODOS`** — adicione o modo com `crews: ["<chave>"]`.
+4. **`_build_cli_args`** — se a skill usa um `briefing_arg` novo (ex.: `daemon`),
+   adicione o branch correspondente.
+
+Valide com: `python run.py "<briefing>" --mode <modo> --dry-run` (plano) e
+`python run.py "<briefing>" --mode <modo> --auto` (execução). Se a skill não aceita
+`--output`, o metadado `invoke.output=False` é OBRIGATÓRIO — sem ele o argparse da
+skill rejeita o flag e a fase quebra.
 
 Exemplos:
 ```bash

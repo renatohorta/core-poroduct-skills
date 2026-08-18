@@ -220,6 +220,58 @@ class LocalIntegration:
                 })
         return tasks
 
+    def document_kanban(self, context_root: Path = None) -> Path:
+        """Gera/atualiza .context/docs/06-kanban.md com o estado do kanban.
+
+        O kanban é documentado na estrutura .context/ (fonte de verdade do
+        projeto). Se .context/ não existir, o arquivo é criado mesmo assim
+        (o cp-inicializador-doc garante a estrutura completa).
+        """
+        tasks = self.all_tasks()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        # Agrupa por coluna
+        by_col = {}
+        for t in tasks:
+            by_col.setdefault(t["column"], []).append(t)
+
+        lines = [
+            "# Kanban / Esteira de Execução",
+            "",
+            "> Documento gerido pela skill `cp-agilista`. Atualizado em " + now + ".",
+            "",
+            "## Estado do Kanban",
+            "",
+            "| Coluna | Tarefas |",
+            "|--------|---------|",
+        ]
+        for col in KANBAN_COLUMNS + [BLOCKED_DIR]:
+            n = len(by_col.get(col, []))
+            lines.append(f"| {col} | {n} |")
+
+        lines.append("")
+        lines.append("## Tarefas por coluna")
+        lines.append("")
+        for col in KANBAN_COLUMNS + [BLOCKED_DIR]:
+            col_tasks = by_col.get(col, [])
+            if not col_tasks:
+                continue
+            lines.append(f"### {col}")
+            lines.append("")
+            for t in col_tasks:
+                lines.append(f"- **{t['title']}** (`{t['id']}`) — prioridade {t['priority']}")
+            lines.append("")
+
+        content = "\n".join(lines)
+
+        # Destino: .context/docs/06-kanban.md (relativo ao root do kanban)
+        if context_root is None:
+            context_root = self.root.parent / ".context"
+        dest = Path(context_root) / "docs" / "06-kanban.md"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+        return dest
+
     def move_to(self, task_id: str, column: str) -> Path:
         """Move um arquivo de task para uma coluna."""
         src = self.find_task(task_id)
@@ -541,6 +593,8 @@ Exemplos:
     parser.add_argument("--resposta", help="Resposta humana para desbloquear")
     parser.add_argument("--init", action="store_true",
                         help="Cria a estrutura .kanban/ e sai")
+    parser.add_argument("--doc", action="store_true",
+                        help="Gera/atualiza .context/docs/06-kanban.md com o estado do kanban")
     args = parser.parse_args()
 
     feedback = CPAgilistaFeedbackLoop(sync_trello=args.sync_trello)
@@ -549,6 +603,13 @@ Exemplos:
     if args.init:
         LocalIntegration().ensure_structure()
         print(f"✅ Estrutura .kanban/ criada em {KANBAN_ROOT.resolve()}")
+        return
+
+    # ── Documenta o kanban em .context/docs/06-kanban.md ──
+    if args.doc:
+        local = LocalIntegration()
+        dest = local.document_kanban()
+        print(f"📋 Kanban documentado em {dest}")
         return
 
     # ── Sincronização one-shot do local para o Trello ──

@@ -36,7 +36,8 @@ skills que não aceitam `--output` (argparse rejeita flag desconhecido).
 | cp-competitive-analysis | posicional (`context`) / `--input` | SIM | — |
 | cp-goal-loop | **`--goal` (obrigatório)** | **NÃO** | `--steps`, `--steps-file`, `--max-attempts`, `--max-time` |
 | cp-manutencao | posicional (`descricao`) / `--input` | SIM | `--mode bug-fix/refactor/improvement/full` |
-| cp-agilista | **`--daemon` (sem posicional)** | **NÃO** | `--sync-trello`, `--duvida`, `--impedimento`, `--resume`, `--init` |
+| cp-agilista | **`--daemon` (sem posicional)** | **NÃO** | `--sync-trello`, `--duvida`, `--impedimento`, `--resume`, `--init`, `--doc` |
+| cp-inicializador-doc | **`--dir` (sem posicional)** | **NÃO** | `--dry-run` |
 
 > **`cp-full-dev` foi fundido no orquestrador (eliminado).** O pipeline NEXUS (7 fases,
 > 39 agentes) agora roda nativamente via `NexusExecutor` no `run.py` do orquestrador.

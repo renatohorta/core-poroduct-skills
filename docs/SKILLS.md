@@ -106,4 +106,13 @@ tarefas prontas para a `cp-orquestrador` e gerencia o loop bidirecional de feedb
 - **Gatilho**: "agilista", "esteira de tarefas", "kanban", "monitorar backlog", "dúvida", "impedimento"
 - **Componentes**: CPAgilistaDaemon (polling), CPAgilistaFeedbackLoop (dúvidas/impedimentos/retomada), TrelloIntegration, LocalIntegration
 - **Eventos**: TASK_DISPATCHED, DUVIDA, IMPEDIMENTO, HUMAN_CLARIFICATION_RECEIVED
-- **Script**: `scripts/run.py` (`--daemon`, `--duvida`, `--impedimento`, `--resume`, `--init`)
+- **Script**: `scripts/run.py` (`--daemon`, `--duvida`, `--impedimento`, `--resume`, `--init`, `--doc`)
+
+### cp-inicializador-doc
+**Inicializador de Documentação.** Centraliza o contexto do projeto em `.context/`
+como fonte de verdade única, cria ponteiros `CLAUDE.md`/`AGENT.md` na raiz e gera
+a estrutura de documentação por disciplina.
+
+- **Gatilho**: "inicializar documentação", "iniciar projeto", "setup de docs", "criar estrutura de contexto"
+- **Estrutura**: `.context/docs/` (disciplinas), `.context/inbox/` (iniciativas, tasks, bugs, débitos), `.context/tracking/` (progresso, decisões)
+- **Script**: `scripts/run.py` (`--dir`, `--dry-run`)
