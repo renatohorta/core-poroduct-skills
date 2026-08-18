@@ -1,19 +1,17 @@
 # Core Product Skills
 
-Repositório central das **skills de produto** da Fábrica de Software (CrewAI) e de
-geração de carrosséis. Este é o **código-fonte canônico** das skills — a partir dele
-você instala/atualiza as skills tanto no **Hermes Agent** quanto no **Claude Code**.
+Repositório central das **skills da Fábrica de Software** (CrewAI). Este é o
+**código-fonte canônico** das skills `cp-*` — a partir dele você instala/atualiza
+as skills tanto no **Hermes Agent** quanto no **Claude Code**.
 
 ## O que é
 
-Este repositório contém o código base (SKILL.md + scripts + references + templates)
-das skills customizadas. Ele serve como **fonte única de verdade**: qualquer alteração
-é feita aqui e depois propagada para os agentes (Hermes e Claude) via o script de
-instalação.
+Este repositório contém o código base (SKILL.md + scripts + references) das skills
+`cp-*` da Fábrica de Software. Ele serve como **fonte única de verdade**: qualquer
+alteração é feita aqui e depois propagada para os agentes (Hermes e Claude) via o
+script de instalação.
 
 ## Skills incluídas
-
-### Fábrica de Software (CrewAI) — `cp-*`
 
 Pipeline completo de desenvolvimento orquestrado por crews de agentes CrewAI.
 
@@ -33,14 +31,6 @@ Pipeline completo de desenvolvimento orquestrado por crews de agentes CrewAI.
 | `cp-goal-loop` | Loop autônomo de tentativa-e-correção até atingir sucesso |
 | `cp-manutencao` | Manutenção e evolução (bug-fix, refactor, improvement, full) |
 
-### Carrosséis de Instagram
-
-| Skill | Função |
-|-------|--------|
-| `universal-carousel` | Geração de carrosséis ponta a ponta (escolhe template, injeta conteúdo, renderiza PNG 1080x1350) |
-| `universal-carousel-template-creator` | Criação/reconstrução de templates HTML/CSS de carrossel |
-| `instagram-carousel-generator` | Renderer determinístico "Modern Minimalist Coral" (PIL) |
-
 ## Estrutura do repositório
 
 ```
@@ -58,8 +48,8 @@ core-poroduct-skills/
     │   ├── scripts/run.py
     │   └── references/*.md
     ├── cp-requisitos/
-    ├── ... (todas as skills)
-    └── instagram-carousel-generator/
+    ├── ... (todas as skills cp-*)
+    └── cp-testes/
 ```
 
 ## Instalação rápida
@@ -83,8 +73,7 @@ Veja [docs/INSTALLATION.md](docs/INSTALLATION.md) para detalhes.
 ## Portabilidade
 
 As skills são **portáveis** — não contêm paths de SO/máquina hardcoded nem valores
-pessoais fixos. Fontes são resolvidas por plataforma (Windows/macOS/Linux) via
-`shutil.which`/env vars, e paths de projeto usam env vars + defaults relativos.
+pessoais fixos. Paths de projeto usam env vars + defaults relativos.
 
 ## Licença
 

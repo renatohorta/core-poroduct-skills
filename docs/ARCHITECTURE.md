@@ -79,20 +79,9 @@ acionada via CLI:
 
 Isso garante que o orquestrador chame cada skill respeitando sua interface real.
 
-## Carrosséis
-
-As skills de carrossel são independentes da Fábrica de Software:
-
-- **`universal-carousel`**: analisa a entrada, escolhe o template, injeta conteúdo,
-  renderiza PNG (1080x1350) e gera entregáveis de publicação.
-- **`universal-carousel-template-creator`**: cria/reconstrói templates HTML/CSS.
-- **`instagram-carousel-generator`**: renderer determinístico "Modern Minimalist
-  Coral" usando PIL, com resolução de fontes portável.
-
 ## Portabilidade
 
 Todas as skills são portáveis:
 - **Zero paths de SO/máquina hardcoded** (C:\Windows, C:\Users, etc.)
 - **Zero valores pessoais fixos** (handles, nomes de máquina)
-- Fontes resolvidas por plataforma via `shutil.which`/env vars
 - Paths de projeto usam env vars + defaults relativos
