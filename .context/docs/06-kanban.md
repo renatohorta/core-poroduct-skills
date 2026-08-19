@@ -5,18 +5,21 @@
 ## Status
 
 - [x] Backlog inicial registrado
-- Fonte de verdade do kanban: **local** (`.context/inbox/`). Trello, se conectado,
+- Fonte de verdade do kanban: **local** (`.context/kanban/`). Trello, se conectado,
   é apenas uma visão espelhada.
 
 ## Fluxo
 
 ```
-.context/inbox/{iniciativas,tasks,bugs,debitos-tecnicos}/
+.context/inbox/{iniciativas,tasks,bugs,debitos-tecnicos}/  ← entrada bruta (rascunhos)
+        │  triagem manual (humano ou agente)
+        ▼
+.context/kanban/{1-backlog,2-todo,...}/                  ← trabalho triado em fluxo
         │  cp-agilista (polling)
         ▼
    cp-orquestrador  ──► skill do modo adequado ──► .context/docs/<disciplina>.md
         │
-        └─► dúvida/impedimento ──► volta ao inbox aguardando resposta humana
+        └─► dúvida/impedimento ──► .context/kanban/blocked/ ──► aguarda resposta humana
 ```
 
 ## Board
@@ -25,7 +28,7 @@
 
 _(vazio — todo o backlog levantado na inicializacao foi concluido em 2026-08-18)_
 
-Trabalho novo entra por `.context/inbox/`.
+Trabalho novo entra como rascunho em `.context/inbox/`. Após triado, move-se para `.context/kanban/1-backlog/`.
 
 ### 🟡 Em andamento
 
@@ -51,7 +54,8 @@ _(vazio)_
 
 ## Convenções
 
-- Um arquivo `.md` por item, dentro da pasta de inbox correspondente.
+- Um arquivo `.md` por item, dentro da pasta de kanban correspondente.
+- Item bruto (não triado) fica em `.context/inbox/`; após triado, move-se com `git mv` para `.context/kanban/`.
 - Item concluído: marcar `[Concluído]` (feature) ou `[Corrigido]` (bug) no título e
   mover com `git mv` para a pasta de processados, preservando o histórico.
 - Prioridade segue MoSCoW, alinhada a `.context/docs/01-requisitos.md`.

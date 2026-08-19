@@ -1,6 +1,6 @@
 ---
 name: cp-inicializador-doc
-description: "Inicializador de Documentação — centraliza o contexto do projeto em .context/ (fonte de verdade única), cria arquivos ponte CLAUDE.md e AGENT.md na raiz, ingere o vision.md e gera a estrutura completa de documentação cobrindo todas as disciplinas de engenharia (requisitos, arquitetura, segurança/LGPD, qualidade/QA, devops/operações, inbox e tracking). Use quando o usuário disser 'inicializar documentação', 'iniciar projeto', 'setup de docs', 'criar estrutura de contexto', 'inicializar repo', 'preparar documentação do projeto'."
+description: "Inicializador de Documentação — centraliza o contexto do projeto em .context/ (fonte de verdade única), cria arquivos ponte CLAUDE.md e AGENT.md na raiz, ingere o vision.md e gera a estrutura completa de documentação cobrindo todas as disciplinas de engenharia (requisitos, arquitetura, segurança/LGPD, qualidade/QA, devops/operações, inbox, tracking e o kanban da esteira). Use quando o usuário disser 'inicializar documentação', 'iniciar projeto', 'setup de docs', 'criar estrutura de contexto', 'inicializar repo', 'preparar documentação do projeto'."
 ---
 
 # cp-inicializador-doc — Inicializador de Documentação
@@ -21,7 +21,8 @@ Imagine um **arquiteto de documentação** que organiza a casa antes da obra:
    └── .context/  ──► (fonte de verdade única)
         ├── docs/          (disciplinas de engenharia)
         ├── inbox/         (iniciativas, tasks, bugs, débitos)
-        └── tracking/      (rastreamento de progresso)
+        ├── tracking/      (rastreamento de progresso)
+        └── kanban/        (esteira de execução — cp-agilista)
 ```
 
 ## Uso
@@ -55,10 +56,29 @@ inicialize a documentação deste repositório
 │   ├── tasks/                # Tarefas
 │   ├── bugs/                 # Bugs
 │   └── debitos-tecnicos/     # Débitos técnicos
-└── tracking/
-    ├── progresso.md          # Progresso geral
-    └── decisoes.md           # Registro de decisões (ADRs)
+├── tracking/
+│   ├── progresso.md          # Progresso geral
+│   └── decisoes.md           # Registro de decisões (ADRs)
+└── kanban/                   # Esteira de execução (cp-agilista)
+    ├── README.md             # Colunas, formato da task, comandos
+    ├── 1-backlog/            # Entrada; o daemon varre por `status: ready`
+    ├── 2-todo/
+    ├── 3-doing/
+    ├── 4-review/
+    ├── 5-testing/
+    ├── 6-staging/
+    ├── 7-done/
+    └── blocked/              # Dúvidas e impedimentos aguardando resposta
 ```
+
+O kanban nasce **na inicialização**, não no primeiro run do `cp-agilista`: a
+esteira precisa de fila desde o dia 1, e `.context/docs/06-kanban.md` referencia
+`.context/kanban/`. As colunas são criadas com `.gitkeep` porque o git não
+versiona diretório vazio. As constantes espelham `KANBAN_COLUMNS`/`BLOCKED_DIR`
+de `cp-agilista/scripts/run.py` — alterar uma exige alterar a outra.
+
+`inbox/` é entrada bruta (rascunho); depois de triado, o item vira task em
+`kanban/1-backlog/`.
 
 ## Arquivos ponte na raiz
 
@@ -70,7 +90,8 @@ Ambos apontam para `.context/README.md` e proíbem a criação de `.hermes/`/`.c
 ## Fluxo de inicialização
 
 1. **Ingestão do `vision.md`** — se existir na raiz, move para `.context/docs/00-vision.md`.
-2. **Geração da estrutura** — cria todas as pastas e arquivos de `.context/`.
+2. **Geração da estrutura** — cria todas as pastas e arquivos de `.context/`,
+   incluindo as colunas do `kanban/`.
 3. **Criação dos ponteiros** — gera `CLAUDE.md` e `AGENT.md` na raiz.
 4. **Relatório de gaps** — apresenta resumo executivo e perguntas clarificatórias
    segmentadas por disciplina para sanar dúvidas antes da implementação.

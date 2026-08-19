@@ -1,24 +1,24 @@
 ---
 name: cp-agilista
-description: "Agilista — esteira de execução de tarefas com polling contínuo, loop bidirecional de feedback (dúvidas e impedimentos) e integração Trello/Local. O LOCAL (.kanban/) é sempre a fonte de verdade; o Trello é apenas uma visão espelhada. Monitora o backlog, despacha tarefas para a cp-orquestrador, captura respostas humanas e desbloqueia a esteira. Use quando o usuário disser 'agilista', 'esteira de tarefas', 'kanban', 'monitorar backlog', 'despachar tarefas', 'polling de tarefas', 'feedback loop', 'dúvida', 'impedimento', 'resumir tarefa'."
+description: "Agilista — esteira de execução de tarefas com polling contínuo, loop bidirecional de feedback (dúvidas e impedimentos) e integração Trello/Local. O LOCAL (.context/kanban/) é sempre a fonte de verdade; o Trello é apenas uma visão espelhada. Monitora o backlog, despacha tarefas para a cp-orquestrador, captura respostas humanas e desbloqueia a esteira. Use quando o usuário disser 'agilista', 'esteira de tarefas', 'kanban', 'monitorar backlog', 'despachar tarefas', 'polling de tarefas', 'feedback loop', 'dúvida', 'impedimento', 'resumir tarefa'."
 ---
 
 # cp-agilista — Agilista (Esteira de Execução)
 
 Agilista é o **maestro da esteira de execução**. Ele monitora continuamente o
-backlog **local** (`.kanban/`), despacha tarefas prontas para a `cp-orquestrador`,
+backlog **local** (`.context/kanban/`), despacha tarefas prontas para a `cp-orquestrador`,
 e gerencia o **loop bidirecional de feedback** — capturando dúvidas e impedimentos
 da IA, e retomando tarefas quando o humano responde.
 
 ## Arquitetura: Local é a fonte de verdade
 
 ```
-[Local .kanban/]  ──(fonte de verdade)──►  [Trello (espelho/visão)]
+[Local .context/kanban/]  ──(fonte de verdade)──►  [Trello (espelho/visão)]
       ▲                                              │
       └────────────── sincroniza estado ──────────────┘
 ```
 
-- **O LOCAL (`.kanban/`) é SEMPRE a fonte de verdade.** Todas as decisões
+- **O LOCAL (`.context/kanban/`) é SEMPRE a fonte de verdade.** Todas as decisões
   (scan, movimentação, dúvidas, impedimentos, retomada) acontecem no local.
 - **O Trello é apenas uma VISÃO ESPELHADA** do estado local. Se o espelhamento
   estiver habilitado (`--sync-trello`), cada mudança local é refletida no Trello.
@@ -60,7 +60,7 @@ agilista, monitore o backlog e despache as tarefas prontas
 
 ### 1. `CPAgilistaDaemon` (Polling & Watcher)
 
-- Cria a estrutura automática de pastas locais em `.kanban/`:
+- Cria a estrutura automática de pastas locais em `.context/kanban/`:
   `1-backlog/`, `2-todo/`, `3-doing/`, `4-review/`, `5-testing/`, `6-staging/`,
   `7-done/` e `blocked/`.
 - Varredura contínua do **local** por arquivos com `status: ready` (frontmatter YAML).

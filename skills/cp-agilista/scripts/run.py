@@ -2,12 +2,12 @@
 """
 cp-agilista — Agilista (Esteira de Execução) (self-contained)
 
-Maestro da esteira de execução. O sistema de arquivos local (.kanban/) é a
+Maestro da esteira de execução. O sistema de arquivos local (.context/kanban/) é a
 FONTE DE VERDADE. O Trello é apenas uma VISÃO ESPELHADA do estado local —
 nunca a fonte de decisão.
 
 Arquitetura:
-  [Local .kanban/]  ──(fonte de verdade)──►  [Trello (espelho/visão)]
+  [Local .context/kanban/]  ──(fonte de verdade)──►  [Trello (espelho/visão)]
         ▲                                              │
         └────────────── sincroniza estado ──────────────┘
 
@@ -19,7 +19,7 @@ Arquitetura:
 Componentes:
   - CPAgilistaDaemon        : polling contínuo do local + despacho p/ orquestrador
   - CPAgilistaFeedbackLoop  : dúvidas, impedimentos e retomada (no local)
-  - LocalIntegration        : fonte de verdade (.kanban/)
+  - LocalIntegration        : fonte de verdade (.context/kanban/)
   - TrelloMirror            : espelho/visão do estado local no Trello
   - TaskTemplate            : template de task .md com frontmatter YAML
 
@@ -52,6 +52,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -70,7 +71,7 @@ for _stream in (sys.stdout, sys.stderr):
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Diretório raiz do kanban local. Usa env var com default relativo (portável).
-KANBAN_ROOT = Path(os.environ.get("KANBAN_ROOT", ".kanban"))
+KANBAN_ROOT = Path(os.environ.get("KANBAN_ROOT", ".context/kanban"))
 
 # Pastas do kanban (ordem do fluxo)
 KANBAN_COLUMNS = [
@@ -83,6 +84,48 @@ KANBAN_COLUMNS = [
     "7-done",
 ]
 BLOCKED_DIR = "blocked"
+
+# Raiz do inbox: zona de drop de texto livre. Qualquer arquivo de texto solto
+# na RAIZ (não nas subpastas) é triado e vira task no kanban.
+INBOX_ROOT = Path(os.environ.get("INBOX_ROOT", ".context/inbox"))
+
+# Onde o texto bruto é arquivado depois de virar task. A raiz esvazia, então a
+# triagem é naturalmente idempotente — nada é triado duas vezes.
+INBOX_PROCESSED_DIR = ".processados"
+
+# Arquivos da raiz do inbox que a triagem ignora (documentação, não trabalho).
+INBOX_IGNORED = {"readme.md", "index.md", ".gitkeep"}
+
+# Teto de tamanho por item dropado. Acima disso não é texto solto, é anexo.
+INBOX_MAX_BYTES = int(os.environ.get("INBOX_MAX_BYTES", 512 * 1024))
+
+# Trilhas (o `tipo:` do item) e o prefixo de id de cada uma.
+TRILHAS = {
+    "iniciativa": "INIT",
+    "task": "TASK",
+    "bug": "BUG",
+    "debito-tecnico": "DT",
+}
+DEFAULT_TRILHA = "task"
+
+# Status que a triagem atribui quando o item não declara um. `ready` faz a
+# esteira despachar no ciclo seguinte — é o ponto do drop zone.
+TRIAGE_STATUS = os.environ.get("INBOX_TRIAGE_STATUS", "ready")
+
+# Heurística de classificação: a primeira trilha cujo padrão casa vence, então
+# a ordem importa. `bug` vem antes de tudo porque relato de erro é o caso mais
+# frequente e o mais específico; `task` é o default, não um padrão.
+TRILHA_PATTERNS = [
+    ("bug", r"(?:\bbugs?\b|\berros?\b|\bfalha\b|exce[çc][ãa]o|stack ?trace|"
+            r"traceback|\bquebrou\b|n[ãa]o funciona|regress[ãa]o|\bcrash)"),
+    ("debito-tecnico", r"(?:d[ée]bito t[ée]cnico|refatora|refactor|gambiarra|"
+                       r"workaround|d[íi]vida t[ée]cnica|\bTODO\b|\bFIXME\b)"),
+    ("iniciativa", r"(?:\biniciativa\b|\b[ée]picos?\b|\bepic\b|\bvis[ãa]o\b|"
+                   r"\broadmap\b|\bOKRs?\b|\bestrat[ée]gia\b|\bdiscovery\b)"),
+]
+
+# Prioridades aceitas no frontmatter (mesma escala do --severidade).
+VALID_PRIORITIES = {"baixa", "media", "alta", "critica"}
 
 # Estados válidos (frontmatter `status:`)
 VALID_STATUSES = {
@@ -98,6 +141,7 @@ EVENT_TASK_DISPATCHED = "TASK_DISPATCHED"
 EVENT_DUVIDA = "DUVIDA"
 EVENT_IMPEDIMENTO = "IMPEDIMENTO"
 EVENT_HUMAN_CLARIFICATION = "HUMAN_CLARIFICATION_RECEIVED"
+EVENT_INBOX_TRIADO = "INBOX_ITEM_TRIADO"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -113,6 +157,8 @@ assignee: {assignee}
 created_at: {created_at}
 updated_at: {updated_at}
 tags: {tags}
+tipo: {tipo}
+origem: {origem}
 ---
 
 # {title}
@@ -137,8 +183,14 @@ tags: {tags}
 
 def build_task_template(task_id, title, status="backlog", priority="media",
                         assignee="", tags="[]", description="",
-                        acceptance_criteria="Definir critérios de aceitação"):
-    """Gera o conteúdo de um arquivo de task .md a partir do template."""
+                        acceptance_criteria="Definir critérios de aceitação",
+                        tipo=DEFAULT_TRILHA, origem=""):
+    """Gera o conteúdo de um arquivo de task .md a partir do template.
+
+    `tipo` é a trilha do item (ver TRILHAS) e `origem` guarda o nome do arquivo
+    dropado no inbox, quando a task veio da triagem — sem isso não há como
+    voltar do kanban ao texto bruto arquivado.
+    """
     now = datetime.now().isoformat(timespec="seconds")
     return TASK_TEMPLATE.format(
         task_id=task_id,
@@ -149,6 +201,8 @@ def build_task_template(task_id, title, status="backlog", priority="media",
         created_at=now,
         updated_at=now,
         tags=tags,
+        tipo=tipo,
+        origem=origem,
         description=description,
         acceptance_criteria=acceptance_criteria,
     )
@@ -186,11 +240,11 @@ def read_task_status(path: Path) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# INTEGRAÇÃO LOCAL (.kanban/) — FONTE DE VERDADE
+# INTEGRAÇÃO LOCAL (.context/kanban/) — FONTE DE VERDADE
 # ═══════════════════════════════════════════════════════════════════════════
 
 class LocalIntegration:
-    """Fonte de verdade do kanban (.kanban/). Todas as decisões vêm daqui."""
+    """Fonte de verdade do kanban (.context/kanban/). Todas as decisões vêm daqui."""
 
     def __init__(self, root: Path = None):
         self.root = Path(root) if root else KANBAN_ROOT
@@ -274,9 +328,14 @@ class LocalIntegration:
 
         content = "\n".join(lines)
 
-        # Destino: .context/docs/06-kanban.md (relativo ao root do kanban)
+        # Destino: .context/docs/06-kanban.md
+        # Se o kanban já está dentro de .context/ (ex.: .context/kanban/),
+        # o parent é .context/; senão, sobe um nível e acha .context/.
         if context_root is None:
-            context_root = self.root.parent / ".context"
+            if self.root.parent.name == ".context":
+                context_root = self.root.parent
+            else:
+                context_root = self.root.parent / ".context"
         dest = Path(context_root) / "docs" / "06-kanban.md"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
@@ -569,7 +628,7 @@ def main():
         description="cp-agilista: Agilista (Esteira de Execução)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
-O LOCAL (.kanban/) é sempre a fonte de verdade. O Trello é apenas uma visão
+O LOCAL (.context/kanban/) é sempre a fonte de verdade. O Trello é apenas uma visão
 espelhada (--sync-trello) do estado local.
 
 Exemplos:
@@ -602,7 +661,7 @@ Exemplos:
                         help="Retoma uma tarefa com resposta humana (no local)")
     parser.add_argument("--resposta", help="Resposta humana para desbloquear")
     parser.add_argument("--init", action="store_true",
-                        help="Cria a estrutura .kanban/ e sai")
+                        help="Cria a estrutura .context/kanban/ e sai")
     parser.add_argument("--doc", action="store_true",
                         help="Gera/atualiza .context/docs/06-kanban.md com o estado do kanban")
     args = parser.parse_args()
@@ -612,7 +671,7 @@ Exemplos:
     # ── Inicializa estrutura ──
     if args.init:
         LocalIntegration().ensure_structure()
-        print(f"✅ Estrutura .kanban/ criada em {KANBAN_ROOT.resolve()}")
+        print(f"✅ Estrutura .context/kanban/ criada em {KANBAN_ROOT.resolve()}")
         return
 
     # ── Documenta o kanban em .context/docs/06-kanban.md ──

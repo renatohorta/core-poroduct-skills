@@ -52,6 +52,20 @@ INBOX_DIRS = ["iniciativas", "tasks", "bugs", "debitos-tecnicos"]
 # Pastas de tracking
 TRACKING_DIRS = ["progresso.md", "decisoes.md"]
 
+# Colunas do kanban (kanban/) — espelham KANBAN_COLUMNS/BLOCKED_DIR de
+# cp-agilista/scripts/run.py. A estrutura nasce aqui, na inicialização: o
+# cp-agilista assume que ela existe e a esteira precisa de fila desde o dia 1.
+KANBAN_COLUMNS = [
+    "1-backlog",
+    "2-todo",
+    "3-doing",
+    "4-review",
+    "5-testing",
+    "6-staging",
+    "7-done",
+]
+KANBAN_BLOCKED_DIR = "blocked"
+
 # Template do README do .context/
 CONTEXT_README = """# .context/ — Fonte de Verdade do Projeto
 
@@ -82,10 +96,84 @@ agentes (Claude Code, Hermes Agent, etc.) devem ler e escrever contexto aqui,
 - `progresso.md` — Progresso geral
 - `decisoes.md` — Registro de decisões (ADRs)
 
+### kanban/ — Esteira de execução (`cp-agilista`)
+Fonte de verdade do fluxo de tarefas; o Trello, quando configurado, é só um
+espelho. Uma task é um `.md` com frontmatter YAML, e a coluna é a pasta.
+Item bruto fica em `inbox/`; depois de triado, vira task em `kanban/1-backlog/`.
+
+`1-backlog/` → `2-todo/` → `3-doing/` → `4-review/` → `5-testing/` →
+`6-staging/` → `7-done/`, mais `blocked/` para dúvidas e impedimentos.
+
 ## Regra
 
 Toda skill `cp-*` documenta seus artefatos em `.context/docs/`. O
 `cp-inicializador-doc` garante que a estrutura exista.
+"""
+
+# Template do README do kanban/
+KANBAN_README = """# kanban/ — Esteira de Execução
+
+Fonte de verdade do fluxo de tarefas, gerida pela skill `cp-agilista`. Quando o
+Trello está configurado, ele é apenas uma **visão espelhada** — o que vale é o
+que está aqui.
+
+## Relação com `../inbox/`
+
+`inbox/` é entrada bruta: rascunho de iniciativa, task, bug ou débito técnico.
+Depois de triado, o item vira uma task aqui, em `1-backlog/`, com `status:`
+preenchido — mova com `git mv` para preservar o histórico.
+
+## Colunas
+
+| Pasta | Significado |
+|-------|-------------|
+| `1-backlog/` | Entrada. O daemon varre aqui por tasks com `status: ready` |
+| `2-todo/` | Priorizada, aguardando execução |
+| `3-doing/` | Em execução (despachada para a `cp-orquestrador`) |
+| `4-review/` | Aguardando revisão |
+| `5-testing/` | Em teste |
+| `6-staging/` | Homologação |
+| `7-done/` | Concluída |
+| `blocked/` | Dúvida ou impedimento aguardando resposta humana |
+
+## Formato de uma task
+
+Um arquivo `.md` por task, com frontmatter YAML. O campo `status:` deve
+acompanhar a pasta em que o arquivo está.
+
+```markdown
+---
+id: TASK-001
+title: Título da task
+status: ready
+priority: media
+assignee:
+created_at: 2026-01-01T00:00:00
+updated_at: 2026-01-01T00:00:00
+tags: []
+---
+
+# Título da task
+
+## Descrição
+
+## Critérios de Aceitação
+
+- [ ] ...
+```
+
+`status:` válidos: `backlog`, `ready`, `todo`, `doing`, `review`, `testing`,
+`staging`, `done`, `blocked`. Só `ready` no `1-backlog/` é despachado.
+
+## Comandos
+
+```bash
+# Monitorar o backlog e despachar tasks
+python <skills>/cp-agilista/scripts/run.py --daemon
+
+# Documentar o estado atual do kanban em ../docs/06-kanban.md
+python <skills>/cp-agilista/scripts/run.py --doc
+```
 """
 
 # Template do CLAUDE.md (ponteiro na raiz)
@@ -100,6 +188,7 @@ Leia e escreva todo o contexto do projeto em `.context/`. **NÃO** crie nem use
 - Disciplinas de engenharia: `.context/docs/`
 - Entrada de trabalho: `.context/inbox/`
 - Rastreamento: `.context/tracking/`
+- Esteira de tarefas: `.context/kanban/`
 """
 
 # Template do AGENT.md (ponteiro na raiz)
@@ -114,6 +203,7 @@ Leia e escreva todo o contexto do projeto em `.context/`. **NÃO** crie nem use
 - Disciplinas de engenharia: `.context/docs/`
 - Entrada de trabalho: `.context/inbox/`
 - Rastreamento: `.context/tracking/`
+- Esteira de tarefas: `.context/kanban/`
 """
 
 # Template de um doc de disciplina
@@ -178,6 +268,7 @@ class InicializadorDoc:
         self.dry_run = dry_run
         self.context = self.root / CONTEXT_DIR
         self.created = []
+        self.vision_ingested = False
 
     def _write(self, path: Path, content: str):
         """Escreve um arquivo (ou registra no dry-run)."""
@@ -245,8 +336,17 @@ class InicializadorDoc:
         self._write(self.context / "tracking" / "decisoes.md",
                     TRACKING_DECISOES.format(data=now))
 
+        # kanban/ — a esteira existe desde a inicialização, não a partir do
+        # primeiro run do cp-agilista. Cada coluna leva um .gitkeep porque o
+        # git não versiona diretório vazio.
+        self._write(self.context / "kanban" / "README.md", KANBAN_README)
+        for col in KANBAN_COLUMNS + [KANBAN_BLOCKED_DIR]:
+            self._mkdir(self.context / "kanban" / col)
+            self._write(self.context / "kanban" / col / ".gitkeep", "")
+
         # Ingestão do vision.md
         vision_ingested = self.ingest_vision()
+        self.vision_ingested = vision_ingested
 
         # Ponteiros na raiz
         self._write(self.root / "CLAUDE.md", CLAUDE_MD)
@@ -268,7 +368,9 @@ class InicializadorDoc:
         print(f"  Raiz: {self.root}")
         print(f"  Fonte de verdade: {self.context}")
         print(f"  Arquivos criados: {len(self.created)}")
-        print(f"  vision.md ingerido: {'sim' if self._vision_ingested else 'não encontrado'}")
+        print(f"  Kanban: {len(KANBAN_COLUMNS)} colunas + blocked/ em "
+              f"{CONTEXT_DIR}/kanban/")
+        print(f"  vision.md ingerido: {'sim' if self.vision_ingested else 'não encontrado'}")
         print()
 
         print("  ❓ Perguntas clarificatórias por disciplina:")
@@ -278,14 +380,10 @@ class InicializadorDoc:
             "Segurança/LGPD (03)": "Quais dados pessoais são tratados? Há DPO?",
             "Qualidade/QA (04)": "Qual a cobertura de testes desejada? Há CI?",
             "DevOps/Operações (05)": "Onde será o deploy? Há monitoramento?",
-            "Kanban/esteira (06)": "Qual o fluxo de trabalho? Há integração Trello?",
+            "Kanban/esteira (06)": "O kanban já existe em .context/kanban/ — há integração Trello? Quais as primeiras tasks?",
         }
         for disc, pergunta in perguntas.items():
             print(f"    • {disc}: {pergunta}")
-
-    @property
-    def _vision_ingested(self):
-        return (self.context / "docs" / "00-vision.md").exists()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

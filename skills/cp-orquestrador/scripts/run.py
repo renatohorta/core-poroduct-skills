@@ -229,7 +229,7 @@ CREWS = {
         "skill": "cp-agilista",
         "description": "Monitora o backlog, despacha tarefas prontas para o orquestrador e gerencia o loop bidirecional de feedback (dúvidas, impedimentos, retomada).",
         "agents": ["CPAgilistaDaemon", "CPAgilistaFeedbackLoop", "TrelloIntegration", "LocalIntegration"],
-        "inputs": ["Backlog (local .kanban/ ou Trello)"],
+        "inputs": ["Backlog (local .context/kanban/ ou Trello)"],
         "outputs": ["Tarefas despachadas (TASK_DISPATCHED)", "Dúvidas/Impedimentos registrados", "Retomadas (HUMAN_CLARIFICATION_RECEIVED)"],
         "quality_gate": "Tarefas prontas despachadas, feedback bidirecional operacional",
         "cli_args": ["--daemon", "--source", "--duvida", "--impedimento", "--resume"],

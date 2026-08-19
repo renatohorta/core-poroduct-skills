@@ -117,6 +117,42 @@ def test_skills_sem_llm_rodam_integralmente(skill, clean_env, python_cmd, tmp_pa
     assert r.returncode == EXIT_OK, f"{skill} falhou sem LLM:\n{r.stdout}\n{r.stderr}"
 
 
+def test_inicializador_cria_kanban_desde_o_inicio(clean_env, python_cmd, tmp_path):
+    """O kanban nasce na inicializacao, nao no primeiro run do cp-agilista.
+
+    Regressao: `.context/docs/06-kanban.md` e o `cp-agilista` referenciam
+    `.context/kanban/`, mas so o `--init` do agilista criava as colunas — em
+    projeto novo o ponteiro ficava orfao.
+    """
+    r = run_skill("cp-inicializador-doc", ["--dir", str(tmp_path)],
+                  clean_env, python_cmd)
+    assert r.returncode == EXIT_OK, f"inicializador falhou: {r.stdout} {r.stderr}"
+
+    kanban = tmp_path / ".context" / "kanban"
+    assert (kanban / "README.md").is_file(), "kanban/README.md nao foi criado"
+
+    # As colunas espelham KANBAN_COLUMNS + BLOCKED_DIR de cp-agilista.
+    colunas = ["1-backlog", "2-todo", "3-doing", "4-review",
+               "5-testing", "6-staging", "7-done", "blocked"]
+    for col in colunas:
+        assert (kanban / col).is_dir(), f"coluna {col} nao foi criada"
+        # git nao versiona diretorio vazio: sem .gitkeep a estrutura nao viaja.
+        assert (kanban / col / ".gitkeep").is_file(), f"{col}/.gitkeep faltando"
+
+
+def test_colunas_do_kanban_batem_entre_agilista_e_inicializador():
+    """As duas skills declaram as colunas separadamente — nao podem divergir."""
+    import re
+
+    def colunas(skill, const):
+        src = skill_script(skill).read_text(encoding="utf-8")
+        bloco = re.search(rf"^{const} = \[(.*?)\]", src, re.S | re.M)
+        assert bloco, f"{const} nao encontrado em {skill}"
+        return re.findall(r'"([^"]+)"', bloco.group(1))
+
+    assert colunas("cp-agilista", "KANBAN_COLUMNS") ==         colunas("cp-inicializador-doc", "KANBAN_COLUMNS")
+
+
 def test_install_sh_dry_run_lista_todas_as_skills(clean_env, tmp_path, bash_cmd):
     """`install.sh --dry-run` deve listar as 15 skills e o helper _shared."""
     env = dict(clean_env)

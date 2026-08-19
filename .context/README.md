@@ -14,7 +14,7 @@ agentes devem ler e escrever contexto aqui, **nunca** em `.hermes/` ou `.claude/
 | Saber o que o sistema faz e o que falta | `docs/01-requisitos.md` |
 | Entender como funciona por dentro | `docs/02-arquitetura.md` |
 | Instalar/operar/depurar | `docs/05-devops-operacoes.md` |
-| Ver o que está na fila | `docs/06-kanban.md` |
+| Ver o que está na fila | `docs/06-kanban.md`, `kanban/` |
 | Saber por que algo é assim | `tracking/decisoes.md` |
 
 ## Estrutura
@@ -42,10 +42,20 @@ Um arquivo `.md` por item.
 - `progresso.md` — Progresso geral e próximos passos
 - `decisoes.md` — Registro de decisões (ADR-0001 … ADR-0006)
 
+### kanban/ — Esteira de execução (`cp-agilista`)
+Fonte de verdade do fluxo de tarefas; o Trello, quando conectado, é só um
+espelho. Uma task é um `.md` com frontmatter YAML e a coluna é a pasta:
+`1-backlog/` → `2-todo/` → `3-doing/` → `4-review/` → `5-testing/` →
+`6-staging/` → `7-done/`, mais `blocked/` para dúvidas e impedimentos.
+
+Item bruto entra em `inbox/`; depois de triado, vira task em `kanban/1-backlog/`.
+Detalhes em `kanban/README.md`.
+
 ## Regras
 
 1. Toda skill `cp-*` documenta seus artefatos em `docs/`, conforme o mapa acima.
-2. Trabalho novo entra por `inbox/`, não direto em `docs/`.
+2. Trabalho novo entra por `inbox/`, não direto em `docs/`; ao ser triado,
+   passa a `kanban/1-backlog/`.
 3. Decisão relevante vira ADR em `tracking/decisoes.md` — com contexto e
    consequências, não só a conclusão.
 4. Em divergência entre `.context/` e `docs/` (documentação humana do repositório),
