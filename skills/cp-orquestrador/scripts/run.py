@@ -839,16 +839,23 @@ class NexusExecutor:
     """Executa o pipeline NEXUS nativamente (merge de cp-full-dev)."""
 
     def __init__(self, requirement: str, mode: str = "auto", start_phase: str = None,
-                 project_name: str = None, output_dir: str = None):
+                 project_name: str = None, output_dir: str = None,
+                 kanban_task: str = None, python_cmd: str = None):
         self.requirement = requirement
         self.mode = mode if mode != "auto" else nexus_detect_mode(requirement)
         self.start_phase = start_phase
         self.project_name = project_name or requirement[:60].strip()
         self.output_dir = output_dir
+        self.kanban_task = kanban_task
+        self.python_cmd = python_cmd or sys.executable
 
     def run(self) -> dict:
         phases = NEXUS_PHASES.get(self.mode, NEXUS_PHASES["micro"])
         phase_keys = list(phases.keys())
+
+        # Kanban: marca como doing no inicio
+        if self.kanban_task:
+            self._kanban_update_status("doing")
 
         if self.start_phase:
             if self.start_phase in phase_keys:
@@ -934,6 +941,13 @@ class NexusExecutor:
         }, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"\n  Resultados salvos em: {output_file}")
 
+        # Kanban: marca como done ou blocked ao final
+        if self.kanban_task:
+            if failed_phase:
+                self._kanban_update_status("blocked")
+            else:
+                self._kanban_update_status("done")
+
         return {
             "status": "failed" if failed_phase else "completed",
             "mode": self.mode,
@@ -942,6 +956,24 @@ class NexusExecutor:
             "total": len(phase_keys),
             "output_file": str(output_file),
         }
+
+    def _kanban_update_status(self, status: str):
+        """Atualiza o status da task kanban via cp-agilista (best-effort)."""
+        if not self.kanban_task:
+            return
+        agilista_run = SKILL_PATHS.get("agilista")
+        if not agilista_run or not agilista_run.exists():
+            return
+        try:
+            subprocess.run(
+                [self.python_cmd, str(agilista_run),
+                 "--task", self.kanban_task,
+                 "--update-status", status],
+                capture_output=True, text=True, timeout=30,
+                encoding="utf-8", errors="replace",
+            )
+        except Exception:
+            pass
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -952,11 +984,13 @@ class PipelineExecutor:
     """Executa o pipeline real chamando as skills via subprocess."""
 
     def __init__(self, briefing: str, mode: str, start_phase: str = None,
-                 output_dir: str = None, python_cmd: str = None):
+                 output_dir: str = None, python_cmd: str = None,
+                 kanban_task: str = None):
         self.briefing = briefing
         self.mode = mode
         self.start_phase = start_phase
         self.python_cmd = python_cmd or sys.executable
+        self.kanban_task = kanban_task  # ID da task no kanban (cp-agilista)
 
         # Resolve diretório de artefatos
         if output_dir:
@@ -1151,6 +1185,27 @@ class PipelineExecutor:
             )
         return dest
 
+    def _kanban_update_status(self, status: str):
+        """Atualiza o status da task kanban via cp-agilista.
+
+        Só executa se `self.kanban_task` foi informado.
+        """
+        if not self.kanban_task:
+            return
+        agilista_run = SKILL_PATHS.get("agilista")
+        if not agilista_run or not agilista_run.exists():
+            return
+        try:
+            subprocess.run(
+                [self.python_cmd, str(agilista_run),
+                 "--task", self.kanban_task,
+                 "--update-status", status],
+                capture_output=True, text=True, timeout=30,
+                encoding="utf-8", errors="replace",
+            )
+        except Exception:
+            pass  # best-effort: nao quebra o pipeline se kanban falhar
+
     def run(self) -> dict:
         """Executa o pipeline completo."""
         modo_info = MODOS[self.mode]
@@ -1170,7 +1225,13 @@ class PipelineExecutor:
         print(f"  🚀 PIPELINE AUTO — {modo_info['name']}")
         print(f"  {modo_info['description']}")
         print(f"  📁 Artefatos: {self.artifacts_dir}")
+        if self.kanban_task:
+            print(f"  📋 Kanban task: {self.kanban_task}")
         print(f"{'='*60}\n")
+
+        # Se tem kanban_task, marca como doing no inicio
+        if self.kanban_task:
+            self._kanban_update_status("doing")
 
         for i, ck in enumerate(crew_keys, 1):
             crew = CREWS[ck]
@@ -1248,6 +1309,13 @@ class PipelineExecutor:
                 print(f"  ❌ Erro: {e}")
                 self.failed_phase = ck
                 break
+
+        # Atualiza status kanban ao final do pipeline
+        if self.kanban_task:
+            if self.failed_phase:
+                self._kanban_update_status("blocked")
+            else:
+                self._kanban_update_status("done")
 
         # Relatório final
         return self._generate_report(crew_keys)
@@ -1533,6 +1601,8 @@ Skills complementares (modos):
                         help="Modo automático: executa as crews reais em sequência")
     parser.add_argument("--python", default=None,
                         help="Caminho do interpretador Python (default: mesmo deste script)")
+    parser.add_argument("--kanban-task", default=None,
+                        help="ID da task no kanban (cp-agilista). Atualiza status durante a execução")
     args = parser.parse_args()
 
     # ── Resolve briefing ──
@@ -1630,6 +1700,8 @@ Skills complementares (modos):
                 mode="auto",
                 start_phase=args.start_phase,
                 output_dir=args.output,
+                kanban_task=args.kanban_task,
+                python_cmd=args.python,
             )
             report = nexus.run()
             if report["status"] == "failed":
@@ -1646,6 +1718,7 @@ Skills complementares (modos):
             start_phase=args.start_phase,
             output_dir=args.output,
             python_cmd=args.python,
+            kanban_task=args.kanban_task,
         )
         report = executor.run()
 
