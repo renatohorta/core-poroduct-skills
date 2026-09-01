@@ -14,6 +14,7 @@ Uso:
 
 import argparse
 import os
+import re
 import shutil
 import sys
 from datetime import datetime
@@ -78,7 +79,7 @@ agentes (Claude Code, Hermes Agent, etc.) devem ler e escrever contexto aqui,
 ### docs/ — Disciplinas de engenharia
 | Arquivo | Disciplina |
 |---------|-----------|
-| `00-vision.md` | Visão do produto |
+| `00-vision.md` | Visão do produto + Iniciativas (épicos) |
 | `01-requisitos.md` | Requisitos (cp-requisitos) |
 | `02-arquitetura.md` | Arquitetura (cp-arquitetura) |
 | `03-seguranca-lgpd.md` | Segurança/LGPD (cp-seguranca) |
@@ -226,6 +227,31 @@ DISCIPLINA_TEMPLATE = """# {titulo}
 <!-- Registro de decisões desta disciplina -->
 """
 
+# Template especial para 00-vision.md — inclui seção de iniciativas
+VISION_TEMPLATE = """# 00 — Visão do Produto
+
+> Documento gerido pela skill `cp-inicializador-doc`. Atualizado em {data}.
+
+## O que é
+
+<!-- Descrição do produto/sistema -->
+
+## Por que este repositório existe
+
+<!-- Contexto, motivação, restrições -->
+
+## Iniciativas (Épicos)
+
+<!-- Lista de iniciativas/épicos do projeto. Cada iniciativa agrega múltiplos cards do kanban.
+     Formato sugerido: tabela com ID, título, status e tasks vinculadas.
+     Iniciativas concluídas e em aberto podem estar na mesma seção, separadas por subtítulo.
+
+| ID | Iniciativa | Status | Progresso |
+|----|-----------|--------|-----------|
+| ... | ... | ... | ... |
+-->
+"""
+
 # Template de um arquivo de inbox
 INBOX_TEMPLATE = """# {nome}
 
@@ -270,8 +296,17 @@ class InicializadorDoc:
         self.created = []
         self.vision_ingested = False
 
-    def _write(self, path: Path, content: str):
-        """Escreve um arquivo (ou registra no dry-run)."""
+    def _write(self, path: Path, content: str, overwrite: bool = False):
+        """Escreve um arquivo (ou registra no dry-run).
+
+        Por padrão (overwrite=False), não sobrescreve arquivos existentes —
+        a inicialização é idempotente e preserva docs já populados.
+
+        Com overwrite=True, sobrescreve (usado para READMEs e templates
+        de infraestrutura que não têm conteúdo customizado).
+        """
+        if path.exists() and not overwrite:
+            return
         if self.dry_run:
             self.created.append(f"[dry-run] {path.relative_to(self.root)}")
             return
@@ -301,56 +336,258 @@ class InicializadorDoc:
         self.created.append(f"mover vision.md → {vision_dst.relative_to(self.root)}")
         return True
 
+    def migrate_tracking_to_kanban(self):
+        """Migra conteúdo de tracking/tasks.md, tracking/bugs.md e
+        tracking/debitos-tecnicos.md para dentro dos respectivos cards no
+        kanban/. Preserva backup em tracking/_backup_pre_migracao/. Após a
+        migração, remove os 3 arquivos de tracking pois o conteúdo agora
+        está nos cards.
+
+        Idempotente: se o card já tem '## Conteúdo do tracking' ou o tracking
+        file não existe, pula.
+        """
+        if self.dry_run:
+            self.created.append("[dry-run] migrar tracking/ → kanban/ (pularia se tracking files existirem)")
+            return
+
+        tracking_files = {
+            "tasks.md": self._parse_tasks,
+            "bugs.md": self._parse_bugs,
+            "debitos-tecnicos.md": self._parse_debt,
+        }
+
+        all_sections = {}
+
+        for fname, parser in tracking_files.items():
+            src = self.context / "tracking" / fname
+            if not src.exists():
+                continue
+            text = src.read_text(encoding="utf-8")
+            sections = parser(text)
+            all_sections.update(sections)
+
+        if not all_sections:
+            return  # nada para migrar
+
+        # Backup dos tracking files
+        backup_dir = self.context / "tracking" / "_backup_pre_migracao"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        for fname in tracking_files:
+            src = self.context / "tracking" / fname
+            if src.exists():
+                dst = backup_dir / fname
+                if not dst.exists():
+                    os.rename(str(src), str(dst))
+
+        # Percorre todos os cards kanban e injeta conteúdo
+        kanban_dir = self.context / "kanban"
+        updated = 0
+        for root, dirs, files in os.walk(kanban_dir):
+            for fname in files:
+                if not fname.endswith(".md") or fname == "README.md":
+                    continue
+                card_id = Path(fname).stem  # BUG-018, TSK-001, TD-022
+                card_path = Path(root) / fname
+
+                # Busca seção correspondente
+                section_content = None
+                if card_id in all_sections:
+                    section_content = all_sections[card_id]
+                else:
+                    continue  # card sem conteúdo no tracking
+
+                # Lê card atual
+                card_text = card_path.read_text(encoding="utf-8")
+
+                # Idempotente: já migrado?
+                if "## Conteúdo do tracking" in card_text:
+                    continue
+
+                # Separa frontmatter do body
+                if card_text.startswith("---"):
+                    parts = card_text.split("---", 2)
+                    frontmatter = "---" + parts[1] + "---"
+                    body = parts[2] if len(parts) >= 3 else ""
+                else:
+                    frontmatter = ""
+                    body = card_text
+
+                # Nova body
+                title_line = ""
+                for line in body.split("\n"):
+                    stripped = line.strip()
+                    if stripped.startswith("# ") and "mora no tracking" not in stripped:
+                        title_line = stripped
+                        break
+
+                new_body = title_line or f"# {card_id}"
+                new_body += "\n\n---\n\n"
+                new_body += "## Conteúdo do tracking\n\n"
+                new_body += section_content
+
+                card_path.write_text(frontmatter + "\n" + new_body, encoding="utf-8")
+                updated += 1
+
+        self.created.append(f"migrar tracking/ → kanban/: {updated} cards atualizados, backup em tracking/_backup_pre_migracao/")
+
+    # ── Parsers de tracking ──────────────────────────────────────────────
+
+    @staticmethod
+    def _parse_tasks(text):
+        """Parse tasks.md: seções marcadas por '- [ ] **TSK-NNN: Title**'"""
+        sections = {}
+        pattern = re.compile(r'^- \[(.)\] \*\*(TSK-\d+):(.+?)\*\*')
+        lines = text.split("\n")
+        current_id = None
+        current_lines = []
+
+        for line in lines:
+            m = pattern.match(line)
+            if m:
+                if current_id:
+                    sections[current_id] = "\n".join(current_lines)
+                current_id = m.group(2)
+                status = m.group(1)
+                title = m.group(3).strip()
+                current_lines = [
+                    f"## {current_id}: {title}",
+                    f'**Status no tracking:** {"✅ Concluído" if status == "x" else "⬜ Pendente"}',
+                ]
+            elif current_id:
+                current_lines.append(line)
+
+        if current_id:
+            sections[current_id] = "\n".join(current_lines)
+        return sections
+
+    @staticmethod
+    def _parse_bugs(text):
+        """Parse bugs.md: seções detalhadas '## BUG-NNN — Title' + tabela"""
+        sections = {}
+        # Seções detalhadas
+        section_pattern = re.compile(r"^## (BUG-\d+)\s*[—\-]\s*(.+?)$", re.MULTILINE)
+        section_starts = {}
+        for m in section_pattern.finditer(text):
+            section_starts[m.group(1)] = (m.start(), m.group(2).strip())
+
+        sorted_ids = sorted(section_starts.keys())
+        for i, bug_id in enumerate(sorted_ids):
+            start, title = section_starts[bug_id]
+            end = section_starts[sorted_ids[i + 1]][0] if i + 1 < len(sorted_ids) else len(text)
+
+            # Tabela
+            table_row = ""
+            for line in text.split("\n"):
+                if f"| {bug_id} " in line or f"|~~{bug_id}~~" in line:
+                    table_row = line.strip()
+                    break
+
+            content_lines = [f"## {bug_id}: {title}"]
+            if table_row:
+                content_lines.append(f"**Entrada na tabela:** {table_row}")
+            content_lines.append("")
+            content_lines.append(text[start:end].strip())
+            sections[bug_id] = "\n".join(content_lines)
+
+        return sections
+
+    @staticmethod
+    def _parse_debt(text):
+        """Parse debitos-tecnicos.md: seções detalhadas '## TD-NNN — Title' + tabela"""
+        sections = {}
+        section_pattern = re.compile(r"^## (TD-\d+)\s*[—\-]\s*(.+?)$", re.MULTILINE)
+        section_starts = {}
+        for m in section_pattern.finditer(text):
+            section_starts[m.group(1)] = (m.start(), m.group(2).strip())
+
+        sorted_ids = sorted(section_starts.keys())
+        for i, td_id in enumerate(sorted_ids):
+            start, title = section_starts[td_id]
+            end = section_starts[sorted_ids[i + 1]][0] if i + 1 < len(sorted_ids) else len(text)
+
+            table_row = ""
+            for line in text.split("\n"):
+                if f"| {td_id} " in line or f"|~~{td_id}~~" in line:
+                    table_row = line.strip()
+                    break
+
+            content_lines = [f"## {td_id}: {title}"]
+            if table_row:
+                content_lines.append(f"**Entrada na tabela:** {table_row}")
+            content_lines.append("")
+            content_lines.append(text[start:end].strip())
+            sections[td_id] = "\n".join(content_lines)
+
+        return sections
+
     def build(self) -> dict:
         """Executa a inicialização completa. Retorna resumo."""
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        # README do .context/
-        self._write(self.context / "README.md", CONTEXT_README)
+        # README do .context/ — infraestrutura, pode sobrescrever
+        self._write(self.context / "README.md", CONTEXT_README, overwrite=True)
 
-        # docs/ — disciplinas
+        # docs/ — disciplinas: NUNCA sobrescreve docs existentes para
+        # preservar conteúdo já populado por skills ou manualmente
         for fname, titulo in DOC_FILES.items():
-            skill = {
-                "00-vision.md": "cp-inicializador-doc",
-                "01-requisitos.md": "cp-requisitos",
-                "02-arquitetura.md": "cp-arquitetura",
-                "03-seguranca-lgpd.md": "cp-seguranca",
-                "04-qualidade-qa.md": "cp-qualidade",
-                "05-devops-operacoes.md": "cp-devops",
-                "06-kanban.md": "cp-agilista",
-            }[fname]
-            content = DISCIPLINA_TEMPLATE.format(
-                titulo=titulo, skill=skill, data=now
-            )
-            self._write(self.context / "docs" / fname, content)
+            doc_path = self.context / "docs" / fname
+            if doc_path.exists():
+                continue  # preserva conteúdo existente
+            if fname == "00-vision.md":
+                # 00-vision.md tem template especial com seção de iniciativas
+                content = VISION_TEMPLATE.format(data=now)
+            else:
+                skill = {
+                    "01-requisitos.md": "cp-requisitos",
+                    "02-arquitetura.md": "cp-arquitetura",
+                    "03-seguranca-lgpd.md": "cp-seguranca",
+                    "04-qualidade-qa.md": "cp-qualidade",
+                    "05-devops-operacoes.md": "cp-devops",
+                    "06-kanban.md": "cp-agilista",
+                }[fname]
+                content = DISCIPLINA_TEMPLATE.format(
+                    titulo=titulo, skill=skill, data=now
+                )
+            self._write(doc_path, content)
 
         # inbox/
         for nome in INBOX_DIRS:
             self._mkdir(self.context / "inbox" / nome)
             self._write(self.context / "inbox" / nome / "README.md",
-                        INBOX_TEMPLATE.format(nome=nome))
+                        INBOX_TEMPLATE.format(nome=nome),
+                        overwrite=True)
 
-        # tracking/
+        # tracking/ — templates de infraestrutura, sobrescreve
         self._write(self.context / "tracking" / "progresso.md",
-                    TRACKING_PROGRESSO.format(status="Pendente", data=now))
+                    TRACKING_PROGRESSO.format(status="Pendente", data=now),
+                    overwrite=True)
         self._write(self.context / "tracking" / "decisoes.md",
-                    TRACKING_DECISOES.format(data=now))
+                    TRACKING_DECISOES.format(data=now),
+                    overwrite=True)
 
         # kanban/ — a esteira existe desde a inicialização, não a partir do
         # primeiro run do cp-agilista. Cada coluna leva um .gitkeep porque o
         # git não versiona diretório vazio.
-        self._write(self.context / "kanban" / "README.md", KANBAN_README)
+        self._write(self.context / "kanban" / "README.md", KANBAN_README,
+                    overwrite=True)
         for col in KANBAN_COLUMNS + [KANBAN_BLOCKED_DIR]:
             self._mkdir(self.context / "kanban" / col)
-            self._write(self.context / "kanban" / col / ".gitkeep", "")
+            self._write(self.context / "kanban" / col / ".gitkeep", "",
+                        overwrite=True)
+
+        # Migração tracking → kanban: se existirem tracking/tasks.md,
+        # tracking/bugs.md ou tracking/debitos-tecnicos.md, extrai o conteúdo
+        # de cada seção e injeta nos respectivos cards do kanban. Os tracking
+        # files são movidos para _backup_pre_migracao/.
+        self.migrate_tracking_to_kanban()
 
         # Ingestão do vision.md
         vision_ingested = self.ingest_vision()
         self.vision_ingested = vision_ingested
 
-        # Ponteiros na raiz
-        self._write(self.root / "CLAUDE.md", CLAUDE_MD)
-        self._write(self.root / "AGENT.md", AGENT_MD)
+        # Ponteiros na raiz — infraestrutura, sobrescreve
+        self._write(self.root / "CLAUDE.md", CLAUDE_MD, overwrite=True)
+        self._write(self.root / "AGENT.md", AGENT_MD, overwrite=True)
 
         return {
             "root": str(self.root),

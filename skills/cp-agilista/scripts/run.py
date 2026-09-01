@@ -133,6 +133,11 @@ VALID_STATUSES = {
     "testing", "staging", "done", "blocked",
 }
 
+# Caminho para o orquestrador (para dispatch real de tasks no --task e no daemon)
+_THIS_SCRIPT_DIR = Path(__file__).resolve().parent
+AGILISTA_SKILLS_DIR = _THIS_SCRIPT_DIR.parent.parent  # skills/
+ORQUESTRADOR_RUN = AGILISTA_SKILLS_DIR / "cp-orquestrador" / "scripts" / "run.py"
+
 # Intervalo de polling (segundos)
 POLL_INTERVAL = int(os.environ.get("AGILISTA_POLL_INTERVAL", "10"))
 
@@ -239,6 +244,33 @@ def read_task_status(path: Path) -> str:
     return read_task_meta(path).get("status", "")
 
 
+def update_task_meta(path: Path, updates: dict) -> bool:
+    """Atualiza campos do frontmatter YAML de um arquivo de task.
+
+    Só reescreve os campos passados em `updates`; preserva o resto do
+    frontmatter e o corpo do arquivo. Retorna True se alterou.
+    """
+    try:
+        content = path.read_text(encoding="utf-8")
+    except Exception:
+        return False
+    m = re.match(r"^(---\s*\n.*?\n---)\s*\n", content, re.DOTALL)
+    if not m:
+        return False
+    fm_block = m.group(1)
+    body = content[m.end():]
+    for key, val in updates.items():
+        # Substitui a linha existente ou adiciona no final do frontmatter
+        pattern = re.compile(rf"^{re.escape(key)}:.*$", re.MULTILINE)
+        if pattern.search(fm_block):
+            fm_block = pattern.sub(f"{key}: {val}", fm_block)
+        else:
+            # Insere antes do fechamento ---
+            fm_block = fm_block.rstrip("---\n") + f"{key}: {val}\n---\n"
+    path.write_text(fm_block + "\n" + body, encoding="utf-8")
+    return True
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # INTEGRAÇÃO LOCAL (.context/kanban/) — FONTE DE VERDADE
 # ═══════════════════════════════════════════════════════════════════════════
@@ -283,6 +315,131 @@ class LocalIntegration:
                     "priority": meta.get("priority", "media"),
                 })
         return tasks
+
+    def triage(self, inbox_root: Path = None) -> list:
+        """Varre o inbox, classifica cada item e cria task no kanban.
+
+        Retorna lista de dicts com os dados de cada task criada.
+        """
+        root = Path(inbox_root) if inbox_root else INBOX_ROOT
+        imported = []
+
+        # Garante contadores por trilha para IDs monotônicos
+        counters = {k: 0 for k in TRILHAS}
+        for task_file in self.root.rglob("*.md"):
+            meta = read_task_meta(task_file)
+            tipo = meta.get("tipo", DEFAULT_TRILHA)
+            tid = meta.get("id", "")
+            for trilha, prefix in TRILHAS.items():
+                if tid.startswith(prefix):
+                    # Extrai número sequencial
+                    try:
+                        num = int(re.search(r"\d+", tid).group())
+                        if num > counters[trilha]:
+                            counters[trilha] = num
+                    except (AttributeError, ValueError):
+                        pass
+
+        # Percorre cada subpasta do inbox
+        for subdir_name in ["iniciativas", "tasks", "bugs", "debitos-tecnicos"]:
+            subdir = root / subdir_name
+            if not subdir.exists():
+                continue
+            for item_path in sorted(subdir.glob("*.md")):
+                if item_path.name.lower() in INBOX_IGNORED:
+                    continue
+
+                raw = item_path.read_text(encoding="utf-8")
+                if len(raw) > INBOX_MAX_BYTES:
+                    continue
+
+                # Extrai título do arquivo (primeiro heading ou nome do arquivo)
+                title_match = re.search(r"^#\s+(.+)$", raw, re.MULTILINE)
+                title = title_match.group(1).strip() if title_match else item_path.stem
+
+                # Classifica por heurística
+                tipo = DEFAULT_TRILHA
+                for t, pattern in TRILHA_PATTERNS:
+                    if re.search(pattern, raw, re.IGNORECASE):
+                        tipo = t
+                        break
+
+                # Gera ID
+                prefix = TRILHAS.get(tipo, "TASK")
+                counters[tipo] += 1
+                task_id = f"{prefix}-{counters[tipo]:03d}"
+
+                # Descrição: trecho inicial do raw
+                description = raw.strip()
+
+                now = datetime.now().isoformat(timespec="seconds")
+                task_content = build_task_template(
+                    task_id=task_id,
+                    title=title,
+                    status=TRIAGE_STATUS,
+                    priority="media",
+                    tags="[]",
+                    description=description,
+                    tipo=tipo,
+                    origem=item_path.name,
+                )
+
+                dest = self.root / "1-backlog" / f"{task_id}.md"
+                dest.write_text(task_content, encoding="utf-8")
+
+                # Arquiva o item original
+                processed = root / subdir_name / ".processados"
+                processed.mkdir(parents=True, exist_ok=True)
+                archived = processed / item_path.name
+                item_path.rename(archived)
+
+                imported.append({
+                    "task_id": task_id,
+                    "title": title,
+                    "tipo": tipo,
+                    "origem": str(archived),
+                    "destino": str(dest),
+                })
+
+        return imported
+
+    def update_status(self, task_id: str, status: str) -> Path:
+        """Atualiza o status de uma task e move para a coluna correspondente.
+
+        Mapeia status → coluna:
+          backlog → 1-backlog
+          ready   → 1-backlog
+          todo    → 2-todo
+          doing   → 3-doing
+          review  → 4-review
+          testing → 5-testing
+          staging → 6-staging
+          done    → 7-done
+          blocked → blocked
+
+        Atualiza tanto o frontmatter `status:` quanto move o arquivo
+        para a pasta correspondente.
+        """
+        STATUS_TO_COLUMN = {
+            "backlog": "1-backlog",
+            "ready": "1-backlog",
+            "todo": "2-todo",
+            "doing": "3-doing",
+            "review": "4-review",
+            "testing": "5-testing",
+            "staging": "6-staging",
+            "done": "7-done",
+            "blocked": "blocked",
+        }
+        column = STATUS_TO_COLUMN.get(status)
+        if not column:
+            return None
+
+        dest = self.move_to(task_id, column)
+        if dest:
+            update_task_meta(dest, {"status": status,
+                                    "updated_at": datetime.now().isoformat(timespec="seconds")})
+        return dest
 
     def document_kanban(self, context_root: Path = None) -> Path:
         """Gera/atualiza .context/docs/06-kanban.md com o estado do kanban.
@@ -664,6 +821,12 @@ Exemplos:
                         help="Cria a estrutura .context/kanban/ e sai")
     parser.add_argument("--doc", action="store_true",
                         help="Gera/atualiza .context/docs/06-kanban.md com o estado do kanban")
+    parser.add_argument("--triage", action="store_true",
+                        help="Varre o inbox, classifica itens e cria tasks no kanban")
+    parser.add_argument("--update-status", metavar="STATUS",
+                        help="Atualiza status de uma task: backlog|ready|todo|doing|review|testing|staging|done|blocked")
+    parser.add_argument("--task", metavar="TASK_ID",
+                        help="Muda status da task (com --update-status) ou despacha para execução (sem --update-status)")
     args = parser.parse_args()
 
     feedback = CPAgilistaFeedbackLoop(sync_trello=args.sync_trello)
@@ -679,6 +842,59 @@ Exemplos:
         local = LocalIntegration()
         dest = local.document_kanban()
         print(f"📋 Kanban documentado em {dest}")
+        return
+
+    # ── Triagem: inbox → kanban ──
+    if args.triage:
+        local = LocalIntegration()
+        imported = local.triage()
+        if not imported:
+            print("📭 Nenhum item novo no inbox para triar.")
+            return
+        print(f"📦 Triagem concluída: {len(imported)} item(ns) importados para o kanban:")
+        for item in imported:
+            print(f"  - {item['task_id']}: {item['title']} ({item['tipo']}) → kanban/1-backlog/")
+            print(f"    Origem: {item['origem']}")
+        return
+
+    # ── Update de status de uma task ──
+    if args.task and args.update_status:
+        local = LocalIntegration()
+        dest = local.update_status(args.task, args.update_status)
+        if dest:
+            print(f"✅ Task {args.task} movida para {dest.parent.name}/ com status={args.update_status}")
+        else:
+            print(f"❌ Task {args.task} não encontrada no kanban.")
+            sys.exit(1)
+        return
+
+    # ── Executar task via orquestrador (dispatch manual) ──
+    if args.task and not args.update_status:
+        import subprocess as _sp
+        local = LocalIntegration()
+        task_path = local.find_task(args.task)
+        if not task_path:
+            print(f"❌ Task {args.task} não encontrada no kanban.")
+            sys.exit(1)
+        meta = read_task_meta(task_path)
+        briefing = meta.get("title", args.task)
+        # Move para doing antes de executar
+        local.update_status(args.task, "doing")
+        print(f"🚀 Despachando task {args.task}: \"{briefing}\" para o orquestrador...")
+        r = _sp.run(
+            [sys.executable, str(ORQUESTRADOR_RUN), briefing, "--auto", "--kanban-task", args.task],
+            capture_output=True, text=True, timeout=600,
+            encoding="utf-8", errors="replace",
+        )
+        print(r.stdout)
+        if r.stderr:
+            print(r.stderr[:1000])
+        if r.returncode == 0:
+            local.update_status(args.task, "done")
+            print(f"✅ Task {args.task} concluída e movida para 7-done/")
+        else:
+            print(f"❌ Task {args.task} falhou (exit {r.returncode}). Movendo para blocked/")
+            local.update_status(args.task, "blocked")
         return
 
     # ── Sincronização one-shot do local para o Trello ──
