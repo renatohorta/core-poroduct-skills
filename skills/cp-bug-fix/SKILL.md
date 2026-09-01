@@ -1,43 +1,43 @@
 ---
 name: cp-bug-fix
-description: Corrige bugs usando o fluxo NEXUS-Micro com agents do The Agency. Cria uma crew CrewAI com Developer → QA (com criação de testes automatizados) → Evidence Collector, máximo 3 retries. Use quando o usuário pedir para corrigir um bug, consertar um erro, ou quando mencionar "corrigir", "bug", "erro", "fix", "consertar" em qualquer contexto de código.
+description: Fixes bugs using the NEXUS-Micro flow with The Agency agents. Creates a CrewAI crew with Developer → QA (with automated test creation) → Evidence Collector, max 3 retries. Use when the user asks to fix a bug, fix an error, or mentions "fix", "bug", "error", "fix", "repair" in any code context.
 ---
 
-# cp-bug-fix — Correção de Bug com NEXUS-Micro
+# cp-bug-fix — Bug Fix with NEXUS-Micro
 
-Corrige bugs usando o fluxo NEXUS-Micro com agents do The Agency. Cria uma crew CrewAI com:
+Fixes bugs using the NEXUS-Micro flow with The Agency agents. Creates a CrewAI crew with:
 
-1. **Developer** (Backend Architect ou Frontend Developer) — investiga e implementa o fix
-2. **QA** (API Tester + Test Automation Engineer) — valida o fix E cria testes automatizados
-3. **Evidence Collector** — verificação final com screenshots/evidências
+1. **Developer** (Backend Architect or Frontend Developer) — investigates and implements the fix
+2. **QA** (API Tester + Test Automation Engineer) — validates the fix AND creates automated tests
+3. **Evidence Collector** — final verification with screenshots/evidence
 
-Máximo 3 tentativas no loop Dev→QA. Se falhar 3x, escala com relatório de escalation.
+Max 3 attempts in the Dev→QA loop. If it fails 3x, escalates with an escalation report.
 
-## Uso
-
-```
-/carregar skill cp-bug-fix
-corrigir: [descrição do bug]
-```
-
-Ou diretamente:
+## Usage
 
 ```
-corrige o bug onde o endpoint de login retorna 500 quando o email tem acento
+/load skill cp-bug-fix
+fix: [bug description]
 ```
 
-## Modos de Operação
+Or directly:
 
-### 🧪 Simulação (CrewAI — default)
+```
+fix the bug where the login endpoint returns 500 when the email has an accent
+```
 
-Usa o fluxo NEXUS-Micro com agentes CrewAI: Developer → QA → Evidence Collector.
-Máximo 3 tentativas no loop Dev→QA. Se falhar 3x, escala com relatório de escalation.
+## Operation Modes
+
+### 🧪 Simulation (CrewAI — default)
+
+Uses the NEXUS-Micro flow with CrewAI agents: Developer → QA → Evidence Collector.
+Max 3 attempts in the Dev→QA loop. If it fails 3x, escalates with an escalation report.
 
 ```
 [Developer] ──► [QA: API Tester + Test Automation Engineer] ──► [Evidence Collector]
      │                              │                                    │
-     │  implementa fix              │  valida + cria testes              │  verificação final
-     │                              │  automatizados                    │
+     │  implements fix             │  validates + creates tests          │  final verification
+     │                              │  automated                         │
      │                              │                                    │
      └──────────────────────────────┼────────────────────────────────────┘
                                     │
@@ -46,28 +46,28 @@ Máximo 3 tentativas no loop Dev→QA. Se falhar 3x, escala com relatório de es
                           FAIL (max 3) → ESCALATION
 ```
 
-### ⚡ Direto (traceback-driven — preferido do usuário)
+### ⚡ Direct (traceback-driven — user's preferred)
 
-Usado quando o usuário cola um traceback. Fluxo:
+Used when the user pastes a traceback. Flow:
 
-1. **Ler o traceback** — identificar o `ModuleNotFoundError` / `SyntaxError` / `ImportError` e a linha exata
-2. **Diagnosticar causa raiz** — import de módulo deletado, import dentro de bloco errado, função faltando na migração
-3. **Corrigir o arquivo** — remover linha obsoleta, reposicionar import, adicionar função faltante
-4. **Verificar sintaxe** — `compile(content, path, 'exec')` — SEMPRE compile após editar. Sem isso, o erro só aparece no runtime (Django carregando URLs), não no teste.
-5. **Testar** — o usuário testa via sistema real (password-reset, login) e cola o próximo erro se houver
-6. **Iterar** — repetir até o erro sumir
-7. **Commit + push** — após cada correção, commitar e pushar na main
+1. **Read the traceback** — identify the `ModuleNotFoundError` / `SyntaxError` / `ImportError` and the exact line
+2. **Diagnose the root cause** — import of a deleted module, import inside the wrong block, missing function in the migration
+3. **Fix the file** — remove the obsolete line, reposition the import, add the missing function
+4. **Verify syntax** — `compile(content, path, 'exec')` — ALWAYS compile after editing. Without this, the error only appears at runtime (Django loading URLs), not in the test.
+5. **Test** — the user tests via the real system (password-reset, login) and pastes the next error if any
+6. **Iterate** — repeat until the error disappears
+7. **Commit + push** — after each fix, commit and push to main
 
-**SEMPRE verificar sintaxe com `compile()` após editar** — o erro de sintaxe só aparece no runtime (Django carregando URLs), não no pytest collection. Sem essa verificação, você descobre o erro só quando o usuário testa.
+**ALWAYS verify syntax with `compile()` after editing** — the syntax error only appears at runtime (Django loading URLs), not in pytest collection. Without this check, you only discover the error when the user tests.
 
-**SEMPRE verificar se o `sys.path` está correto** — em ambientes com múltiplos venvs (ex: Hermes + projeto), o `lxml` do Hermes pode ser carregado antes do do projeto, causando `ImportError: cannot import name 'etree'`. Sintoma: `manage.py` trava ou dá erro de lxml. Correção: adicionar no topo do `manage.py` a remoção do site-packages do Hermes do `sys.path` e inserção do do projeto no topo.
+**ALWAYS verify that the `sys.path` is correct** — in environments with multiple venvs (e.g. Hermes + project), the Hermes `lxml` can be loaded before the project's, causing `ImportError: cannot import name 'etree'`. Symptom: `manage.py` hangs or gives an lxml error. Fix: at the top of `manage.py`, remove the Hermes site-packages from `sys.path` and insert the project's at the top.
 
-**SEMPRE remover o `crewai_tools_adapter` se o `manage.py` travar** — o módulo `chat/skills/crewai_tools_adapter.py` tenta descobrir 63 tools do CrewAI no momento do import. Várias chamam `input()` no `__init__` ou fazem I/O de rede, travando o processo **para sempre** (horas, não segundos). O `lambda: "N"` que neutraliza `input()` não é suficiente. Solução definitiva: deletar o módulo, deletar `chat/skills/crewai_custom/`, e remover o import de `chat/skills/__init__.py`. O Copilot não usa essas tools — ele usa as skills nativas registradas manualmente.
+**ALWAYS remove the `crewai_tools_adapter` if `manage.py` hangs** — the module `chat/skills/crewai_tools_adapter.py` tries to discover 63 CrewAI tools at import time. Several call `input()` in `__init__` or do network I/O, hanging the process **forever** (hours, not seconds). The `lambda: "N"` that neutralizes `input()` is not enough. Definitive solution: delete the module, delete `chat/skills/crewai_custom/`, and remove the import from `chat/skills/__init__.py`. The Copilot does not use these tools — it uses the natively registered skills.
 
-**SEMPRE varrer imports stale após remover módulos** — não pare no primeiro erro. (Doc-editing secret-masking pitfall: `references/editing-docs-secret-masking.md`) Quando um `ModuleNotFoundError` aparece, o módulo deletado pode ter sido importado em MÚLTIPLOS arquivos. Use uma varredura abrangente:
+**ALWAYS sweep for stale imports after removing modules** — don't stop at the first error. (Doc-editing secret-masking pitfall: `references/editing-docs-secret-masking.md`) When a `ModuleNotFoundError` appears, the deleted module may have been imported in MULTIPLE files. Use a comprehensive sweep:
 
 ```python
-# Varredura completa de imports stale
+# Complete sweep for stale imports
 deleted = ["agents.tasks", "chat.tasks", "crews.tasks", "config.celery", ...]
 for root, dirs, files in os.walk(back_dir):
     for f in files:
@@ -80,21 +80,21 @@ for root, dirs, files in os.walk(back_dir):
                         print(f"STALE: {rel}: {line}")
 ```
 
-**SEMPRE verificar imports inseridos dentro de blocos errados** — quando você adiciona imports via find-and-replace, eles podem cair dentro de um multi-line import (dentro dos parênteses de `from .models import (`). Isso quebra a sintaxe silenciosamente. Verifique sempre o contexto de 3 linhas acima e abaixo do local da inserção.
+**ALWAYS verify imports inserted inside wrong blocks** — when you add imports via find-and-replace, they can land inside a multi-line import (inside the parentheses of `from .models import (`). This silently breaks the syntax. Always check the 3 lines above and below the insertion point.
 
-**SEMPRE verificar indentação após substituições** — find-and-replace pode quebrar a indentação de blocos `try/except` ao redor da substituição. Verifique as 5 linhas antes e depois.
+**ALWAYS verify indentation after substitutions** — find-and-replace can break the indentation of `try/except` blocks around the substitution. Check the 5 lines before and after.
 
-**SEMPRE verificar se o servidor roda WSGI ou ASGI** — `manage.py runserver` (WSGI) não tem event loop rodando. A `TaskQueue` e o `Scheduler` só sobem no `LifespanASGI.startup()` do Daphne. Sem event loop, `enqueue_task_sync()` enfileira na `TaskQueue` mas **nunca executa** — a task fica enfileirada para sempre. Sintoma: tasks de background (gerar título, indexar documento) nunca completam.
+**ALWAYS verify whether the server runs WSGI or ASGI** — `manage.py runserver` (WSGI) has no event loop running. The `TaskQueue` and `Scheduler` only start in `LifespanASGI.startup()` of Daphne. Without an event loop, `enqueue_task_sync()` enqueues in the `TaskQueue` but **never executes** — the task stays queued forever. Symptom: background tasks (generate title, index document) never complete.
 
-**Como detectar:** Bater em qualquer endpoint e ver o header `Server:` na resposta. Se for `WSGIServer` (Django runserver) ou `Cheroot` (waitress), é WSGI. Se for `daphne` ou `uvicorn`, é ASGI.
+**How to detect:** Hit any endpoint and check the `Server:` header in the response. If it's `WSGIServer` (Django runserver) or `Cheroot` (waitress), it's WSGI. If it's `daphne` or `uvicorn`, it's ASGI.
 
-**Correção em `config/task_proxy.py`:** Quando a TaskQueue existe mas workers não estão rodando (ou não há event loop), executar a task em uma **thread separada** com `asyncio.run()`. Três cenários:
+**Fix in `config/task_proxy.py`:** When the TaskQueue exists but workers are not running (or there is no event loop), run the task in a **separate thread** with `asyncio.run()`. Three scenarios:
 
-1. **Sem event loop rodando** (`except RuntimeError`) — cria thread com `asyncio.run()`.
-2. **Com loop rodando mas queue sem workers** — mesma abordagem: thread separada.
-3. **Com loop rodando e queue com workers** — enfileira normalmente via `asyncio.run_coroutine_threadsafe()`.
+1. **No event loop running** (`except RuntimeError`) — create a thread with `asyncio.run()`.
+2. **Loop running but queue without workers** — same approach: separate thread.
+3. **Loop running and queue with workers** — enqueue normally via `asyncio.run_coroutine_threadsafe()`.
 
-**Pitfall crítico:** NÃO tentar `asyncio.run()` inline quando já há um loop rodando (cenário 2). `asyncio.run()` exige que não haja loop no thread atual. Usar `asyncio.ensure_future()` também falha porque a corrotina nunca é executada (ninguém a awaita). A solução correta é uma **daemon thread** com seu próprio `asyncio.run()`:
+**Critical pitfall:** Do NOT try `asyncio.run()` inline when there is already a loop running (scenario 2). `asyncio.run()` requires that there be no loop in the current thread. Using `asyncio.ensure_future()` also fails because the coroutine is never executed (nobody awaits it). The correct solution is a **daemon thread** with its own `asyncio.run()`:
 
 ```python
 def enqueue_task_sync(name, coro_factory, *args, **kwargs):
@@ -103,12 +103,12 @@ def enqueue_task_sync(name, coro_factory, *args, **kwargs):
         loop = asyncio.get_running_loop()
         q = get_queue()
         if q._running:
-            # Cenário 3: ASGI com workers — enfileira
+            # Scenario 3: ASGI with workers — enqueue
             task_obj = Task(name=name, coro=coro_factory(*args, **kwargs), ...)
             asyncio.run_coroutine_threadsafe(q.enqueue(task_obj), loop)
             return task_obj.task_id
         else:
-            # Cenário 2: loop rodando mas sem workers — thread separada
+            # Scenario 2: loop running but no workers — separate thread
             _tid = str(uuid.uuid4())
             def _run():
                 try:
@@ -119,7 +119,7 @@ def enqueue_task_sync(name, coro_factory, *args, **kwargs):
             t.start()
             return _tid
     except RuntimeError:
-        # Cenário 1: sem loop rodando — thread separada
+        # Scenario 1: no loop running — separate thread
         _tid = str(uuid.uuid4())
         def _run():
             try:
@@ -131,20 +131,20 @@ def enqueue_task_sync(name, coro_factory, *args, **kwargs):
         return _tid
 ```
 
-**SEMPRE mover `enqueue_task_sync` para FORA de `sync_to_async`** — quando `enqueue_task_sync` é chamado DENTRO de um bloco `sync_to_async` (que roda em uma thread pool), o `asyncio.get_running_loop()` falha (não há loop na thread pool). O fallback inline cria um novo event loop com `asyncio.run()`, mas a transação `transaction.atomic()` da thread pool **ainda não comitou**. A task inline tenta `Conversation.objects.get(pk=...)` e recebe `DoesNotExist` porque o registro não está visível para a nova conexão de banco. Sintoma: `generate_session_title` nunca completa, título fica como "Nova Conversa" para sempre.
+**ALWAYS move `enqueue_task_sync` OUTSIDE of `sync_to_async`** — when `enqueue_task_sync` is called INSIDE a `sync_to_async` block (which runs in a thread pool), `asyncio.get_running_loop()` fails (there is no loop in the thread pool). The inline fallback creates a new event loop with `asyncio.run()`, but the `transaction.atomic()` transaction of the thread pool **has not committed yet**. The inline task tries `Conversation.objects.get(pk=...)` and gets `DoesNotExist` because the record is not visible to the new database connection. Symptom: `generate_session_title` never completes, the title stays "Nova Conversa" forever.
 
-**Correção:** `_build_task` retorna `(task, is_new, conversation_id)` em vez de só `task`. O `post()` async desempacota o tuple e chama `enqueue_task_sync` **fora** do `sync_to_async`, no ASGI event loop principal, onde a transação já comitou e a TaskQueue está rodando:
+**Fix:** `_build_task` returns `(task, is_new, conversation_id)` instead of just `task`. The async `post()` unpacks the tuple and calls `enqueue_task_sync` **outside** of `sync_to_async`, on the main ASGI event loop, where the transaction has already committed and the TaskQueue is running:
 
 ```python
-# ERRADO — dentro de sync_to_async (thread pool, transação não comitada):
+# WRONG — inside sync_to_async (thread pool, uncommitted transaction):
 def _build_task(self, user, conv_ref, message):
     with transaction.atomic():
         conversation = Conversation.objects.create(...)
         ChatMessage.objects.create(...)
-        enqueue_task_sync("generate_title", generate_session_title, str(conversation.id), message)  # ← FALHA: DoesNotExist
+        enqueue_task_sync("generate_title", generate_session_title, str(conversation.id), message)  # ← FAILS: DoesNotExist
         return AgentTask.objects.create(...)
 
-# CERTO — retorna dados, enfileira fora:
+# CORRECT — returns data, enqueues outside:
 def _build_task(self, user, conv_ref, message):
     with transaction.atomic():
         conversation = Conversation.objects.create(...)
@@ -152,40 +152,40 @@ def _build_task(self, user, conv_ref, message):
         task = AgentTask.objects.create(...)
         return task, is_new, str(conversation.id)
 
-# No post() async (ASGI event loop, transação comitada):
+# In the async post() (ASGI event loop, committed transaction):
 task, is_new, conv_id = await sync_to_async(self._build_task)(user, conv_ref, message)
 if is_new:
-    enqueue_task_sync("generate_title", generate_session_title, conv_id, message)  # ← FUNCIONA
+    enqueue_task_sync("generate_title", generate_session_title, conv_id, message)  # ← WORKS
 ```
 
-**SEMPRE verificar se o interceptor `runAgent` usa `activeIdRef.current` (ref) em vez de `ctrl.activeId` (state) ou `base.threadId` (UUID aleatório do construtor)** — quando o `ChatReady` cria o `HttpAgent` com um interceptor `runAgent`, o closure captura `ctrl.activeId` (React state) com o **valor inicial** (null). Quando o usuário clica em uma conversa e digita, o interceptor vê `activeId = null` e cria uma conversa nova. Sintoma: mensagem vai para conversa nova em vez da atual.
+**ALWAYS verify that the `runAgent` interceptor uses `activeIdRef.current` (ref) instead of `ctrl.activeId` (state) or `base.threadId` (random constructor UUID)** — when `ChatReady` creates the `HttpAgent` with a `runAgent` interceptor, the closure captures `ctrl.activeId` (React state) with its **initial value** (null). When the user clicks a conversation and types, the interceptor sees `activeId = null` and creates a new conversation. Symptom: the message goes to a new conversation instead of the current one.
 
-**Causa raiz — DUAS armadilhas:**
+**Root cause — TWO traps:**
 
-1. **`ctrl.activeId` é React state, stale no closure.** O closure do interceptor `base.runAgent = async function(...) { ... ctrl.activeId ... }` captura o valor de `activeId` no momento da criação do `HttpAgent` (que é criado uma vez, via `if (!agentRef.current)`). O React state `activeId` muda depois, mas o closure ainda vê o valor antigo.
+1. **`ctrl.activeId` is React state, stale in the closure.** The interceptor closure `base.runAgent = async function(...) { ... ctrl.activeId ... }` captures the value of `activeId` at the moment the `HttpAgent` is created (which is created once, via `if (!agentRef.current)`). The React state `activeId` changes later, but the closure still sees the old value.
 
-2. **`base.threadId` NÃO é setado pelo runtime — e é PIOR que não ter interceptor.** O construtor do `HttpAgent` gera um UUID aleatório para `this.threadId`. O runtime do AG-UI **não** seta `agent.threadId` quando troca de thread — ele só chama o adapter. Usar `base.threadId` como fallback é pior que não ter interceptor: o valor é sempre truthy (um UUID fake), então o interceptor passa um UUID inexistente para o backend, que cria uma conversa nova **silenciosamente** (sem erro, sem 404). O usuário vê a mensagem sumir e não entende por quê.
+2. **`base.threadId` is NOT set by the runtime — and it's WORSE than having no interceptor.** The `HttpAgent` constructor generates a random UUID for `this.threadId`. The AG-UI runtime does **not** set `agent.threadId` when switching threads — it only calls the adapter. Using `base.threadId` as a fallback is worse than having no interceptor: the value is always truthy (a fake UUID), so the interceptor passes a nonexistent UUID to the backend, which creates a new conversation **silently** (no error, no 404). The user sees the message disappear and doesn't understand why.
 
-**Correção em 3 partes:**
+**Fix in 3 parts:**
 
-1. **`onSwitchToThread` no adapter** seta `agent.threadId = threadId` **antes** do fetch REST.
-2. **Expor `activeIdRef` no context** (`ThreadListController` + provider value).
-3. **Interceptor usa `ctrl.activeIdRef?.current`** (ref, não state) em vez de `ctrl.activeId` ou `base.threadId`.
+1. **`onSwitchToThread` in the adapter** sets `agent.threadId = threadId` **before** the REST fetch.
+2. **Expose `activeIdRef` in the context** (`ThreadListController` + provider value).
+3. **Interceptor uses `ctrl.activeIdRef?.current`** (ref, not state) instead of `ctrl.activeId` or `base.threadId`.
 
 ```tsx
-// ERRADO — ctrl.activeId é React state, stale no closure:
+// WRONG — ctrl.activeId is React state, stale in the closure:
 base.runAgent = async function (params, subscriber) {
-  if (!ctrl.activeId) { ... }  // ← sempre null, closure capturou valor inicial
+  if (!ctrl.activeId) { ... }  // ← always null, closure captured initial value
   ...
 };
 
-// ERRADO — base.threadId é UUID aleatório do construtor, sempre truthy:
+// WRONG — base.threadId is a random constructor UUID, always truthy:
 base.runAgent = async function (params, subscriber) {
-  if (base.threadId) { ... }  // ← sempre truthy, UUID fake, backend cria conversa nova
+  if (base.threadId) { ... }  // ← always truthy, fake UUID, backend creates new conversation
   ...
 };
 
-// CERTO — activeIdRef.current é ref, sempre atualizado:
+// CORRECT — activeIdRef.current is a ref, always up to date:
 const origRunAgent = base.runAgent.bind(base);
 base.runAgent = async function (params, subscriber) {
   const ctrl = controller;
@@ -196,14 +196,14 @@ base.runAgent = async function (params, subscriber) {
     params = { ...params, threadId: pendingId };
     return origRunAgent(params, subscriber);
   }
-  // Usa activeIdRef.current (ref, nao state) para evitar stale closure.
+  // Uses activeIdRef.current (ref, not state) to avoid stale closure.
   const activeId = ctrl.activeIdRef?.current;
   if (activeId) {
     base.threadId = activeId;
     params = { ...params, threadId: activeId };
     return origRunAgent(params, subscriber);
   }
-  // Fallback: sem threadId ativo, cria ou pega a mais recente
+  // Fallback: no active threadId, create or get the most recent one
   const conversations = ctrl.conversations;
   const mostRecent = conversations && conversations.length > 0 ? conversations[0] : null;
   if (mostRecent) {
@@ -221,33 +221,33 @@ base.runAgent = async function (params, subscriber) {
 };
 ```
 
-**NÃO fazer:**
-- Usar `ctrl.activeId` dentro do interceptor `runAgent` — é React state, o closure captura o valor inicial.
-- Usar `base.threadId` como fallback — o construtor do `HttpAgent` gera um UUID aleatório, sempre truthy, que o backend interpreta como conversa nova.
-- Assumir que o runtime seta `agent.threadId` ao trocar de thread — ele NÃO seta, só chama o adapter.
+**DON'T:**
+- Use `ctrl.activeId` inside the `runAgent` interceptor — it's React state, the closure captures the initial value.
+- Use `base.threadId` as a fallback — the `HttpAgent` constructor generates a random UUID, always truthy, which the backend interprets as a new conversation.
+- Assume the runtime sets `agent.threadId` when switching threads — it does NOT set it, it only calls the adapter.
 
-**Após push HEAD:main, sincronizar branch main local** — quando você faz `git push origin HEAD:main` de uma feature branch, o remote `main` é atualizado mas o `main` local fica desatualizado. Commits futuros partem da feature branch e o `main` local fica para trás. Para corrigir:
+**After pushing HEAD:main, sync the local main branch** — when you do `git push origin HEAD:main` from a feature branch, the remote `main` is updated but the local `main` becomes outdated. Future commits start from the feature branch and the local `main` falls behind. To fix:
 ```bash
 git checkout main
 git merge feature-branch    # fast-forward
-git push origin main         # já está sincronizado, mas confirma
-git checkout feature-branch  # volta a trabalhar
+git push origin main         # already synced, but confirms
+git checkout feature-branch  # back to work
 ```
 
-**SEMPRE usar `git cherry-pick` (não merge) para trazer um commit de docs de uma branch desatualizada** — quando uma branch antiga tem um commit de docs/status (ex: marcar feature como Concluída) mas está MUITO atrás da main (dezenas de arquivos divergentes), `git merge` arrastaria tudo. O `cherry-pick <commit>` aplica só aquele commit na main. Antes, verificar que os arquivos que o commit toca são idênticos entre o parent do commit e a main (`git show <commit>^:<path>` vs `git show main:<path>`) — se forem, o cherry-pick aplica limpo sem conflito. Depois `git push origin main`. A branch antiga pode ser deletada (o commit já foi portado).
+**ALWAYS use `git cherry-pick` (not merge) to bring a docs commit from an outdated branch** — when an old branch has a docs/status commit (e.g. marking a feature as Concluída) but is FAR behind main (dozens of divergent files), `git merge` would drag everything in. `cherry-pick <commit>` applies only that commit to main. Before, verify that the files the commit touches are identical between the commit's parent and main (`git show <commit>^:<path>` vs `git show main:<path>`) — if they are, the cherry-pick applies cleanly without conflict. Then `git push origin main`. The old branch can be deleted (the commit has already been ported).
 
-**SEMPRE verificar rota dupla ao incluir urls com path parameter** — `path("serve/<slug:slug>/", include("pages.urls"))` captura o slug no prefixo, e se `pages/urls.py` também tem `<slug:slug>/`, o slug é capturado DUAS VEZES → 404. Correção: o prefixo não deve ter o path parameter:
+**ALWAYS check for double routing when including urls with a path parameter** — `path("serve/<slug:slug>/", include("pages.urls"))` captures the slug in the prefix, and if `pages/urls.py` also has `<slug:slug>/`, the slug is captured TWICE → 404. Fix: the prefix should not have the path parameter:
 ```python
-# ERRADO — slug capturado duas vezes:
+# WRONG — slug captured twice:
 path("serve/<slug:slug>/", include("pages.urls"))  # + <slug:slug>/ = /serve/<slug>/<slug>/
 
-# CERTO — prefixo sem slug:
+# CORRECT — prefix without slug:
 path("serve/", include("pages.urls"))  # + <slug:slug>/ = /serve/<slug>/
 ```
 
-**SEMPRE verificar catch-all slug em routers incluídos em `/api/v1/`** — um `path("<slug:slug>/", page_serve_by_slug)` em `pages/urls.py` captura QUALQUER path de segmento único, inclusive `activity-log/`, `dashboard/`, etc. Se `pages.urls` é incluído em `/api/v1/` ANTES de `activity.urls`, o Django tenta servir `activity-log/` como slug de página → 404. Correção: separar as rotas de slug serve em um arquivo separado (`serve_urls.py`) que só é incluído em `/serve/`, e manter apenas os routers REST em `urls.py` (incluído em `/api/v1/`).
+**ALWAYS check for catch-all slug in routers included in `/api/v1/`** — a `path("<slug:slug>/", page_serve_by_slug)` in `pages/urls.py` captures ANY single-segment path, including `activity-log/`, `dashboard/`, etc. If `pages.urls` is included in `/api/v1/` BEFORE `activity.urls`, Django tries to serve `activity-log/` as a page slug → 404. Fix: separate the slug-serve routes into a separate file (`serve_urls.py`) that is only included in `/serve/`, and keep only the REST routers in `urls.py` (included in `/api/v1/`).
 
-**SEMPRE adicionar proxy no vite.config.ts ao criar nova rota pública** — o frontend (Vite dev server em :8080) só redireciona ao backend (:8000) as rotas listadas em `server.proxy`. Se você adiciona uma rota como `/serve/<slug>/` no backend, precisa adicionar o proxy correspondente no `vite.config.ts`:
+**ALWAYS add a proxy in vite.config.ts when creating a new public route** — the frontend (Vite dev server on :8080) only redirects to the backend (:8000) the routes listed in `server.proxy`. If you add a route like `/serve/<slug>/` in the backend, you need to add the corresponding proxy in `vite.config.ts`:
 ```typescript
 server: {
   proxy: {
@@ -259,9 +259,9 @@ server: {
 }
 ```
 
-**SEMPRE verificar se o frontend espera array plano ou paginado ao adicionar paginação no backend** — quando você adiciona `pagination_class` a um ViewSet do DRF que antes retornava `T[]`, a resposta muda para `{ count, next, previous, results: T[] }`. O frontend que consumia `data` como array agora recebe um objeto. Correção em 3 camadas:
+**ALWAYS verify whether the frontend expects a flat or paginated array when adding pagination in the backend** — when you add `pagination_class` to a DRF ViewSet that previously returned `T[]`, the response changes to `{ count, next, previous, results: T[] }`. The frontend that consumed `data` as an array now receives an object. Fix in 3 layers:
 
-1. **Backend:** Adicionar `pagination_class` ao ViewSet:
+1. **Backend:** Add `pagination_class` to the ViewSet:
 ```python
 from rest_framework.pagination import PageNumberPagination
 
@@ -274,57 +274,57 @@ class MyViewSet(...):
     pagination_class = MyPagination
 ```
 
-2. **API endpoint type:** Atualizar o tipo de retorno no `endpoints.ts`:
+2. **API endpoint type:** Update the return type in `endpoints.ts`:
 ```typescript
-// Antes:
+// Before:
 api.get<T[]>("/path/")
-// Depois:
+// After:
 api.get<PaginatedResponse<T>>("/path/")
 ```
 
-3. **Hook de query:** Adicionar `page` e `page_size` aos params, e extrair `results`:
+3. **Query hook:** Add `page` and `page_size` to the params, and extract `results`:
 ```typescript
-// No hook:
+// In the hook:
 useAuthedQuery({
   queryKey: ["key", params],
-  queryFn: () => api.list(params),  // retorna PaginatedResponse
-  select: (data) => data.results,   // extrai o array
+  queryFn: () => api.list(params),  // returns PaginatedResponse
+  select: (data) => data.results,   // extracts the array
 })
 ```
 
-4. **Componente:** Adicionar state de página + botões Anterior/Próxima:
+4. **Component:** Add page state + Previous/Next buttons:
 ```typescript
 const [page, setPage] = useState(1);
 const { data: pageData } = useQuery(params);
 const logs = pageData?.results ?? [];
 const totalPages = Math.ceil((pageData?.count ?? 0) / pageSize);
-// Render: "{page} de {totalPages}" + Anterior/Próxima
+// Render: "{page} de {totalPages}" + Previous/Next
 ```
 
-**SEMPRE verificar se o elemento tem largura fixa ao debuggar sobreposição de texto** — quando o usuário reporta "texto se sobrepondo" em botões de paginação ou ações, a causa raiz mais comum é uma classe CSS com `width` fixa (ex: `.mini-btn { width: 34px; height: 34px }`) que não comporta o texto. Sintoma: o texto transborda e sobrepõe elementos adjacentes no flex container. Correção: remover a classe de largura fixa e usar `padding` explícito + `whiteSpace: "nowrap"` nos botões.
+**ALWAYS verify whether the element has a fixed width when debugging text overlap** — when the user reports "text overlapping" on pagination or action buttons, the most common root cause is a CSS class with a fixed `width` (e.g. `.mini-btn { width: 34px; height: 34px }`) that doesn't fit the text. Symptom: the text overflows and overlaps adjacent elements in the flex container. Fix: remove the fixed-width class and use explicit `padding` + `whiteSpace: "nowrap"` on the buttons.
 
-**SEMPRE verificar ícone duplicado por `data-icon` + componente React** — quando um botão tem `data-icon="refresh"` (que renderiza um ícone via CSS `::before` com máscara SVG) E um componente React de ícone (ex: `<RefreshCw>`), o resultado são dois ícones sobrepostos. O `data-icon` renderiza via pseudo-elemento `::before`, e o componente React renderiza o SVG real. Correção: remover `data-icon="X"` e manter apenas o componente React. Este padrão é comum em botões de ação (refresh, add, edit) que foram migrados de HTML puro para React.
+**ALWAYS check for a duplicated icon from `data-icon` + React component** — when a button has `data-icon="refresh"` (which renders an icon via CSS `::before` with an SVG mask) AND a React icon component (e.g. `<RefreshCw>`), the result is two overlapping icons. The `data-icon` renders via the `::before` pseudo-element, and the React component renders the real SVG. Fix: remove `data-icon="X"` and keep only the React component. This pattern is common in action buttons (refresh, add, edit) that were migrated from plain HTML to React.
 
-**SEMPRE verificar contraste de tokens gray no dark mode** — no tema escuro do Crewbotics, `gray-200` e `gray-300` valem `#404040` — quase invisível no fundo `#0A0A0A`. Para texto descritivo (descrições de atividades, labels), usar `gray-600` (`#A3A3A3`). Para texto secundário (nomes de usuário, metadados, timestamps), usar `gray-400` (`#525252`). Nunca usar `gray-200` ou `gray-300` para texto em dark mode — eles só servem para bordas e separadores.
+**ALWAYS check gray token contrast in dark mode** — in the Crewbotics dark theme, `gray-200` and `gray-300` are `#404040` — almost invisible on the `#0A0A0A` background. For descriptive text (activity descriptions, labels), use `gray-600` (`#A3A3A3`). For secondary text (usernames, metadata, timestamps), use `gray-400` (`#525252`). Never use `gray-200` or `gray-300` for text in dark mode — they are only for borders and separators.
 
-**SEMPRE verificar se os tokens CSS usados existem no tema escuro** — tokens como `gray-800` e `gray-700` NÃO EXISTEM no sistema de tokens do Crewbotics. O tema escuro só define `gray-100` a `gray-600` + `gray-900`. Usar tokens inexistentes resulta em fundo/borda transparente (herda do pai). Correção: mapear para tokens existentes:
-  - `gray-800` (inexistente) → `gray-100` (`#262626` no dark mode) para fundo escuro
-  - `gray-700` (inexistente) → `gray-300` (`#404040` no dark mode) para borda
-  - `gray-200` (`#404040` no dark mode) → `gray-600` (`#A3A3A3`) para texto
-  - `gray-500` (`#737373`) → `gray-400` (`#525252`) para texto secundário
+**ALWAYS verify that the CSS tokens used exist in the dark theme** — tokens like `gray-800` and `gray-700` DO NOT EXIST in the Crewbotics token system. The dark theme only defines `gray-100` to `gray-600` + `gray-900`. Using nonexistent tokens results in a transparent background/border (inherits from the parent). Fix: map to existing tokens:
+  - `gray-800` (nonexistent) → `gray-100` (`#262626` in dark mode) for dark background
+  - `gray-700` (nonexistent) → `gray-300` (`#404040` in dark mode) for border
+  - `gray-200` (`#404040` in dark mode) → `gray-600` (`#A3A3A3`) for text
+  - `gray-500` (`#737373`) → `gray-400` (`#525252`) for secondary text
 
-**SEMPRE verificar import de bibliotecas com lazy proxy** — pacotes que usam metaclasses para lazy-loading (ex: `ddgs` com `_ProxyMeta`) podem falhar com `ImportError: cannot import name 'etree'` mesmo quando o módulo está instalado. O proxy tenta carregar dependências no momento do primeiro acesso, e se o `sys.path` tiver um venv diferente na frente (ex: Hermes venv com `lxml` sem `etree`), a importação falha. Correção: importar direto do submódulo (`from ddgs.ddgs import DDGS`) em vez do pacote raiz (`from ddgs import DDGS`). Ver `references/ddgs-api-quirks.md` para detalhes da API do ddgs 9.x.
+**ALWAYS check imports of libraries with lazy proxies** — packages that use metaclasses for lazy-loading (e.g. `ddgs` with `_ProxyMeta`) can fail with `ImportError: cannot import name 'etree'` even when the module is installed. The proxy tries to load dependencies at the moment of first access, and if `sys.path` has a different venv in front (e.g. the Hermes venv with `lxml` without `etree`), the import fails. Fix: import directly from the submodule (`from ddgs.ddgs import DDGS`) instead of the root package (`from ddgs import DDGS`). See `references/ddgs-api-quirks.md` for details on the ddgs 9.x API.
 
-### SEMPRE verificar loading dots em mensagens do assistente (AG-UI React)
+### ALWAYS check loading dots in assistant messages (AG-UI React)
 
-Quando o usuário reporta "três pontinhos aparecem em todos os balões de mensagens do copilot", a causa raiz é que o `<ThreadPrimitive.If running>` com os loading-dots está DENTRO do componente `AssistantMessage`, que é renderizado para CADA mensagem. Quando o runtime está processando, `If running` é `true` para TODAS as mensagens, não só a última. Correção: mover os loading-dots para FORA do `ThreadPrimitive.Messages`, entre o fechamento do `Messages` e o `Viewport`. Renderizar como uma bolha separada de "assistente pensando" no final da lista.
+When the user reports "three dots appear in all the copilot message bubbles", the root cause is that the `<ThreadPrimitive.If running>` with the loading-dots is INSIDE the `AssistantMessage` component, which is rendered for EACH message. When the runtime is processing, `If running` is `true` for ALL messages, not just the last one. Fix: move the loading-dots OUTSIDE of `ThreadPrimitive.Messages`, between the closing of `Messages` and the `Viewport`. Render it as a separate "assistant thinking" bubble at the end of the list.
 
-> **Endpoints de mensagem do chat** (`branches`, `branch-version`): resolver por `uuid`+`id`, ignorar IDs otimistas AG-UI (`__optimistic__`/`msg_`) p/ evitar 500 em loop; **carrosséis HTML/CSS**: portar p/ SVG + `resvg-py`+`font_files` (sem browser, ECS-safe). Código em `references/agui-message-id-resolve-and-carousel-templates.md`.
+> **Chat message endpoints** (`branches`, `branch-version`): resolve by `uuid`+`id`, ignore AG-UI optimistic IDs (`__optimistic__`/`msg_`) to avoid 500 loops; **HTML/CSS carousels**: port to SVG + `resvg-py`+`font_files` (no browser, ECS-safe). Code in `references/agui-message-id-resolve-and-carousel-templates.md`.
 
-**NUNCA usar `s.optional.message?.status?.type === "in_progress"` para detectar streaming** — este selector verifica o status da mensagem **atual** sendo renderizada pelo `AssistantMessage`. Quando a mensagem aparece no DOM, ela já foi finalizada (status é "complete" ou similar), então `isStreaming` sempre retorna `false`. O loading-dot nunca aparece. A abordagem correta é `ThreadPrimitive.If running` **fora** do loop de mensagens, que verifica se o runtime AG-UI está processando alguma requisição, independente de qual mensagem está sendo renderizada.
+**NEVER use `s.optional.message?.status?.type === "in_progress"` to detect streaming** — this selector checks the status of the **current** message being rendered by the `AssistantMessage`. When the message appears in the DOM, it has already finished (status is "complete" or similar), so `isStreaming` always returns `false`. The loading-dot never appears. The correct approach is `ThreadPrimitive.If running` **outside** the message loop, which checks whether the AG-UI runtime is processing any request, regardless of which message is being rendered.
 
 ```tsx
-// ERRADO — isStreaming sempre false, loading-dots nunca aparecem:
+// WRONG — isStreaming always false, loading-dots never appear:
 AssistantMessage: () => {
   const isStreaming = Aui.useAuiState?.(
     (s: any) => s.optional.message?.status?.type === "in_progress",
@@ -332,12 +332,12 @@ AssistantMessage: () => {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.Parts />
-      {isStreaming && <div className="loading-dots">...</div>}  {/* ← nunca aparece */}
+      {isStreaming && <div className="loading-dots">...</div>}  {/* ← never appears */}
     </MessagePrimitive.Root>
   );
 }
 
-// CERTO — ThreadPrimitive.If running fora do loop:
+// CORRECT — ThreadPrimitive.If running outside the loop:
 <ThreadPrimitive.Messages components={{...}} />
 <ThreadPrimitive.If running>
   <div className="msg msg--ai">
@@ -348,22 +348,22 @@ AssistantMessage: () => {
 </ThreadPrimitive.If>
 ```
 
-**SEMPRE verificar `};` vs `}` em objetos JSX** — ao editar objetos literais com múltiplos componentes inline (ex: `components={{ Text: ..., UserMessage: ..., AssistantMessage: ... }}`), o último item NÃO deve ter `;` após o `}`. Um `};` dentro de um objeto literal JSX causa `[PARSE_ERROR] Expected ',' or '}' but found ';'`. O Vite/oxc parser é estrito. Correção: o último item termina com `}` (sem `;`), e o `;` só vem depois do fechamento do objeto: `}};`.
+**ALWAYS check `};` vs `}` in JSX objects** — when editing object literals with multiple inline components (e.g. `components={{ Text: ..., UserMessage: ..., AssistantMessage: ... }}`), the last item must NOT have a `;` after the `}`. A `};` inside a JSX object literal causes `[PARSE_ERROR] Expected ',' or '}' but found ';'`. The Vite/oxc parser is strict. Fix: the last item ends with `}` (no `;`), and the `;` only comes after the object closes: `}};`.
 
 ```tsx
-{/* ERRADO — loading dots dentro de AssistantMessage, aparece em todas */}
+{/* WRONG — loading dots inside AssistantMessage, appears in all */}
 <ThreadPrimitive.Messages components={{
   AssistantMessage: () => (
     <div>
       <MessagePrimitive.Parts />
-      <ThreadPrimitive.If running>   {/* ← aparece em TODAS as mensagens */}
+      <ThreadPrimitive.If running>   {/* ← appears in ALL messages */}
         <div className="loading-dots">...</div>
       </ThreadPrimitive.If>
     </div>
   ),
 }} />
 
-{/* CERTO — loading dots fora do loop de mensagens */}
+{/* CORRECT — loading dots outside the message loop */}
 <ThreadPrimitive.Messages components={{...}} />
 <ThreadPrimitive.If running>
   <div className="msg msg--ai">
@@ -374,81 +374,81 @@ AssistantMessage: () => {
 </ThreadPrimitive.If>
 ```
 
-**SEMPRE testar no browser após corrigir bugs de frontend React** — quando o bug é no frontend (duplicação de chamadas, ReferenceError, componente quebrando), não confie apenas no `bun run build`. O build compila TypeScript, mas não detecta erros de runtime como `ReferenceError: agent is not defined` ou lógica que causa chamadas duplicadas. Após cada correção:
+**ALWAYS test in the browser after fixing React frontend bugs** — when the bug is in the frontend (duplicate calls, ReferenceError, breaking component), don't rely only on `bun run build`. The build compiles TypeScript, but it doesn't detect runtime errors like `ReferenceError: agent is not defined` or logic that causes duplicate calls. After each fix:
 
-1. `bun run build` — verifica se compila
-2. Recarregar a página no browser
-3. Abrir DevTools → Console (verificar erros)
-4. Abrir DevTools → Network (verificar chamadas duplicadas)
-5. Testar a ação que estava quebrada
+1. `bun run build` — checks that it compiles
+2. Reload the page in the browser
+3. Open DevTools → Console (check for errors)
+4. Open DevTools → Network (check for duplicate calls)
+5. Test the action that was broken
 
-**NÃO fazer:** editar → build → commitar sem testar no browser. O build passa mesmo com bugs de runtime. O usuário vai reportar o erro e você vai precisar de mais 5 iterações.
+**DON'T:** edit → build → commit without testing in the browser. The build passes even with runtime bugs. The user will report the error and you'll need 5 more iterations.
 
-**REGRRA DE OURO:** se o usuário reportar um erro de frontend que você corrigiu, NÃO faça outra correção sem testar no browser primeiro. Cada iteração sem teste gera 3-5 correções adicionais. Teste no browser após CADA correção, não após o commit.
+**GOLDEN RULE:** if the user reports a frontend error that you fixed, do NOT make another fix without testing in the browser first. Each iteration without testing generates 3-5 additional fixes. Test in the browser after EACH fix, not after the commit.
 
-**REGRRA DE FERRO:** se o usuário disser "teste no browser" ou "vc esta mexendo e nao testando", PARE imediatamente de editar. Faça `bun run build`, recarregue a página, teste manualmente, e só então continue editando. O usuário prefere que você teste primeiro e edite depois, não o contrário.
+**IRON RULE:** if the user says "test in the browser" or "you're editing and not testing", STOP editing immediately. Run `bun run build`, reload the page, test manually, and only then continue editing. The user prefers that you test first and edit later, not the other way around.
 
-**SEMPRE verificar se a variável que você referencia existe no escopo do componente** — `ReferenceError: X is not defined` é o erro mais comum ao editar componentes React. Antes de usar uma variável em um callback ou JSX, verifique se ela:
-- Foi declarada no mesmo componente (via `useState`, `useRef`, `useMemo`, etc.)
-- Foi recebida como prop
-- Foi recebida de um hook (ex: `useConversationThreadList()`)
-- NÃO foi declarada em um componente pai diferente (ex: `agent` está em `ChatReady`, não em `ThreadListSidebar`)
+**ALWAYS verify that the variable you reference exists in the component's scope** — `ReferenceError: X is not defined` is the most common error when editing React components. Before using a variable in a callback or JSX, verify that it:
+- Was declared in the same component (via `useState`, `useRef`, `useMemo`, etc.)
+- Was received as a prop
+- Was received from a hook (e.g. `useConversationThreadList()`)
+- Was NOT declared in a different parent component (e.g. `agent` is in `ChatReady`, not in `ThreadListSidebar`)
 
-**SEMPRE verificar se o `agentRef` type é `any`** — o `HttpAgent` do `@ag-ui/client` tem um setter real (get/set) em `threadId`. Se o tipo for `{ threadId: string | null }`, a atribuição `agent.threadId = uuid` seta uma propriedade plana, não o setter — o fetch nunca dispara. Use `React.MutableRefObject<any>` para acessar o setter real.
+**ALWAYS verify that the `agentRef` type is `any`** — the `HttpAgent` from `@ag-ui/client` has a real setter (get/set) on `threadId`. If the type is `{ threadId: string | null }`, the assignment `agent.threadId = uuid` sets a plain property, not the setter — the fetch never fires. Use `React.MutableRefObject<any>` to access the real setter.
 
-**SEMPRE consumir o stream SSE em testes que verificam persistência** — `StreamingHttpResponse` só persiste a `ChatMessage` quando o stream é totalmente consumido. Sem `async_to_sync(_collect)(resp)`, o `_finish()` nunca roda e a mensagem do assistente não é criada no banco. Sintoma: testes que criam conversa + enviam mensagem encontram só a mensagem do usuário, nunca a do assistente.
+**ALWAYS consume the SSE stream in tests that verify persistence** — `StreamingHttpResponse` only persists the `ChatMessage` when the stream is fully consumed. Without `async_to_sync(_collect)(resp)`, `_finish()` never runs and the assistant message is not created in the database. Symptom: tests that create a conversation + send a message find only the user's message, never the assistant's.
 
 ```python
-# ERRADO — stream não consumido, _finish() nunca roda:
+# WRONG — stream not consumed, _finish() never runs:
 resp = _post(client, {"message": "Oi", "conversationId": str(conv.uuid)}, user=user)
 assert resp.status_code == 200
 msgs = ChatMessage.objects.filter(conversation=conv)
-assert msgs.count() == 2  # ← FALHA: só tem 1 (a do user)
+assert msgs.count() == 2  # ← FAILS: only has 1 (the user's)
 
-# CERTO — consome o stream antes de verificar:
+# CORRECT — consumes the stream before verifying:
 resp = _post(client, {"message": "Oi", "conversationId": str(conv.uuid)}, user=user)
 assert resp.status_code == 200
-async_to_sync(_collect)(resp)  # ← consome o stream, _finish() persiste a resposta
+async_to_sync(_collect)(resp)  # ← consumes the stream, _finish() persists the response
 msgs = ChatMessage.objects.filter(conversation=conv)
 assert msgs.count() == 2  # ← PASS: user + assistant
 ```
 
-**SEMPRE mockar `is_configured` em testes de AG-UI** — o `AguiReActEngine._run_loop()` verifica `llm_client.is_configured()` primeiro. Se retornar `False`, chama `_stub_run()` que **não usa** `litellm.acompletion`. Mockar só o `acompletion` sem mockar `is_configured` faz o teste passar isolado mas falhar em lote (porque o stub não persiste mensagem do assistente).
+**ALWAYS mock `is_configured` in AG-UI tests** — the `AguiReActEngine._run_loop()` checks `llm_client.is_configured()` first. If it returns `False`, it calls `_stub_run()` which does **not** use `litellm.acompletion`. Mocking only `acompletion` without mocking `is_configured` makes the test pass in isolation but fail in batch (because the stub doesn't persist the assistant message).
 
 ```python
-# CERTO — mocka ambos:
+# CORRECT — mocks both:
 from chat import llm_client
 import litellm
 monkeypatch.setattr(llm_client, "is_configured", lambda: True)
 monkeypatch.setattr(litellm, "acompletion", _fake_acompletion(_text_chunks("OK.")))
 ```
 
-**SEMPRE verificar código morto ao encontrar duplicação** — quando dois arquivos têm implementações similares (ex: `AguiChatPage.tsx` e `AguiRuntimeProvider.tsx` ambos criam `HttpAgent` com interceptor), verifique se o segundo é importado em algum lugar. Se não for, é código morto e deve ser removido, não mantido.
+**ALWAYS check for dead code when finding duplication** — when two files have similar implementations (e.g. `AguiChatPage.tsx` and `AguiRuntimeProvider.tsx` both create an `HttpAgent` with an interceptor), verify whether the second one is imported anywhere. If not, it's dead code and should be removed, not kept.
 
-### GrapesJS RTE — NÃO customizar o RTE
+### GrapesJS RTE — DON'T customize the RTE
 
-O RTE (Rich Text Editor) do GrapesJS é frágil. Toda customização introduz race conditions quebram o duplo-clique para editar texto. **Regra de ouro:** não adicione handlers em `rte:enable`, `component:selected`, `canvas:frame:load` ou `redelegateTextViews`. O GrapesJS vanilla gerencia o RTE corretamente.
+The GrapesJS RTE (Rich Text Editor) is fragile. Every customization introduces race conditions that break the double-click to edit text. **Golden rule:** don't add handlers on `rte:enable`, `component:selected`, `canvas:frame:load` or `redelegateTextViews`. Vanilla GrapesJS manages the RTE correctly.
 
-**Padrões que SEMPRE quebram o RTE:**
-- `demoteTextContainers` — muda tipo de componente pai, re-renderização destrói RTE ativo no filho
-- `redelegateTextViews` — `delegateEvents()` re-liga handlers de dblclick, RTE interpreta segundo duplo-clique
-- `ed.Keymaps.removeAll()` em `rte:enable` — remove proteção interna que impede RTE de perder foco
-- `requestAnimationFrame(() => requestAnimationFrame(focusEditing))` — double rAF compete com foco do RTE
-- Handler `component:selected` que re-seleciona componente em edição — interrompe RTE
-- `range.selectNodeContents(el)` + `range.collapse(false)` — sobrescreve seleção de texto do usuário
+**Patterns that ALWAYS break the RTE:**
+- `demoteTextContainers` — changes the parent component type, re-rendering destroys the active RTE in the child
+- `redelegateTextViews` — `delegateEvents()` re-binds dblclick handlers, the RTE interprets a second double-click
+- `ed.Keymaps.removeAll()` in `rte:enable` — removes the internal protection that prevents the RTE from losing focus
+- `requestAnimationFrame(() => requestAnimationFrame(focusEditing))` — double rAF competes with the RTE focus
+- A `component:selected` handler that re-selects the component being edited — interrupts the RTE
+- `range.selectNodeContents(el)` + `range.collapse(false)` — overwrites the user's text selection
 
-**Proteção para `ed.getWrapper()`:** o método lança `TypeError` quando chamado antes da inicialização completa. Use `if (!wrapper) return;` ou try/catch com retry.
+**Protection for `ed.getWrapper()`:** the method throws `TypeError` when called before full initialization. Use `if (!wrapper) return;` or try/catch with retry.
 
-**SEMPRE pular `notify()` (save) enquanto o RTE estiver ativo** — o `notify()` debounced (400ms) dispara em `component:update`, que é emitido QUANDO o RTE ativa. `getEditorData()` chama `ed.getHtml()` que serializa a árvore de componentes — isso causa um re-render do canvas que **reseta o cursor para o início do texto**. Depois disso, qualquer clique no texto volta o cursor pro início porque o re-render substitui o DOM. Correção: adicionar `if (ed.getEditing()) return;` no início do callback do `setTimeout` do `notify()`:
+**ALWAYS skip `notify()` (save) while the RTE is active** — the debounced `notify()` (400ms) fires on `component:update`, which is emitted WHEN the RTE activates. `getEditorData()` calls `ed.getHtml()` which serializes the component tree — this causes a canvas re-render that **resets the cursor to the start of the text**. After that, any click on the text returns the cursor to the start because the re-render replaces the DOM. Fix: add `if (ed.getEditing()) return;` at the start of the `setTimeout` callback of `notify()`:
 
 ```tsx
 const notify = () => {
   if (notifyTimer) clearTimeout(notifyTimer);
   notifyTimer = setTimeout(() => {
-    // NÃO salvar enquanto o RTE estiver ativo — ed.getHtml() serializa
-    // a árvore de componentes e causa re-render que reseta o cursor
-    // para o início do texto. O save acontece no blur natural (quando
-    // o usuário clica fora do componente).
+    // DON'T save while the RTE is active — ed.getHtml() serializes
+    // the component tree and causes a re-render that resets the cursor
+    // to the start of the text. The save happens on natural blur (when
+    // the user clicks outside the component).
     if (ed.getEditing()) return;
     const data = getEditorData();
     if (data) onChange(data);
@@ -456,12 +456,12 @@ const notify = () => {
 };
 ```
 
-**Sintoma:** usuário dá duplo-clique em texto → RTE ativa → cursor vai pro início → clicar em qualquer posição do texto volta o cursor pro início. O save (onChange) está disparando durante a edição e resetando o DOM.
+**Symptom:** user double-clicks text → RTE activates → cursor goes to the start → clicking any position in the text returns the cursor to the start. The save (onChange) is firing during editing and resetting the DOM.
 
-**NUNCA usar `s.optional.message?.status?.type === "in_progress"` para detectar streaming no AG-UI** — este selector verifica o status da mensagem **atual** sendo renderizada pelo `AssistantMessage`. Quando a mensagem aparece no DOM, ela já foi finalizada (status é "complete" ou similar), então `isStreaming` sempre retorna `false`. O loading-dot nunca aparece. A abordagem correta é `ThreadPrimitive.If running` **fora** do loop de mensagens, que verifica se o runtime AG-UI está processando alguma requisição, independente de qual mensagem está sendo renderizada.
+**NEVER use `s.optional.message?.status?.type === "in_progress"` to detect streaming in AG-UI** — this selector checks the status of the **current** message being rendered by the `AssistantMessage`. When the message appears in the DOM, it has already finished (status is "complete" or similar), so `isStreaming` always returns `false`. The loading-dot never appears. The correct approach is `ThreadPrimitive.If running` **outside** the message loop, which checks whether the AG-UI runtime is processing any request, regardless of which message is being rendered.
 
 ```tsx
-// ERRADO — isStreaming sempre false, loading-dots nunca aparecem:
+// WRONG — isStreaming always false, loading-dots never appear:
 AssistantMessage: () => {
   const isStreaming = Aui.useAuiState?.(
     (s: any) => s.optional.message?.status?.type === "in_progress",
@@ -469,12 +469,12 @@ AssistantMessage: () => {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.Parts />
-      {isStreaming && <div className="loading-dots">...</div>}  {/* ← nunca aparece */}
+      {isStreaming && <div className="loading-dots">...</div>}  {/* ← never appears */}
     </MessagePrimitive.Root>
   );
 }
 
-// CERTO — ThreadPrimitive.If running fora do loop:
+// CORRECT — ThreadPrimitive.If running outside the loop:
 <ThreadPrimitive.Messages components={{...}} />
 <ThreadPrimitive.If running>
   <div className="msg msg--ai">
@@ -485,33 +485,33 @@ AssistantMessage: () => {
 </ThreadPrimitive.If>
 ```
 
-**Conversa duplicada vazia toma o topo da sidebar (pendingThreadIdRef nunca setado)** — quando o usuário reporta "começo a conversar, o chat responde, mas ao dar refresh a última conversa some", a causa raiz é que o `pendingThreadIdRef` foi projetado para evitar duplicação de conversa na primeira mensagem mas **nunca é setado** no `sendPrompt` do adapter. O interceptor `runAgent` lê e limpa esse ref, mas como fica sempre `null`, cai no fallback de criar conversa nova (duplicata vazia toma o topo da sidebar; a conversa real parece sumir no refresh). Correção: setar `pendingThreadIdRef.current = conv.uuid` **antes** de retornar no `sendPrompt`. Ver `references/agui-chat-duplicate-conversation-pending-ref.md`.
+**Empty duplicate conversation takes the top of the sidebar (pendingThreadIdRef never set)** — when the user reports "I start chatting, the chat responds, but on refresh the last conversation disappears", the root cause is that `pendingThreadIdRef` was designed to prevent conversation duplication on the first message but is **never set** in the adapter's `sendPrompt`. The `runAgent` interceptor reads and clears this ref, but since it's always `null`, it falls into the fallback of creating a new conversation (an empty duplicate takes the top of the sidebar; the real conversation seems to disappear on refresh). Fix: set `pendingThreadIdRef.current = conv.uuid` **before** returning in `sendPrompt`. See `references/agui-chat-duplicate-conversation-pending-ref.md`.
 
-**SEMPRE usar `runtimeRef` (ref) em vez de `runtime` (state) em `useEffect`** — o hook `useAgUiRuntime` retorna um objeto NOVO a cada render. Se você colocar `runtime` nas dependências de um `useEffect`, ele dispara em loop infinito: effect → switchToThread → setState → re-render → novo runtime → effect → ... Use `runtimeRef` (ref) para acessar o runtime dentro do effect:
+**ALWAYS use `runtimeRef` (ref) instead of `runtime` (state) in `useEffect`** — the `useAgUiRuntime` hook returns a NEW object on every render. If you put `runtime` in the dependencies of a `useEffect`, it fires in an infinite loop: effect → switchToThread → setState → re-render → new runtime → effect → ... Use `runtimeRef` (ref) to access the runtime inside the effect:
 
 ```tsx
-// ERRADO — runtime muda a cada render, loop infinito:
+// WRONG — runtime changes every render, infinite loop:
 const runtime = useAgUiRuntime({...});
 useEffect(() => {
   runtime.threads.switchToThread(id);
-}, [runtime]);  // ← loop infinito
+}, [runtime]);  // ← infinite loop
 
-// CERTO — runtimeRef é estável:
+// CORRECT — runtimeRef is stable:
 const runtimeRef = useRef(runtime);
 runtimeRef.current = runtime;
 useEffect(() => {
   const r = runtimeRef.current;
   r?.threads?.switchToThread(id);
-}, [controller.bootReady]);  // ← sem runtime na deps
+}, [controller.bootReady]);  // ← no runtime in deps
 ```
 
-**SEMPRE usar `bootReady` state para carregar conversa auto-selecionada no boot** — o `ThreadListProvider` auto-seleciona a conversa mais recente (seta `activeId`) mas não chama `onSwitchToThread` porque o runtime ainda não existe. Adicione `bootReady` (React state) no provider, setado `true` após o auto-select. No `ChatReady`, adicione um `useEffect` que observa `bootReady` + `activeIdRef.current` e chama `runtime.threads.switchToThread(id)`:
+**ALWAYS use `bootReady` state to load the auto-selected conversation on boot** — the `ThreadListProvider` auto-selects the most recent conversation (sets `activeId`) but doesn't call `onSwitchToThread` because the runtime doesn't exist yet. Add `bootReady` (React state) in the provider, set to `true` after the auto-select. In `ChatReady`, add a `useEffect` that observes `bootReady` + `activeIdRef.current` and calls `runtime.threads.switchToThread(id)`:
 
 ```tsx
-// No provider (useConversationThreadList.tsx):
+// In the provider (useConversationThreadList.tsx):
 const [bootReady, setBootReady] = useState(false);
 
-// No auto-select useEffect:
+// In the auto-select useEffect:
 useEffect(() => {
   if (autoSelectDone.current) return;
   if (conversations.length === 0) return;
@@ -523,7 +523,7 @@ useEffect(() => {
   setBootReady(true);
 }, [conversations]);
 
-// No ChatReady (AguiChatPage.tsx):
+// In ChatReady (AguiChatPage.tsx):
 const bootLoaded = useRef(false);
 useEffect(() => {
   if (bootLoaded.current) return;
@@ -538,32 +538,32 @@ useEffect(() => {
 }, [controller.bootReady, controller.activeIdRef?.current]);
 ```
 
-### SEMPRE proteger `ed.getWrapper()` com null check ou try/catch em GrapesJS
+### ALWAYS protect `ed.getWrapper()` with a null check or try/catch in GrapesJS
 
-O método `Editor.getWrapper()` do GrapesJS lança `TypeError: Cannot read properties of undefined (reading 'getWrapper')` quando chamado antes do editor completar a inicialização interna. Isso acontece em callbacks registrados em `canvas:frame:load` e em `requestAnimationFrame` duplo. Proteja com:
+The GrapesJS `Editor.getWrapper()` method throws `TypeError: Cannot read properties of undefined (reading 'getWrapper')` when called before the editor completes its internal initialization. This happens in callbacks registered on `canvas:frame:load` and in double `requestAnimationFrame`. Protect with:
 
 ```tsx
-// Opção 1 — null check (quando o wrapper pode ser undefined):
+// Option 1 — null check (when the wrapper can be undefined):
 const wrapper = ed.getWrapper();
 if (!wrapper) return;
 
-// Opção 2 — try/catch com retry (quando o erro vem de dentro do getWrapper):
+// Option 2 — try/catch with retry (when the error comes from inside getWrapper):
 try {
   const wrapper = ed.getWrapper();
   if (!wrapper) return;
-  // ... usa wrapper ...
+  // ... uses wrapper ...
 } catch {
   requestAnimationFrame(() => requestAnimationFrame(redelegateTextViews));
 }
 ```
 
-### SEMPRE remover handler `component:selected` que re-seleciona o componente em edição
+### ALWAYS remove the `component:selected` handler that re-selects the component being edited
 
-Quando o RTE está ativo e o usuário clica no texto para selecionar/posicionar o cursor, o clique propaga para o canvas e o GrapesJS seleciona o componente sob o cursor. Um handler `component:selected` que re-seleciona o componente em edição interrompe o RTE e perde a seleção de texto. **Remova** esse handler — o GrapesJS já gerencia internamente que o RTE não perde foco quando o usuário clica no canvas.
+When the RTE is active and the user clicks the text to select/position the cursor, the click propagates to the canvas and GrapesJS selects the component under the cursor. A `component:selected` handler that re-selects the component being edited interrupts the RTE and loses the text selection. **Remove** this handler — GrapesJS already manages internally that the RTE doesn't lose focus when the user clicks the canvas.
 
-### SEMPRE remover `selectNodeContents` + `collapse` do handler `rte:enable`
+### ALWAYS remove `selectNodeContents` + `collapse` from the `rte:enable` handler
 
-O handler `rte:enable` que foca o elemento em edição não deve chamar `range.selectNodeContents(el)` + `range.collapse(false)` — isso sobrescreve a seleção de texto que o usuário acabou de fazer com duplo-clique. Apenas foque o elemento se ele não está ativo:
+The `rte:enable` handler that focuses the element being edited should not call `range.selectNodeContents(el)` + `range.collapse(false)` — this overwrites the text selection the user just made with a double-click. Only focus the element if it isn't already active:
 
 ```tsx
 ed.on("rte:enable", () => {
@@ -575,16 +575,16 @@ ed.on("rte:enable", () => {
       const doc = ed.Canvas.getDocument();
       if (!el || !doc) return;
       if (doc.activeElement === el) return;
-      el.focus();  // ← só foca, não mexe na seleção
+      el.focus();  // ← only focuses, doesn't touch the selection
     } catch { /* best-effort */ }
   };
   requestAnimationFrame(() => requestAnimationFrame(focusEditing));
 });
 ```
 
-### SEMPRE remover keymaps específicos (não todos) no `rte:enable`
+### ALWAYS remove specific keymaps (not all) in `rte:enable`
 
-O handler `rte:enable` que remove keymaps não deve chamar `ed.Keymaps.removeAll()` — isso remove a proteção interna do GrapesJS que impede o RTE de perder foco. Remova apenas keymaps que interferem com edição de texto inline:
+The `rte:enable` handler that removes keymaps should not call `ed.Keymaps.removeAll()` — this removes the GrapesJS internal protection that prevents the RTE from losing focus. Remove only the keymaps that interfere with inline text editing:
 
 ```tsx
 ed.on("rte:enable", () => {
@@ -597,12 +597,12 @@ ed.on("rte:enable", () => {
   }
 });
 ed.on("rte:disable", () => {
-  // Não restaura keymaps — o GrapesJS os recria internamente
+  // Doesn't restore keymaps — GrapesJS recreates them internally
 });
 ```
 
 ```typescript
-// ERRADO — return fora do try, messages fora de escopo:
+// WRONG — return outside the try, messages out of scope:
 try {
   const conv = await chatApi.getSession(threadId);
   const messages = (conv.messages ?? []).map(...);
@@ -611,7 +611,7 @@ try {
 }
 return { messages };  // ← ReferenceError
 
-// CERTO — return dentro do try:
+// CORRECT — return inside the try:
 try {
   const conv = await chatApi.getSession(threadId);
   const messages = (conv.messages ?? []).map(...);
@@ -621,7 +621,7 @@ try {
 }
 ```
 
-**SEMPRE adicionar `console.debug` no interceptor `runAgent`** — quando o bug de thread switching acontece, não há log no console para diagnosticar qual threadId foi usado. Adicione `console.debug("[runAgent]", ...)` em cada branch do interceptor (pending, activeId, fallback, new session):
+**ALWAYS add `console.debug` in the `runAgent` interceptor** — when the thread switching bug happens, there's no log in the console to diagnose which threadId was used. Add `console.debug("[runAgent]", ...)` in each branch of the interceptor (pending, activeId, fallback, new session):
 
 ```tsx
 console.debug("[runAgent] using activeId:", activeId);
@@ -629,7 +629,7 @@ console.debug("[runAgent] fallback to mostRecent:", mostRecent.uuid);
 console.debug("[runAgent] created new session:", conv.uuid);
 ```
 
-**SEMPRE expor `window.__chatDebug` para debug remoto** — após criar o HttpAgent e o controller, exponha o estado do chat no console do browser:
+**ALWAYS expose `window.__chatDebug` for remote debugging** — after creating the HttpAgent and the controller, expose the chat state in the browser console:
 
 ```tsx
 if (typeof window !== "undefined") {
@@ -643,58 +643,58 @@ if (typeof window !== "undefined") {
 }
 ```
 
-Isso permite que o usuário digite `__chatDebug` no console do DevTools para inspecionar o estado atual do chat.
+This allows the user to type `__chatDebug` in the DevTools console to inspect the current chat state.
 
-- Import de módulo que foi deletado (ex: `agents.tasks` → `agents.tasks_async`)
-- Import inserido dentro de um multi-line import (dentro dos parênteses de `from .models import (`)
-- Função que existia no módulo antigo mas não foi portada para o novo
-- Indentação quebrada no bloco ao redor da substituição
-- Import duplicado: linha antiga + linha nova lado a lado (a antiga quebra, a nova funciona)
-- `manage.py` travando por conflito de `lxml` do Hermes (corrigir `sys.path` no manage.py)
-- `crewai_tools_adapter.py` travando o boot para sempre (solução: deletar o módulo inteiro)
-- Chamada de função `async def` em teste síncrono sem `asyncio.run()`
-- `doc.id` vs `doc.pk` em testes de knowledge (usar `doc.pk`)
-- `run_pipeline` está em `crew_runner_async`, não em `tasks_async`
-- `asyncio.run(asyncio.run(...))` duplicado
-- Settings que testes referenciam foram deletadas (ex: `CELERY_TASK_ALWAYS_EAGER`, `CREW_RUN_STALE_AFTER`, `LLM_MODEL`)
-- Testes com `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)` quebram quando a setting não existe mais
-- Lambda mock em testes não aceita argumentos posicionais (ex: `lambda **kw` vs `lambda *a, **kw`)
-- `embedding dimension mismatch` em testes (ex: vetor 3d vs 768d esperado pelo pgvector)
-- **`operator does not exist: uuid = integer` em todos os endpoints filtrados por org** — migration de PK UUID→bigint que esqueceu de retipar `organization_id` nas tabelas de domínio; e **`exclude`/`__in` é case-sensitive no Postgres** (não dar `.lower()` nos valores). Ambos em `references/organization-fk-retype-uuid-bigint.md`.
+- Import of a module that was deleted (e.g. `agents.tasks` → `agents.tasks_async`)
+- Import inserted inside a multi-line import (inside the parentheses of `from .models import (`)
+- Function that existed in the old module but was not ported to the new one
+- Broken indentation in the block around the substitution
+- Duplicate import: old line + new line side by side (the old one breaks, the new one works)
+- `manage.py` hanging due to a Hermes `lxml` conflict (fix `sys.path` in manage.py)
+- `crewai_tools_adapter.py` hanging the boot forever (solution: delete the whole module)
+- Calling an `async def` function in a synchronous test without `asyncio.run()`
+- `doc.id` vs `doc.pk` in knowledge tests (use `doc.pk`)
+- `run_pipeline` is in `crew_runner_async`, not in `tasks_async`
+- Duplicated `asyncio.run(asyncio.run(...))`
+- Settings that tests reference were deleted (e.g. `CELERY_TASK_ALWAYS_EAGER`, `CREW_RUN_STALE_AFTER`, `LLM_MODEL`)
+- Tests with `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)` break when the setting no longer exists
+- Lambda mock in tests doesn't accept positional arguments (e.g. `lambda **kw` vs `lambda *a, **kw`)
+- `embedding dimension mismatch` in tests (e.g. 3d vector vs 768d expected by pgvector)
+- **`operator does not exist: uuid = integer` in all endpoints filtered by org** — a PK UUID→bigint migration that forgot to retype `organization_id` in the domain tables; and **`exclude`/`__in` is case-sensitive in Postgres** (don't `.lower()` the values). Both in `references/organization-fk-retype-uuid-bigint.md`.
 
-**SEMPRE verificar se TODAS as funções de seed copiam TODOS os campos do modelo** — quando você adiciona um campo novo a um modelo Django (ex: `category` em `CrewTemplate`), precisa atualizar **todas** as funções de seed que criam instâncias desse modelo, não só a principal. É comum ter funções de seed separadas (`crew_seed.py` + `agency_crew_seed.py`) e esquecer de adicionar o campo novo na secundária. Sintoma: o seed roda sem erro, mas o campo fica vazio no banco. Correção: antes de criar um seed, listar todos os campos do modelo com `[f.name for f in Model._meta.get_fields()]` e garantir que cada seed function seta todos.
+**ALWAYS verify that ALL seed functions copy ALL model fields** — when you add a new field to a Django model (e.g. `category` in `CrewTemplate`), you need to update **all** the seed functions that create instances of that model, not just the main one. It's common to have separate seed functions (`crew_seed.py` + `agency_crew_seed.py`) and forget to add the new field in the secondary one. Symptom: the seed runs without error, but the field stays empty in the database. Fix: before creating a seed, list all the model fields with `[f.name for f in Model._meta.get_fields()]` and ensure each seed function sets all of them.
 
-**SEMPRE mover bugs [Corrigido] e features [Concluído] para `.hermes/inbox/processed/`** — após corrigir um bug (ou concluir uma feature), o arquivo da inbox fica com `**Status:** [Corrigido]`/`[Concluído]` mas **continua na pasta ativa** (`inbox/bugs/`, `inbox/features/`). Ao consolidar a inbox, mova esses itens para `inbox/processed/` com `git mv` (preserva histórico). Itens sem status explícito ou com status `[Aberto]`/`[Reclassificado]` ficam na pasta ativa. Deixar o roadmap `tasks.md` desatualizado é comum — ao revisar o que "falta", cruze o roadmap com o código real (muitos TSKs marcados `[ ]` já estão implementados; ex.: ActivityLog vive no app `activity/` não `utils/`, e password-reset backend já está pronto — só faltam páginas frontend).
+**ALWAYS move fixed bugs [Corrigido] and completed features [Concluído] to `.hermes/inbox/processed/`** — after fixing a bug (or completing a feature), the inbox file has `**Status:** [Corrigido]`/`[Concluído]` but **stays in the active folder** (`inbox/bugs/`, `inbox/features/`). When consolidating the inbox, move these items to `inbox/processed/` with `git mv` (preserves history). Items without an explicit status or with `[Aberto]`/`[Reclassificado]` status stay in the active folder. Leaving the `tasks.md` roadmap outdated is common — when reviewing what's "missing", cross-check the roadmap against the real code (many TSKs marked `[ ]` are already implemented; e.g. ActivityLog lives in the `activity/` app, not `utils/`, and the password-reset backend is already done — only the frontend pages are missing).
 
-**SEMPRE rodar `manage.py migrate` no dev DB após mergear uma feature com migration nova** — quando você mergea na main uma feature que adiciona um campo/modelo (ex: `chat.0012_conversation_knowledge_folder`), o código (models/serializers) fica atualizado mas o banco de dev NÃO tem a coluna até você rodar `manage.py migrate`. Sintoma: endpoint que consulta o modelo retorna 500 com `psycopg.errors.UndefinedColumn: column <tabela>.<campo>_id does not exist`. O pytest não pega isso (cria schema do zero); só aparece no dev/prod. Correção: `manage.py migrate <app>` (ou `manage.py migrate` geral) e validar com `manage.py shell -c "from <app>.models import <Model>; <Model>.objects.all()[:1]"`. Verificar migrations pendentes com `manage.py showmigrations <app> --plan` (linhas `[ ]` = não aplicadas).
+**ALWAYS run `manage.py migrate` on the dev DB after merging a feature with a new migration** — when you merge into main a feature that adds a field/model (e.g. `chat.0012_conversation_knowledge_folder`), the code (models/serializers) is up to date but the dev database does NOT have the column until you run `manage.py migrate`. Symptom: an endpoint that queries the model returns 500 with `psycopg.errors.UndefinedColumn: column <table>.<field>_id does not exist`. pytest doesn't catch this (it creates the schema from scratch); it only appears in dev/prod. Fix: `manage.py migrate <app>` (or general `manage.py migrate`) and validate with `manage.py shell -c "from <app>.models import <Model>; <Model>.objects.all()[:1]"`. Check pending migrations with `manage.py showmigrations <app> --plan` (lines with `[ ]` = not applied).
 
-### CrewAI 1.15.5 — execução de crews quebra silenciosamente
+### CrewAI 1.15.5 — crew execution breaks silently
 
-Quando o Copilot acha a crew, chama `execute_crew`, mas a crew "não roda" (run fica `QUEUED` ou quebra com erro que não propaga ao chat), consulte `references/crewai-crew-execution-pitfalls.md`.
+When the Copilot finds the crew, calls `execute_crew`, but the crew "doesn't run" (run stays `QUEUED` or breaks with an error that doesn't propagate to the chat), consult `references/crewai-crew-execution-pitfalls.md`.
 
-**SEMPRE verificar se a crew rodou em STUB ao reiniciar o backend via subprocess** — se o run completa DONE mas todos os outputs são `[STUB — crewai ausente]` MESMO com o Gemini configurado (`is_configured()=True`, log mostra `LiteLLM ... provider = gemini`), a causa é que o `import crewai` falhou dentro do processo reiniciado por falta das env vars do Windows (`USERPROFILE`, `HOME`, `LOCALAPPDATA`, `APPDATA`) que o `chromadb`/`crewai_core` exigem. `_crewai_available()` retorna `False` → cai no stub. Correção: relançar o Daphne herdando `os.environ` (só sobrescrever PYTHONPATH/DJANGO_SETTINGS_MODULE) e validar com `python -c "import crewai"` no MESMO env. Detalhes em `references/crewai-stub-on-subprocess-restart.md`.
+**ALWAYS verify whether the crew ran in STUB when restarting the backend via subprocess** — if the run completes DONE but all outputs are `[STUB — crewai ausente]` EVEN with Gemini configured (`is_configured()=True`, log shows `LiteLLM ... provider = gemini`), the cause is that `import crewai` failed inside the restarted process due to missing Windows env vars (`USERPROFILE`, `HOME`, `LOCALAPPDATA`, `APPDATA`) that `chromadb`/`crewai_core` require. `_crewai_available()` returns `False` → falls into the stub. Fix: relaunch Daphne inheriting `os.environ` (only override PYTHONPATH/DJANGO_SETTINGS_MODULE) and validate with `python -c "import crewai"` in the SAME env. Details in `references/crewai-stub-on-subprocess-restart.md`.
 
-**SEMPRE verificar se o `import crewai` funciona no processo do servidor quando a crew roda em STUB** — se o card mostra `[STUB — crewai ausente]` mas o Gemini está configurado (`is_configured()` True, chave no `.env`), a causa é o `import crewai` falhando dentro do Daphne, não a chave. No Windows, o crewai 1.15.5 puxa `chromadb` (`Path.home()`) e `crewai_core` (`Path(LOCALAPPDATA)`); se o processo não tem `USERPROFILE`/`HOME`/`LOCALAPPDATA` no ambiente (comum ao relançar via `subprocess.Popen` com env construído à mão), o import quebra com `RuntimeError: Could not determine home directory` ou `TypeError ... not 'NoneType'` → `_crewai_available()` retorna False → stub. Correção: relançar o Daphne com o ambiente Windows completo (USERPROFILE, HOMEDRIVE, HOMEPATH, HOME, TEMP, TMP, LOCALAPPDATA, APPDATA). Verificar com `python -c "import crewai"` usando o MESMO env antes de relançar. Detalhes em `references/crewai-stub-windows-env.md`. Resumo dos pitfalls:
-- `kickoff()` síncrono QUEBRA com múltiplas tasks (`cannot schedule new futures after shutdown`) — usar `kickoff_async()` via `asyncio.run()` em daemon thread.
-- `build_llm_kwargs`: providers nativos (gemini) precisam model SEM prefixo e SEM `provider` explícito, senão 404 no Gemini.
-- `OutputStatus` enum NÃO tem `DONE` (só PENDING/APPROVED/REJECTED) — usar `ExecutionStatus.DONE`.
-- `sanitize_output(text)` aceita 1 arg.
-- `build_tools(crew, allow_ask=True)` e `extract_integration_nodes(graph)` — assinaturas corretas pós-migração asyncio.
-- `enqueue_task_sync` no `except RuntimeError`: tasks longas (`run_crew`) em daemon thread, NUNCA inline (senão o Daphne mata o SSE).
-- `execute_crew` deve validar os inputs obrigatórios do `crew.input_schema` antes de disparar (senão o agente pede os dados que deveriam ter sido passados).
-- `per_agent_context` no runner espera STRING, não dict — converter `{member: {key: val}}` em texto legível antes de injetar no backstory.
-- Frontend: exibir `output.executionStatus` (DONE/RUNNING/ERROR), NÃO `output.status` (PENDING/APPROVED/REJECTED) — o status de aprovação fica PENDING mesmo quando a task rodou.
+**ALWAYS verify whether `import crewai` works in the server process when the crew runs in STUB** — if the card shows `[STUB — crewai ausente]` but Gemini is configured (`is_configured()` True, key in `.env`), the cause is `import crewai` failing inside Daphne, not the key. On Windows, crewai 1.15.5 pulls in `chromadb` (`Path.home()`) and `crewai_core` (`Path(LOCALAPPDATA)`); if the process doesn't have `USERPROFILE`/`HOME`/`LOCALAPPDATA` in its environment (common when relaunching via `subprocess.Popen` with a hand-built env), the import breaks with `RuntimeError: Could not determine home directory` or `TypeError ... not 'NoneType'` → `_crewai_available()` returns False → stub. Fix: relaunch Daphne with the full Windows environment (USERPROFILE, HOMEDRIVE, HOMEPATH, HOME, TEMP, TMP, LOCALAPPDATA, APPDATA). Verify with `python -c "import crewai"` using the SAME env before relaunching. Details in `references/crewai-stub-windows-env.md`. Summary of pitfalls:
+- Synchronous `kickoff()` BREAKS with multiple tasks (`cannot schedule new futures after shutdown`) — use `kickoff_async()` via `asyncio.run()` in a daemon thread.
+- `build_llm_kwargs`: native providers (gemini) need the model WITHOUT a prefix and WITHOUT an explicit `provider`, otherwise 404 on Gemini.
+- The `OutputStatus` enum does NOT have `DONE` (only PENDING/APPROVED/REJECTED) — use `ExecutionStatus.DONE`.
+- `sanitize_output(text)` accepts 1 arg.
+- `build_tools(crew, allow_ask=True)` and `extract_integration_nodes(graph)` — correct signatures post-asyncio migration.
+- `enqueue_task_sync` in the `except RuntimeError`: long tasks (`run_crew`) in a daemon thread, NEVER inline (otherwise Daphne kills the SSE).
+- `execute_crew` must validate the required inputs of the `crew.input_schema` before firing (otherwise the agent asks for the data that should have been passed).
+- `per_agent_context` in the runner expects a STRING, not a dict — convert `{member: {key: val}}` into readable text before injecting into the backstory.
+- Frontend: display `output.executionStatus` (DONE/RUNNING/ERROR), NOT `output.status` (PENDING/APPROVED/REJECTED) — the approval status stays PENDING even when the task ran.
 
-**SEMPRE verificar o escopo ao inserir blocos grandes via find-and-replace** — `content.replace(old, new)` com âncora não-única pode inserir o bloco DENTRO de uma função (compila mas corrompe a lógica). Prevenção: âncoras com linhas de contexto ACIMA e ABAIXO; verificar com `compile()`; conferir visualmente a indentação ao redor. Se corromper, reescreva o arquivo inteiro.
+**ALWAYS check the scope when inserting large blocks via find-and-replace** — `content.replace(old, new)` with a non-unique anchor can insert the block INSIDE a function (compiles but corrupts the logic). Prevention: anchors with context lines ABOVE and BELOW; verify with `compile()`; visually check the surrounding indentation. If corrupted, rewrite the whole file.
 
-**SEMPRE verificar que o `category` é passado ao criar CrewTemplates via seed** — o modelo `CrewTemplate` tem campo `category` que é usado pelo frontend para filtrar templates no marketplace. Se a função de seed não setar `obj.category`, o template aparece sem categoria no marketplace. Correção: adicionar `obj.category = crew.get("category", "")` na função de seed, tanto em `crew_seed.py` quanto em `agency_crew_seed.py`.
+**ALWAYS verify that `category` is passed when creating CrewTemplates via seed** — the `CrewTemplate` model has a `category` field that the frontend uses to filter templates in the marketplace. If the seed function doesn't set `obj.category`, the template appears without a category in the marketplace. Fix: add `obj.category = crew.get("category", "")` in the seed function, in both `crew_seed.py` and `agency_crew_seed.py`.
 
-**SEMPRE verificar que o `input_schema` do JSON é usado, não o do código** — a função `upsert_agency_crews` em `agency_crew_seed.py` usa `input_schema_for(crew_slug)` que busca em `INPUT_SCHEMAS` no código. Mas o JSON `agency_crew_templates.json` também tem `input_schema` em cada crew. Se os dois divergirem, o código vence. Para garantir consistência, ou (a) remove o `input_schema` do JSON e mantém só no código, ou (b) faz o seed ler do JSON. A opção (a) é preferível para manter a fonte da verdade no código Python (mais fácil de testar e versionar).
+**ALWAYS verify that the JSON `input_schema` is used, not the code's** — the `upsert_agency_crews` function in `agency_crew_seed.py` uses `input_schema_for(crew_slug)` which looks up `INPUT_SCHEMAS` in the code. But the JSON `agency_crew_templates.json` also has `input_schema` in each crew. If the two diverge, the code wins. To ensure consistency, either (a) remove the `input_schema` from the JSON and keep it only in the code, or (b) make the seed read from the JSON. Option (a) is preferable to keep the source of truth in the Python code (easier to test and version).
 
-**SEMPRE verificar o prefixo `agency-` no `member_slug` do seed de runbooks** — o `agency_crew_seed.py` (Fase 2) usa `member_slug` com prefixo `agency-` (ex: `agency-trend-researcher`) no JSON `agency_crew_templates.json`, mas os `BotTemplate` têm `metadata["source_slug"]` SEM o prefixo (ex: `trend-researcher`). Sintoma: o seed roda sem erro, as 5 crews são criadas, mas `members.filter(bot_template__isnull=False).count()` é 0 — nenhum membro vinculado ao agente. O runbook fica "vazio" de agentes reais.
+**ALWAYS check the `agency-` prefix in the `member_slug` of the runbook seed** — the `agency_crew_seed.py` (Phase 2) uses `member_slug` with the `agency-` prefix (e.g. `agency-trend-researcher`) in the JSON `agency_crew_templates.json`, but the `BotTemplate` have `metadata["source_slug"]` WITHOUT the prefix (e.g. `trend-researcher`). Symptom: the seed runs without error, the 5 crews are created, but `members.filter(bot_template__isnull=False).count()` is 0 — no member linked to the agent. The runbook stays "empty" of real agents.
 
-**Correção em 2 partes:**
-1. **Lookup tolerante ao prefixo** em `upsert_agency_crews` — indexar `bots_by_slug` também sem o prefixo, e resolver com helper que tenta o slug completo e depois sem `agency-`:
+**Fix in 2 parts:**
+1. **Prefix-tolerant lookup** in `upsert_agency_crews` — index `bots_by_slug` also without the prefix, and resolve with a helper that tries the full slug and then without `agency-`:
 ```python
 def _resolve_bot(bots_by_slug, member_slug):
     if not member_slug:
@@ -706,24 +706,24 @@ def _resolve_bot(bots_by_slug, member_slug):
         return bots_by_slug.get(member_slug[len("agency-"):])
     return None
 ```
-2. **Criar BotTemplates faltantes** — se algum `member_slug` não existir como `source_slug` (ex: `multi-platform-publisher`, `pr-communications-manager`), adicionar ao `agents/seed_data/agency_agents.json` e rodar `manage.py seed_agency_agents` antes do `seed_agency_runbooks`.
+2. **Create missing BotTemplates** — if some `member_slug` doesn't exist as a `source_slug` (e.g. `multi-platform-publisher`, `pr-communications-manager`), add it to `agents/seed_data/agency_agents.json` and run `manage.py seed_agency_agents` before `seed_agency_runbooks`.
 
-**Verificação:** após o seed, conferir `members.filter(bot_template__isnull=False).count()` == `members.count()` para cada runbook. Ordem de seed: `seed_agency_agents` → `seed_agency_runbooks`.
+**Verification:** after the seed, check `members.filter(bot_template__isnull=False).count()` == `members.count()` for each runbook. Seed order: `seed_agency_agents` → `seed_agency_runbooks`.
 
-**SEMPRE verificar que TODAS as funções de seed copiam TODOS os campos do modelo** — quando você adiciona um campo novo a um modelo Django (ex: `category` em `CrewTemplate`), precisa atualizar **todas** as funções de seed que criam instâncias desse modelo, não só a principal. É comum ter funções de seed separadas (`crew_seed.py` + `agency_crew_seed.py`) e esquecer de adicionar o campo novo na secundária. Sintoma: o seed roda sem erro, mas o campo fica vazio no banco. Correção: antes de criar um seed, listar todos os campos do modelo com `[f.name for f in Model._meta.get_fields()]` e garantir que cada seed function seta todos.
+**ALWAYS verify that ALL seed functions copy ALL model fields** — when you add a new field to a Django model (e.g. `category` in `CrewTemplate`), you need to update **all** the seed functions that create instances of that model, not just the main one. It's common to have separate seed functions (`crew_seed.py` + `agency_crew_seed.py`) and forget to add the new field in the secondary one. Symptom: the seed runs without error, but the field stays empty in the database. Fix: before creating a seed, list all the model fields with `[f.name for f in Model._meta.get_fields()]` and ensure each seed function sets all of them.
 
-**SEMPRE verificar o escopo ao inserir blocos grandes via find-and-replace** — `content.replace(old, new)` com âncora não-única pode inserir o bloco DENTRO de uma função (compila mas corrompe a lógica). Prevenção: âncoras com linhas de contexto ACIMA e ABAIXO; verificar com `compile()`; conferir visualmente a indentação ao redor. Se corromper, reescreva o arquivo inteiro.
+**ALWAYS check the scope when inserting large blocks via find-and-replace** — `content.replace(old, new)` with a non-unique anchor can insert the block INSIDE a function (compiles but corrupts the logic). Prevention: anchors with context lines ABOVE and BELOW; verify with `compile()`; visually check the surrounding indentation. If corrupted, rewrite the whole file.
 
-### PREFERÊNCIA DO USUÁRIO — o Copilot NUNCA expõe ids/uuid ao usuário final
+### USER PREFERENCE — the Copilot NEVER exposes ids/uuid to the end user
 
-O usuário exige que o Copilot **nunca fale de id ou uuid para o usuário final**. Ele deve referenciar crews, páginas, documentos e pastas da base de conhecimento **SEMPRE pelo NOME** (ex.: "a crew Presença Digital", "o documento briefing-produto.txt", "a página de vendas"). Os ids/uuid são usados internamente para executar ações, mas nunca mostrados ou pedidos ao usuário.
+The user requires that the Copilot **never mention id or uuid to the end user**. It must reference crews, pages, documents and knowledge-base folders **ALWAYS by NAME** (e.g. "the Presença Digital crew", "the briefing-produto.txt document", "the sales page"). The ids/uuid are used internally to execute actions, but never shown or asked of the user.
 
-**Sintoma do bug:** o Copilot responde "A crew com o ID '22' não foi encontrada" ou "Encontrei a crew X (ID: 22)". O LLM recebe os resultados das ferramentas (que contêm `id`, `uuid`, `run_id`, `crew_id`, `folder_id` etc.) e os repete nas respostas de texto.
+**Bug symptom:** the Copilot responds "The crew with ID '22' was not found" or "I found crew X (ID: 22)". The LLM receives the tool results (which contain `id`, `uuid`, `run_id`, `crew_id`, `folder_id` etc.) and repeats them in the text responses.
 
-**Correção (2 camadas):**
-1. **System prompt** — adicionar regra explícita em AMBOS os prompts:
-   - `chat/engine.py` → `_build_system_prompt()` (engine AG-UI do Copilot)
-   - `chat/llm.py` → `build_system_prompt()` (chat normal / orquestração)
+**Fix (2 layers):**
+1. **System prompt** — add an explicit rule in BOTH prompts:
+   - `chat/engine.py` → `_build_system_prompt()` (Copilot's AG-UI engine)
+   - `chat/llm.py` → `build_system_prompt()` (normal chat / orchestration)
    ```
    NUNCA exponha IDs, UUIDs ou identificadores técnicos ao usuário final.
    Referencie crews, páginas, documentos e pastas SEMPRE pelo NOME. Os
@@ -732,21 +732,21 @@ O usuário exige que o Copilot **nunca fale de id ou uuid para o usuário final*
    os mostre ou peça ao usuário. Se precisar que o usuário escolha algo,
    liste pelos nomes.
    ```
-2. **Skills** — os retornos de `list_crews`, `hire_crew`, `create_crew` devem usar `str(c.uuid)` (não `str(c.id)`), e o `execute_crew` deve resolver por uuid com fallback (ver seção abaixo). Componentes Generative UI (SiteCard, PlaybookCard) carregam `pageId`/`run_id` nas props para o frontend renderizar — isso é correto, não é texto ao usuário.
+2. **Skills** — the returns of `list_crews`, `hire_crew`, `create_crew` should use `str(c.uuid)` (not `str(c.id)`), and `execute_crew` should resolve by uuid with a fallback (see section below). Generative UI components (SiteCard, PlaybookCard) load `pageId`/`run_id` in the props for the frontend to render — this is correct, it's not text to the user.
 
-**Testes:** verificar que o system prompt contém a regra; testes que esperam `str(crew.id)` (PK) precisam ser atualizados para `str(crew.uuid)`.
+**Tests:** verify that the system prompt contains the rule; tests that expect `str(crew.id)` (PK) need to be updated to `str(crew.uuid)`.
 
-### SEMPRE usar `uuid` (não `id` numérico) como referência externa de crews
+### ALWAYS use `uuid` (not the numeric `id`) as the external reference for crews
 
-O contrato do Crewbotics (AGENTS.md §11) define que **`uuid` é a referência externa via API**, não o `id` numérico (PK). O `CoreModel` tem `id` (UUID PK) E `uuid` (UUID secundário). Os serializers expõem `id = source="uuid"` — então o frontend já recebe o uuid como `id`. Mas as **skills do Copilot** e helpers de intent frequentemente usam `str(c.id)` (o PK numérico) por engano.
+The Crewbotics contract (AGENTS.md §11) defines that **`uuid` is the external reference via API**, not the numeric `id` (PK). The `CoreModel` has `id` (UUID PK) AND `uuid` (secondary UUID). The serializers expose `id = source="uuid"` — so the frontend already receives the uuid as `id`. But the **Copilot skills** and intent helpers often use `str(c.id)` (the numeric PK) by mistake.
 
-**Sintoma clássico:** o Copilot lista a crew ("Presença Digital para Profissionais, ID: 22"), o usuário pede para acionar, e o Copilot responde "A crew com o ID '22' não foi encontrada". O `list_crews` retornou `str(c.id)` = "22" (PK), mas o `execute_crew` resolve por `uuid`/`pk` e não acha.
+**Classic symptom:** the Copilot lists the crew ("Presença Digital para Profissionais, ID: 22"), the user asks to trigger it, and the Copilot responds "The crew with ID '22' was not found". The `list_crews` returned `str(c.id)` = "22" (PK), but `execute_crew` resolves by `uuid`/`pk` and doesn't find it.
 
-**Causa raiz:** `_uuid.UUID("22")` levanta `ValueError`, então o bloco de resolução por uuid é pulado, e a busca por nome também falha.
+**Root cause:** `_uuid.UUID("22")` raises `ValueError`, so the uuid resolution block is skipped, and the name lookup also fails.
 
-**Correção em 2 camadas:**
-1. **Skills que LISTAM crews** (`list_crews`, `hire_crew`, `create_crew`) devem retornar `str(c.uuid)`, não `str(c.id)`.
-2. **Skills que EXECUTAM crews** (`execute_crew`) devem resolver por `uuid` primeiro, com fallback para `id` numérico (pk) e depois nome:
+**Fix in 2 layers:**
+1. **Skills that LIST crews** (`list_crews`, `hire_crew`, `create_crew`) should return `str(c.uuid)`, not `str(c.id)`.
+2. **Skills that EXECUTE crews** (`execute_crew`) should resolve by `uuid` first, with a fallback to the numeric `id` (pk) and then the name:
 ```python
 crew = None
 import uuid as _uuid
@@ -766,27 +766,27 @@ if not crew:
             or qs.filter(custom_name__icontains=crew_id).first())
 ```
 
-**Varredura completa:** ao corrigir, procure TODOS os lugares que usam `str(c.id)`/`crew.id`/`instance.id` em contexto de crew — `chat/intent.py` (`crew_context_from_queryset`), `chat/views.py` (contexto de crews, orquestração, `CrewIntentView`), `chat/skills/*`. O serializer expõe `id=uuid`, então o frontend está correto; o bug é sempre no backend.
+**Complete sweep:** when fixing, look for ALL places that use `str(c.id)`/`crew.id`/`instance.id` in a crew context — `chat/intent.py` (`crew_context_from_queryset`), `chat/views.py` (crew context, orchestration, `CrewIntentView`), `chat/skills/*`. The serializer exposes `id=uuid`, so the frontend is correct; the bug is always in the backend.
 
-**Testes:** testes que esperam `str(crew.id)` (PK) precisam ser atualizados para `str(crew.uuid)`.
+**Tests:** tests that expect `str(crew.id)` (PK) need to be updated to `str(crew.uuid)`.
 
-### SEMPRE verificar se o crewai importa no processo ao ver stub "(crewai ausente)"
+### ALWAYS verify whether crewai imports in the process when seeing the stub "(crewai ausente)"
 
-Quando a crew roda em modo stub `[STUB — crewai ausente]` mas `llm_client.is_configured()` é True (Gemini/OpenAI configurado, e até aparecem chamadas LiteLLM no log de OUTRAS partes do Copilot), a causa raiz é `_crewai_available()` retornar False porque `import crewai` falha DENTRO do processo em execução — não é problema de chave.
+When the crew runs in stub mode `[STUB — crewai ausente]` but `llm_client.is_configured()` is True (Gemini/OpenAI configured, and even LiteLLM calls appear in the log of OTHER parts of the Copilot), the root cause is `_crewai_available()` returning False because `import crewai` fails INSIDE the running process — it's not a key problem.
 
-No Windows, o `import crewai` (1.15.5) puxa `chromadb` (que chama `Path.home()`) e `crewai_core` (telemetria, que chama `Path(LOCALAPPDATA)`). Se o Daphne/processo for lançado via subprocess com env MÍNIMO (sem `USERPROFILE`/`HOME`/`LOCALAPPDATA`/`APPDATA`/`TEMP`), o import quebra com:
+On Windows, `import crewai` (1.15.5) pulls in `chromadb` (which calls `Path.home()`) and `crewai_core` (telemetry, which calls `Path(LOCALAPPDATA)`). If the Daphne/process is launched via subprocess with a MINIMAL env (without `USERPROFILE`/`HOME`/`LOCALAPPDATA`/`APPDATA`/`TEMP`), the import breaks with:
 - `RuntimeError: Could not determine home directory` (chromadb → `Path.home()`)
 - `TypeError: ... not 'NoneType'` (crewai_core → `Path(LOCALAPPDATA)`)
 
-**Diagnóstico:** `python -c "import crewai"` com o MESMO env do processo. Se falhar, é isto.
+**Diagnosis:** `python -c "import crewai"` with the SAME env as the process. If it fails, this is it.
 
-**Correção:** relançar o Daphne/processo com o ambiente Windows completo (`USERPROFILE`, `HOME`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `APPDATA`, `TEMP`, `TMP`). Quando o backend é iniciado pelo terminal normal do usuário essas vars existem — este bug aparece só quando o agente relança o server via `subprocess.Popen` com `env={...}` parcial. Testar com `python -c "import crewai"` no env final antes de subir.
+**Fix:** relaunch the Daphne/process with the full Windows environment (`USERPROFILE`, `HOME`, `HOMEDRIVE`, `HOMEPATH`, `LOCALAPPDATA`, `APPDATA`, `TEMP`, `TMP`). When the backend is started from the user's normal terminal these vars exist — this bug only appears when the agent relaunches the server via `subprocess.Popen` with a partial `env={...}`. Test with `python -c "import crewai"` in the final env before starting.
 
-**SEMPRE diagnosticar execução de crew "silenciosa" via ExecutionLog**
+**ALWAYS diagnose "silent" crew execution via ExecutionLog**
 
-> Para o mesmo padrão em **skills longas síncronas** (ex: `create_presentation` gerando carrossel com imagens) que "somem" do chat — tool_call sem tool_result, task presa em `running`, artefatos criados mas resposta não persistida — ver `references/skill-longa-sse-nao-persistida.md`.
+> For the same pattern in **long synchronous skills** (e.g. `create_presentation` generating a carousel with images) that "disappear" from the chat — tool_call without tool_result, task stuck in `running`, artifacts created but response not persisted — see `references/skill-longa-sse-nao-persistida.md`.
 
-Quando o usuário reporta "pedi para acionar a crew mas nada aconteceu"
+When the user reports "I asked to trigger the crew but nothing happened"
 
 ```python
 from chat.models import ExecutionLog
@@ -794,21 +794,21 @@ for l in ExecutionLog.objects.filter(task_id=<id>).order_by('id'):
     print(f'[{l.action_type}] tool={l.tool_name} payload={l.payload}')
 ```
 
-**Padrão revelador:** um `tool_call` de `execute_crew` **sem** `tool_result` correspondente = a task async `run_crew` quebrou em background e o erro foi engolido. O `execute_crew` retorna `{status: "dispatched"}` imediatamente (o dispatch é síncrono), mas o `run_crew` roda numa **thread separada** via `enqueue_task_sync` — se ele lançar exceção, o erro só vai pro log, NUNCA pro chat. O usuário vê "crew acionada" mas nada roda.
+**Revealing pattern:** an `execute_crew` `tool_call` **without** a corresponding `tool_result` = the async `run_crew` task broke in the background and the error was swallowed. `execute_crew` returns `{status: "dispatched"}` immediately (the dispatch is synchronous), but `run_crew` runs in a **separate thread** via `enqueue_task_sync` — if it throws an exception, the error only goes to the log, NEVER to the chat. The user sees "crew triggered" but nothing runs.
 
-**Causa raiz mais comum (pós-migração Celery→asyncio):** o `crews/tasks_async.py` chama funções com **assinaturas erradas** que não foram atualizadas na migração. Sintomas de `TypeError`:
-- `build_tools() takes from 1 to 2 positional arguments but 4 were given` → o `tasks_async.py` chamava `build_tools(crew, members, tasks, inputs)`, mas a assinatura é `build_tools(crew, allow_ask=True)`. Correção: `build_tools(crew)`.
-- `extract_integration_nodes() takes 1 positional argument but 3 were given` → o `tasks_async.py` chamava `extract_integration_nodes(crew, tasks, inputs)`, mas a assinatura é `extract_integration_nodes(graph)`. Correção: `extract_integration_nodes(crew.graph or {})`.
+**Most common root cause (post Celery→asyncio migration):** `crews/tasks_async.py` calls functions with **wrong signatures** that weren't updated in the migration. `TypeError` symptoms:
+- `build_tools() takes from 1 to 2 positional arguments but 4 were given` → `tasks_async.py` was calling `build_tools(crew, members, tasks, inputs)`, but the signature is `build_tools(crew, allow_ask=True)`. Fix: `build_tools(crew)`.
+- `extract_integration_nodes() takes 1 positional argument but 3 were given` → `tasks_async.py` was calling `extract_integration_nodes(crew, tasks, inputs)`, but the signature is `extract_integration_nodes(graph)`. Fix: `extract_integration_nodes(crew.graph or {})`.
 
-**Como confirmar o fix:** rodar `dispatch_run(crew, {...})` num shell. Se antes falhava em segundos com `TypeError` e agora demora (roda o pipeline de verdade), o bug de assinatura foi corrigido. Se o shell der timeout, é sinal de que a crew está executando de verdade (bom sinal).
+**How to confirm the fix:** run `dispatch_run(crew, {...})` in a shell. If it previously failed in seconds with `TypeError` and now takes time (runs the real pipeline), the signature bug is fixed. If the shell times out, that's a sign the crew is really executing (good sign).
 
-**SEMPRE verificar assinaturas de funções chamadas em tasks async após migração** — a migração Celery→asyncio (`tasks.py` → `tasks_async.py`) pode copiar chamadas com argumentos posicionais que não batem com a assinatura atual da função. Ao ver `TypeError: X() takes N positional arguments but M were given` numa task async, confira a assinatura real da função (`def build_tools(crew, allow_ask=True)`) e ajuste a chamada — não assuma que os argumentos extras são válidos.
+**ALWAYS check the signatures of functions called in async tasks after a migration** — the Celery→asyncio migration (`tasks.py` → `tasks_async.py`) can copy calls with positional arguments that don't match the function's current signature. When you see `TypeError: X() takes N positional arguments but M were given` in an async task, check the function's real signature (`def build_tools(crew, allow_ask=True)`) and adjust the call — don't assume the extra arguments are valid.
 
-**SEMPRE rodar `run_crew` em thread separada, NUNCA inline no `except RuntimeError` do `enqueue_task_sync`** — quando o `execute_crew` roda dentro do engine AG-UI (via `sync_to_async` numa thread pool), o `enqueue_task_sync` cai no `except RuntimeError` (sem event loop na thread pool). Se ele executar `asyncio.run(result)` **inline**, a crew completa (7 tasks, com LLM) roda DENTRO do request, travando o stream SSE do `POST /chat/agui/` até o Daphne matar a conexão. Sintoma no log: `Application instance ... took too long to shut down and was killed` para o POST `/api/v1/chat/agui/`.
+**ALWAYS run `run_crew` in a separate thread, NEVER inline in the `except RuntimeError` of `enqueue_task_sync`** — when `execute_crew` runs inside the AG-UI engine (via `sync_to_async` in a thread pool), `enqueue_task_sync` falls into the `except RuntimeError` (no event loop in the thread pool). If it executes `asyncio.run(result)` **inline**, the crew completes (7 tasks, with LLM) INSIDE the request, blocking the SSE stream of `POST /chat/agui/` until Daphne kills the connection. Symptom in the log: `Application instance ... took too long to shut down and was killed` for the POST `/api/v1/chat/agui/`.
 
-**Correção em `config/task_proxy.py`** — no `except RuntimeError`, especializar por nome de task:
-- **`run_crew`** (task longa) → roda numa **daemon thread** com seu próprio `asyncio.run()`. NUNCA inline.
-- **Tasks rápidas** (`index_document`, `generate_title`, etc.) → continuam inline, porque os testes de knowledge/chat dependem de a task persistir ANTES do request/teste retornar (em `TransactionTestCase` o banco é limpo antes de uma thread terminar).
+**Fix in `config/task_proxy.py`** — in the `except RuntimeError`, specialize by task name:
+- **`run_crew`** (long task) → runs in a **daemon thread** with its own `asyncio.run()`. NEVER inline.
+- **Fast tasks** (`index_document`, `generate_title`, etc.) → stay inline, because the knowledge/chat tests depend on the task persisting BEFORE the request/test returns (in `TransactionTestCase` the database is cleaned before a thread finishes).
 
 ```python
 except RuntimeError:
@@ -825,7 +825,7 @@ except RuntimeError:
         t = threading.Thread(target=_run, daemon=True)
         t.start()
         return _tid
-    # Tasks rápidas: inline (persiste antes do retorno).
+    # Fast tasks: inline (persists before returning).
     try:
         result = coro_factory(*args, **kwargs)
         if hasattr(result, '__await__'):
@@ -836,110 +836,110 @@ except RuntimeError:
         return str(uuid.uuid4())
 ```
 
-**Pitfall de teste:** se você trocar TODAS as tasks para thread separada, os testes de knowledge (`test_e2e_ct_005.py`) quebram com `ProductContext matching query does not exist` — a thread roda depois que o `TransactionTestCase` limpa o banco. Por isso o `run_crew` é a ÚNICA task que deve ir para thread; as demais ficam inline.
+**Test pitfall:** if you switch ALL tasks to a separate thread, the knowledge tests (`test_e2e_ct_005.py`) break with `ProductContext matching query does not exist` — the thread runs after the `TransactionTestCase` cleans the database. That's why `run_crew` is the ONLY task that should go to a thread; the rest stay inline.
 
-**NÃO parar no `run_crew` ao listar tasks longas — incluir os callbacks de aprovação/rejeição.** Quando o usuário clica em "Aprovar entrega"/"Rejeitar", o front faz `POST /chat/agui/resume/` e chama `enqueue_task_sync("on_crew_run_approved_callback" | "on_crew_run_rejected_callback", ...)`. Se esses callbacks rodarem **inline** no `except RuntimeError` (como `run_crew` fazia originalmente), eles executam Composio + criação de página DENTRO do request — o `_apply_decision` fica pendurado, o endpoint nunca retorna headers, e o `res.text()` do front fica "processando" para sempre (botão com spinner). Correção em `config/task_proxy.py`: incluir `on_crew_run_approved_callback` e `on_crew_run_rejected_callback` no mesmo branch de thread separada que `run_crew`. Receita completa em `references/agui-chat-crew-run-approval.md`.
+**DON'T stop at `run_crew` when listing long tasks — include the approval/rejection callbacks.** When the user clicks "Aprovar entrega"/"Rejeitar", the front does `POST /chat/agui/resume/` and calls `enqueue_task_sync("on_crew_run_approved_callback" | "on_crew_run_rejected_callback", ...)`. If these callbacks run **inline** in the `except RuntimeError` (as `run_crew` originally did), they execute Composio + page creation INSIDE the request — `_apply_decision` hangs, the endpoint never returns headers, and the front's `res.text()` stays "processing" forever (button with spinner). Fix in `config/task_proxy.py`: include `on_crew_run_approved_callback` and `on_crew_run_rejected_callback` in the same separate-thread branch as `run_crew`. Full recipe in `references/agui-chat-crew-run-approval.md`.
 
-**SEMPRE isolar ORM síncrono em contexto async ao mover callbacks para thread.** Ao mover `on_crew_run_approved_callback` para uma thread com seu próprio `asyncio.run()`, aparecem bugs latentes de `SynchronousOnlyOperation` que antes eram mascarados (o callback nem rodava inline). Em `crews/callbacks_async.py`, o `_create_page_from_run` fazia ORM síncrono direto (`_final_task_output(run)`, `run.crew.custom_name`, `run.created_at`) em contexto async. Correção: extrair um helper síncrono `_read_final_meta(run, _final_task_output)` que retorna `(final_link, crew_name, created_at, org_id)` e chamá-lo via `sync_to_async`; usar `organization_id`/`uuid` (não `run.organization` nem `pk`) em todos os acessos.
+**ALWAYS isolate synchronous ORM in an async context when moving callbacks to a thread.** When moving `on_crew_run_approved_callback` to a thread with its own `asyncio.run()`, latent `SynchronousOnlyOperation` bugs appear that were previously masked (the callback didn't even run inline). In `crews/callbacks_async.py`, `_create_page_from_run` did direct synchronous ORM (`_final_task_output(run)`, `run.crew.custom_name`, `run.created_at`) in an async context. Fix: extract a synchronous helper `_read_final_meta(run, _final_task_output)` that returns `(final_link, crew_name, created_at, org_id)` and call it via `sync_to_async`; use `organization_id`/`uuid` (not `run.organization` nor `pk`) in all accesses.
 
-**SEMPRE usar `lookup_field` do ViewSet ao chamar action via `asyncio.run_coroutine_threadsafe`/`sync_to_async`.** O `_create_page_from_run` chamava `PageViewSet.publish(request, pk=str(page.id))`, mas o `PageViewSet` tem `lookup_field = "uuid"` — erro `PageViewSet.publish() got an unexpected keyword argument 'pk'`. Correção: `publish(request, uuid=str(page.uuid))`. Ao invocar um action de ViewSet manualmente, confira sempre o `lookup_field` (default `pk`, mas pode ser `uuid`).
+**ALWAYS use the ViewSet's `lookup_field` when calling an action via `asyncio.run_coroutine_threadsafe`/`sync_to_async`.** `_create_page_from_run` called `PageViewSet.publish(request, pk=str(page.id))`, but the `PageViewSet` has `lookup_field = "uuid"` — error `PageViewSet.publish() got an unexpected keyword argument 'pk'`. Fix: `publish(request, uuid=str(page.uuid))`. When invoking a ViewSet action manually, always check the `lookup_field` (default `pk`, but it can be `uuid`).
 
-**SEMPRE gerar `slug` ao criar `Page` no callback de aprovação.** O modelo `Page` tem `unique_together = [("organization", "slug")]` e `slug = SlugField()` SEM default/auto-generation. Se o `_create_page_from_run` criar a Page com `title`/`html_content` mas sem `slug`, o primeiro run passa (slug vazio ok) mas o SEGUNDO run falha com `duplicate key value violates unique constraint "pages_page_organization_id_slug_30ccfd5f_uniq"` (Key (organization_id, slug)=(1, )). O callback ainda completa (page=nenhuma), mas gera erro no log. Correção: gerar slug a partir do título via `from django.utils.text import slugify; base_slug = slugify(page_title) or "entrega"` e passar `slug=base_slug` no `Page.objects.create`. Ao criar qualquer registro com `unique_together`, verifique se todos os campos não-default da constraint são preenchidos.
+**ALWAYS generate a `slug` when creating a `Page` in the approval callback.** The `Page` model has `unique_together = [("organization", "slug")]` and `slug = SlugField()` WITHOUT default/auto-generation. If `_create_page_from_run` creates the Page with `title`/`html_content` but without `slug`, the first run passes (empty slug ok) but the SECOND run fails with `duplicate key value violates unique constraint "pages_page_organization_id_slug_30ccfd5f_uniq"` (Key (organization_id, slug)=(1, )). The callback still completes (page=none), but generates an error in the log. Fix: generate the slug from the title via `from django.utils.text import slugify; base_slug = slugify(page_title) or "entrega"` and pass `slug=base_slug` in the `Page.objects.create`. When creating any record with `unique_together`, verify that all non-default fields of the constraint are filled.
 
-### DRF — SEMPRE verificar `@action` decorator em ViewSet methods
+### DRF — ALWAYS check the `@action` decorator on ViewSet methods
 
-Quando um método em um ViewSet não tem o decorator `@action(detail=True/False, methods=[...])`, o DRF **não expõe a rota** — o frontend recebe 404. Sintoma: o método existe no código, a lógica está correta, mas a URL retorna "Não encontrado".
+When a method in a ViewSet doesn't have the `@action(detail=True/False, methods=[...])` decorator, DRF **doesn't expose the route** — the frontend gets a 404. Symptom: the method exists in the code, the logic is correct, but the URL returns "Não encontrado".
 
-**Causa raiz comum:** o método foi adicionado sem o decorator, ou o decorator foi perdido durante um find-and-replace que corrompeu a estrutura do arquivo.
+**Common root cause:** the method was added without the decorator, or the decorator was lost during a find-and-replace that corrupted the file structure.
 
-**Correção:** adicionar o decorator apropriado:
+**Fix:** add the appropriate decorator:
 ```python
 from rest_framework.decorators import action
 
-@action(detail=True, methods=["get"])  # para operações em um objeto específico
+@action(detail=True, methods=["get"])  # for operations on a specific object
 def download(self, request, **kwargs):
     ...
 
-@action(detail=False, methods=["get"])  # para operações na coleção
+@action(detail=False, methods=["get"])  # for operations on the collection
 def favorites(self, request):
     ...
 ```
 
-**Verificação:** após adicionar o decorator, testar a URL diretamente via API (curl/requests) antes de testar no frontend.
+**Verification:** after adding the decorator, test the URL directly via API (curl/requests) before testing in the frontend.
 
-### SEMPRE verificar a estrutura do arquivo após find-and-replace de blocos grandes
+### ALWAYS check the file structure after find-and-replace of large blocks
 
-Quando você usa `content.replace(old, new)` para substituir um bloco grande (ex: uma função inteira), o texto de ancoragem pode não ser único o suficiente, e o bloco pode cair DENTRO de outra função ou entre funções, corrompendo a estrutura do arquivo.
+When you use `content.replace(old, new)` to replace a large block (e.g. a whole function), the anchor text may not be unique enough, and the block can land INSIDE another function or between functions, corrupting the file structure.
 
-**Sintomas:**
-- O arquivo compila (`compile()` passa) mas a lógica fica quebrada
-- Uma função aparece "dividida" em duas partes (cabeçalho + corpo separados por outra função)
-- O decorator de uma função some e o corpo vira código solto
+**Symptoms:**
+- The file compiles (`compile()` passes) but the logic is broken
+- A function appears "split" into two parts (header + body separated by another function)
+- A function's decorator disappears and the body becomes loose code
 
-**Prevenção:**
-1. Usar âncoras com **pelo menos 3 linhas de contexto** acima e abaixo do bloco alvo
-2. Após a substituição, verificar visualmente as 10 linhas antes e depois do local da substituição
-3. Verificar que funções adjacentes não foram afetadas (decorators, docstrings, indentação)
-4. Se o arquivo ficar corrompido, **reescrever o arquivo inteiro** em vez de tentar mais patches
+**Prevention:**
+1. Use anchors with **at least 3 lines of context** above and below the target block
+2. After the substitution, visually check the 10 lines before and after the substitution point
+3. Verify that adjacent functions weren't affected (decorators, docstrings, indentation)
+4. If the file becomes corrupted, **rewrite the whole file** instead of trying more patches
 
-**Exemplo de corrupção (aconteceu em `knowledge/views.py`):**
+**Corruption example (happened in `knowledge/views.py`):**
 ```python
-# ANTES da substituição — estrutura correta:
+# BEFORE the substitution — correct structure:
 @action(detail=True, methods=["get"])
 def download(self, request, **kwargs):
     """Download de pasta como ZIP."""
     import io, zipfile
-    ...  # corpo completo
+    ...  # full body
 
 @action(detail=False, methods=["get"])
 def favorites(self, request):
     ...
 
-# DEPOIS da substituição — estrutura corrompida:
-def download(self, request, **kwargs):  # ← @action perdido
+# AFTER the substitution — corrupted structure:
+def download(self, request, **kwargs):  # ← @action lost
     """Download de pasta como ZIP."""
     import io, zipfile
-@action(detail=False, methods=["get"])  # ← favorites entrou no meio do download
+@action(detail=False, methods=["get"])  # ← favorites entered the middle of download
 def favorites(self, request):
     ...
 
-        folder = KnowledgeFolder.objects.filter(...)  # ← corpo do download solto
+        folder = KnowledgeFolder.objects.filter(...)  # ← download body loose
         ...
 ```
 
-## Padrões de Bugs no Frontend React
+## React Frontend Bug Patterns
 
-> **Menu lateral colapsável + sistema de ícones `data-icon`** (crewbotics-front): CSS não esconde text nodes — envolver labels de nav em `<span>`; ícones via `[data-icon]::before` com `-webkit-mask: var(--i)`. Padrão completo em `references/collapsible-sidebar-data-icon.md`.
+> **Collapsible sidebar + `data-icon` icon system** (crewbotics-front): CSS doesn't hide text nodes — wrap nav labels in `<span>`; icons via `[data-icon]::before` with `-webkit-mask: var(--i)`. Full pattern in `references/collapsible-sidebar-data-icon.md`.
 
-### Mensagem vai para conversa nova ao invés da atual (AG-UI / @ag-ui/client)
+### Message goes to a new conversation instead of the current one (AG-UI / @ag-ui/client)
 
-Quando o usuário reporta "digitei na conversa X mas a mensagem foi para uma conversa nova", a causa raiz é que o `HttpAgent` foi criado **sem** o interceptor `runAgent` que garante que `agent.threadId` esteja setado antes de enviar a mensagem.
+When the user reports "I typed in conversation X but the message went to a new conversation", the root cause is that the `HttpAgent` was created **without** the `runAgent` interceptor that ensures `agent.threadId` is set before sending the message.
 
-**Fluxo quebrado:**
-1. Usuário clica em conversa → `switchToThread` é chamado
-2. Usuário digita e envia → `HttpAgent.runAgent()` é chamado
-3. O interceptor (se existir) tenta decidir qual `threadId` usar
-4. Se o interceptor usa `ctrl.activeId` (React state) ou `base.threadId` (UUID aleatório do construtor), o backend recebe um UUID errado e **cria uma conversa nova**
-5. Mensagem vai para a conversa nova, a antiga fica vazia
+**Broken flow:**
+1. User clicks a conversation → `switchToThread` is called
+2. User types and sends → `HttpAgent.runAgent()` is called
+3. The interceptor (if it exists) tries to decide which `threadId` to use
+4. If the interceptor uses `ctrl.activeId` (React state) or `base.threadId` (random constructor UUID), the backend receives a wrong UUID and **creates a new conversation**
+5. The message goes to the new conversation, the old one stays empty
 
-### Mensagem desaparece ao enviar nova mensagem (sendPrompt + switchToThread)
+### Message disappears when sending a new message (sendPrompt + switchToThread)
 
-Quando o usuário reporta "a resposta do assistente sumiu depois que enviei outra mensagem", a causa raiz é que o `sendPrompt` chama `runtime.threads.switchToThread(activeId)` **antes** de fazer `append()`. O `switchToThread` do runtime chama `core.applyExternalMessages([])` que **limpa todas as mensagens atuais** — incluindo respostas parciais do assistente que ainda estão sendo streamadas. Depois ele re-fetch o histórico do backend, mas a resposta parcial **ainda não foi salva** no banco, então ela simplesmente desaparece.
+When the user reports "the assistant's response disappeared after I sent another message", the root cause is that `sendPrompt` calls `runtime.threads.switchToThread(activeId)` **before** doing `append()`. The runtime's `switchToThread` calls `core.applyExternalMessages([])` which **clears all current messages** — including partial assistant responses that are still being streamed. Then it re-fetches the history from the backend, but the partial response **hasn't been saved yet** in the database, so it simply disappears.
 
-**Sintoma:** Usuário envia mensagem enquanto o assistente está respondendo → resposta parcial some. Ou: usuário envia segunda mensagem → a primeira resposta desaparece.
+**Symptom:** User sends a message while the assistant is responding → partial response disappears. Or: user sends a second message → the first response disappears.
 
-**Correção:** Não chamar `switchToThread` quando o usuário já está na thread ativa. O interceptor `runAgent` já garante que `agent.threadId` está correto via `activeIdRef.current`:
+**Fix:** Don't call `switchToThread` when the user is already on the active thread. The `runAgent` interceptor already ensures `agent.threadId` is correct via `activeIdRef.current`:
 
 ```tsx
-// ERRADO — switchToThread limpa mensagens atuais:
+// WRONG — switchToThread clears current messages:
 const sendPrompt = useCallback(async (prompt: string) => {
   if (activeId) {
-    await runtime.threads.switchToThread(activeId);  // ← limpa mensagens!
+    await runtime.threads.switchToThread(activeId);  // ← clears messages!
     runtime?.thread?.append?.({ role: "user", content: [{ type: "text", text: prompt }] });
   }
 }, [...]);
 
-// CERTO — só faz append, sem switchToThread:
+// CORRECT — only appends, no switchToThread:
 const sendPrompt = useCallback(async (prompt: string) => {
   if (activeId) {
     runtime?.thread?.append?.({ role: "user", content: [{ type: "text", text: prompt }] });
@@ -951,19 +951,19 @@ const sendPrompt = useCallback(async (prompt: string) => {
 }, [...]);
 ```
 
-**NÃO fazer:** chamar `switchToThread` dentro de `sendPrompt` quando `activeId` já está setado. O interceptor `runAgent` já injeta o `threadId` correto nos params.
+**DON'T:** call `switchToThread` inside `sendPrompt` when `activeId` is already set. The `runAgent` interceptor already injects the correct `threadId` into the params.
 
-### Botão "Nova conversa" não limpa área de mensagens
+### "New conversation" button doesn't clear the message area
 
-Quando o usuário clica em "Nova conversa" e a sidebar atualiza mas o `chat__msgs` continua mostrando a conversa anterior, a causa raiz é que o `onClick` chama apenas `adapter.onSwitchToNewThread()`, que cria a conversa no backend e atualiza a sidebar, mas **não limpa as mensagens atuais** no runtime.
+When the user clicks "Nova conversa" and the sidebar updates but `chat__msgs` keeps showing the previous conversation, the root cause is that the `onClick` only calls `adapter.onSwitchToNewThread()`, which creates the conversation in the backend and updates the sidebar, but **doesn't clear the current messages** in the runtime.
 
-**Correção:** Usar `runtime.threads.switchToNewThread` quando disponível — ele chama `core.applyExternalMessages([])` + `core.resetState()` para mostrar o estado vazio (`ThreadPrimitive.Empty`):
+**Fix:** Use `runtime.threads.switchToNewThread` when available — it calls `core.applyExternalMessages([])` + `core.resetState()` to show the empty state (`ThreadPrimitive.Empty`):
 
 ```tsx
-// ERRADO — só atualiza sidebar, não limpa mensagens:
+// WRONG — only updates the sidebar, doesn't clear messages:
 <button onClick={() => adapter.onSwitchToNewThread()}>
 
-// CERTO — prefere runtime quando disponível:
+// CORRECT — prefers runtime when available:
 <button onClick={() => {
   if (runtime?.threads?.switchToNewThread) {
     runtime.threads.switchToNewThread();
@@ -971,33 +971,33 @@ Quando o usuário clica em "Nova conversa" e a sidebar atualiza mas o `chat__msg
     adapter.onSwitchToNewThread();
   }
 }}>
-**NÃO fazer:** chamar `runtime.threads.switchToThread(uuid)` — ele chama o adapter internamente E faz um segundo fetch. Chamar o adapter diretamente é a abordagem correta, desde que o adapter sette `agent.threadId` antes do fetch.
+**DON'T:** call `runtime.threads.switchToThread(uuid)` — it calls the adapter internally AND makes a second fetch. Calling the adapter directly is the correct approach, as long as the adapter sets `agent.threadId` before the fetch.
 
-### Conversa auto-selecionada no boot não carrega mensagens
+### Auto-selected conversation on boot doesn't load messages
 
-Quando o usuário entra em `/chat` e a conversa mais recente está marcada como ativa na sidebar mas o `chat__msgs` mostra o estado vazio, a causa raiz é que o `ThreadListProvider` auto-seleciona a conversa (seta `activeId` + `threadIdRef`) mas **não chama** `onSwitchToThread` porque o runtime ainda não existe. O `ChatReady` cria o runtime depois, mas não há mecanismo para carregar as mensagens da conversa auto-selecionada. Correção em 2 partes (provider + ChatReady), usando `bootReady` state + `runtimeRef`, sem `runtime` na deps (loop infinito). Ver seção abaixo "SEMPRE usar `runtimeRef`".
+When the user enters `/chat` and the most recent conversation is marked active in the sidebar but `chat__msgs` shows the empty state, the root cause is that the `ThreadListProvider` auto-selects the conversation (sets `activeId` + `threadIdRef`) but **doesn't call** `onSwitchToThread` because the runtime doesn't exist yet. `ChatReady` creates the runtime later, but there's no mechanism to load the messages of the auto-selected conversation. Fix in 2 parts (provider + ChatReady), using `bootReady` state + `runtimeRef`, without `runtime` in the deps (infinite loop). See the section below "ALWAYS use `runtimeRef`".
 
-O hook `useAgUiRuntime` retorna um objeto NOVO a cada render. Se você colocar `runtime` nas dependências de um `useEffect`, ele dispara em loop infinito: effect → switchToThread → setState → re-render → novo runtime → effect → ... Use `runtimeRef` (ref) para acessar o runtime dentro do effect:
+The `useAgUiRuntime` hook returns a NEW object on every render. If you put `runtime` in the dependencies of a `useEffect`, it fires in an infinite loop: effect → switchToThread → setState → re-render → new runtime → effect → ... Use `runtimeRef` (ref) to access the runtime inside the effect:
 
 ```tsx
-// ERRADO — runtime muda a cada render, loop infinito:
+// WRONG — runtime changes every render, infinite loop:
 const runtime = useAgUiRuntime({...});
 useEffect(() => {
   runtime.threads.switchToThread(id);
-}, [runtime]);  // ← loop infinito
+}, [runtime]);  // ← infinite loop
 
-// CERTO — runtimeRef é estável:
+// CORRECT — runtimeRef is stable:
 const runtimeRef = useRef(runtime);
 runtimeRef.current = runtime;
 useEffect(() => {
   const r = runtimeRef.current;
   r?.threads?.switchToThread(id);
-}, [controller.bootReady]);  // ← sem runtime na deps
+}, [controller.bootReady]);  // ← no runtime in deps
 ```
 
-### SEMPRE adicionar `console.debug` no interceptor `runAgent`
+### ALWAYS add `console.debug` in the `runAgent` interceptor
 
-Quando o bug de thread switching acontece, não há log no console para diagnosticar qual threadId foi usado. Adicione `console.debug("[runAgent]", ...)` em cada branch do interceptor (pending, activeId, fallback, new session):
+When the thread switching bug happens, there's no log in the console to diagnose which threadId was used. Add `console.debug("[runAgent]", ...)` in each branch of the interceptor (pending, activeId, fallback, new session):
 
 ```tsx
 console.debug("[runAgent] using activeId:", activeId);
@@ -1005,9 +1005,9 @@ console.debug("[runAgent] fallback to mostRecent:", mostRecent.uuid);
 console.debug("[runAgent] created new session:", conv.uuid);
 ```
 
-### SEMPRE expor `window.__chatDebug` para debug remoto
+### ALWAYS expose `window.__chatDebug` for remote debugging
 
-Após criar o HttpAgent e o controller, exponha o estado do chat no console do browser:
+After creating the HttpAgent and the controller, expose the chat state in the browser console:
 
 ```tsx
 if (typeof window !== "undefined") {
@@ -1021,25 +1021,25 @@ if (typeof window !== "undefined") {
 }
 ```
 
-Isso permite que o usuário digite `__chatDebug` no console do DevTools para inspecionar o estado atual do chat.
+This allows the user to type `__chatDebug` in the DevTools console to inspect the current chat state.
 
-**Causa raiz — DUAS armadilhas:**
+**Root cause — TWO traps:**
 
-1. **`ctrl.activeId` é React state, stale no closure.** O interceptor `base.runAgent = async function(...) { ... ctrl.activeId ... }` captura o valor de `activeId` no momento da criação do `HttpAgent` (que é criado uma vez, via `if (!agentRef.current)`). O React state `activeId` muda depois, mas o closure ainda vê o valor inicial (null).
+1. **`ctrl.activeId` is React state, stale in the closure.** The interceptor `base.runAgent = async function(...) { ... ctrl.activeId ... }` captures the value of `activeId` at the moment the `HttpAgent` is created (which is created once, via `if (!agentRef.current)`). The React state `activeId` changes later, but the closure still sees the initial value (null).
 
-2. **`base.threadId` NÃO é setado pelo runtime.** O construtor do `HttpAgent` gera um UUID aleatório para `this.threadId`. O runtime do AG-UI **não** seta `agent.threadId` quando troca de thread — ele só chama o adapter. Usar `base.threadId` como fallback é pior que não ter interceptor: o valor é sempre truthy (um UUID fake), então o interceptor passa um UUID inexistente para o backend, que cria uma conversa nova silenciosamente.
+2. **`base.threadId` is NOT set by the runtime.** The `HttpAgent` constructor generates a random UUID for `this.threadId`. The AG-UI runtime does **not** set `agent.threadId` when switching threads — it only calls the adapter. Using `base.threadId` as a fallback is worse than having no interceptor: the value is always truthy (a fake UUID), so the interceptor passes a nonexistent UUID to the backend, which silently creates a new conversation.
 
-**Correção em 3 partes (2 arquivos):**
+**Fix in 3 parts (2 files):**
 
-**1. `useConversationThreadList.tsx` — adapter `onSwitchToThread` seta `agent.threadId` ANTES do fetch:**
+**1. `useConversationThreadList.tsx` — the `onSwitchToThread` adapter sets `agent.threadId` BEFORE the fetch:**
 
 ```tsx
 onSwitchToThread: async (threadId: string) => {
   threadIdRef.current = threadId;
-  // Seta agent.threadId ANTES de fazer o fetch — o HttpAgent usa
-  // this.threadId no prepareRunAgentInput. Sem isso, o interceptor
-  // runAgent ve o UUID gerado no construtor (conversa nova) em vez
-  // do UUID da conversa que o usuario clicou.
+  // Sets agent.threadId BEFORE doing the fetch — the HttpAgent uses
+  // this.threadId in prepareRunAgentInput. Without this, the runAgent
+  // interceptor sees the UUID generated in the constructor (new
+  // conversation) instead of the UUID of the conversation the user clicked.
   const agent = agentRef.current;
   if (agent) agent.threadId = threadId;
   setActiveId(threadId);
@@ -1049,17 +1049,17 @@ onSwitchToThread: async (threadId: string) => {
 },
 ```
 
-**2. `useConversationThreadList.tsx` — expor `activeIdRef` no context:**
+**2. `useConversationThreadList.tsx` — expose `activeIdRef` in the context:**
 
 ```tsx
-// No tipo ThreadListController:
+// In the ThreadListController type:
 activeIdRef: React.MutableRefObject<string | null>;
 
-// No provider:
+// In the provider:
 value={{ adapter, conversations, activeId, activeIdRef, refresh, pendingThreadIdRef, agentRef }}
 ```
 
-**3. `AguiChatPage.tsx` — interceptor `runAgent` usa `activeIdRef.current` (ref, não state):**
+**3. `AguiChatPage.tsx` — the `runAgent` interceptor uses `activeIdRef.current` (ref, not state):**
 
 ```tsx
 const origRunAgent = base.runAgent.bind(base);
@@ -1072,17 +1072,17 @@ base.runAgent = async function (params: any, subscriber: any) {
     params = { ...params, threadId: pendingId };
     return origRunAgent(params, subscriber);
   }
-  // Usa activeIdRef.current (ref, nao state) para evitar stale closure.
-  // O adapter onSwitchToThread ja setou agent.threadId antes do fetch,
-  // mas o interceptor pode ser chamado com params.threadId=null se o
-  // runtime foi recriado (useAgUiRuntime retorna objeto novo a cada render).
+  // Uses activeIdRef.current (ref, not state) to avoid stale closure.
+  // The onSwitchToThread adapter already set agent.threadId before the
+  // fetch, but the interceptor can be called with params.threadId=null if
+  // the runtime was recreated (useAgUiRuntime returns a new object every render).
   const activeId = ctrl.activeIdRef?.current;
   if (activeId) {
     base.threadId = activeId;
     params = { ...params, threadId: activeId };
     return origRunAgent(params, subscriber);
   }
-  // Fallback: sem threadId ativo, cria ou pega a mais recente
+  // Fallback: no active threadId, create or get the most recent one
   const conversations = ctrl.conversations;
   const mostRecent = conversations && conversations.length > 0 ? conversations[0] : null;
   if (mostRecent) {
@@ -1100,35 +1100,35 @@ base.runAgent = async function (params: any, subscriber: any) {
 };
 ```
 
-**SEMPRE verificar se o `HttpAgent` tem o interceptor `runAgent`** — quando o `ChatReady` cria o agent diretamente (sem usar `AguiRuntimeProvider`), o interceptor que sincroniza `threadId` está faltando. O sintoma é mensagens indo para conversas novas.
+**ALWAYS verify that the `HttpAgent` has the `runAgent` interceptor** — when `ChatReady` creates the agent directly (without using `AguiRuntimeProvider`), the interceptor that syncs `threadId` is missing. The symptom is messages going to new conversations.
 
-**NÃO fazer:**
-- Usar `ctrl.activeId` dentro do interceptor `runAgent` — é React state, o closure captura o valor inicial.
-- Usar `base.threadId` como fallback — o construtor do `HttpAgent` gera um UUID aleatório, sempre truthy, que o backend interpreta como conversa nova.
-- Assumir que o runtime seta `agent.threadId` ao trocar de thread — ele NÃO seta, só chama o adapter.
+**DON'T:**
+- Use `ctrl.activeId` inside the `runAgent` interceptor — it's React state, the closure captures the initial value.
+- Use `base.threadId` as a fallback — the `HttpAgent` constructor generates a random UUID, always truthy, which the backend interprets as a new conversation.
+- Assume the runtime sets `agent.threadId` when switching threads — it does NOT set it, it only calls the adapter.
 
-### Duplicate API call ao clicar em conversa do chat (AG-UI / @ag-ui/client)
+### Duplicate API call when clicking a chat conversation (AG-UI / @ag-ui/client)
 
-> **"Chat indisponível" no upload de anexo** (ErrorBoundary capturando `throw` do `send` de attachments sem conversa ativa; backend OK) → ver `references/agui-chat-upload-attachment-errorboundary.md`.
+> **"Chat indisponível" on attachment upload** (ErrorBoundary catching the `throw` of the `send` of attachments without an active conversation; backend OK) → see `references/agui-chat-upload-attachment-errorboundary.md`.
 
-> **Referência completa:** `references/agui-chat-thread-switching.md` — contém o guia de debugging completo com todas as variações do problema, código de backend e frontend, e a configuração que funciona.
+> **Full reference:** `references/agui-chat-thread-switching.md` — contains the complete debugging guide with all variations of the problem, backend and frontend code, and the working configuration.
 
-Quando o usuário reporta "duas chamadas ao endpoint GET /conversations/{uuid}/" ao clicar em uma conversa, a causa raiz é que o `@ag-ui/client` HttpAgent tem um **setter** em `agent.threadId` que dispara um fetch **sempre que o valor muda**. O fluxo problemático:
+When the user reports "two calls to the GET /conversations/{uuid}/ endpoint" when clicking a conversation, the root cause is that the `@ag-ui/client` HttpAgent has a **setter** on `agent.threadId` that fires a fetch **every time the value changes**. The problematic flow:
 
 1. `handleClick(uuid)` → `setActiveId(uuid)`
-2. `useEffect` detecta `activeId` mudou → chama `runtime.threads.switchToThread(uuid)`
-3. `switchToThread` chama o adapter `onSwitchToThread(uuid)` → **fetch #1**
-4. `switchToThread` setta `agent.threadId = uuid` → **fetch #2** (HttpAgent detecta mudança)
+2. `useEffect` detects `activeId` changed → calls `runtime.threads.switchToThread(uuid)`
+3. `switchToThread` calls the adapter `onSwitchToThread(uuid)` → **fetch #1**
+4. `switchToThread` sets `agent.threadId = uuid` → **fetch #2** (HttpAgent detects the change)
 
-**Correção definitiva:** o adapter deve settar `agent.threadId` **antes** de fazer o fetch. Quando o runtime tentar settar `agent.threadId` depois, o HttpAgent vê que é o **mesmo valor** e não re-fetch.
+**Definitive fix:** the adapter should set `agent.threadId` **before** doing the fetch. When the runtime later tries to set `agent.threadId`, the HttpAgent sees it's the **same value** and doesn't re-fetch.
 
 ```tsx
-// No adapter (useConversationThreadList.tsx):
+// In the adapter (useConversationThreadList.tsx):
 onSwitchToThread: async (threadId: string) => {
   threadIdRef.current = threadId;
-  // Seta agent.threadId ANTES de fazer o fetch, para que quando
-  // o runtime settar agent.threadId depois, o HttpAgent veja o
-  // mesmo valor e NAO faca um segundo fetch.
+  // Sets agent.threadId BEFORE doing the fetch, so that when
+  // the runtime sets agent.threadId later, the HttpAgent sees the
+  // same value and does NOT make a second fetch.
   const agent = agentRef.current;
   if (agent) agent.threadId = threadId;
   setActiveId(threadId);
@@ -1138,23 +1138,23 @@ onSwitchToThread: async (threadId: string) => {
 },
 ```
 
-**Requisitos para funcionar:**
-1. O `AguiRuntimeProvider` deve expor o `agent` via `controller.agentRef.current = agent` (após o `useMemo` que cria o agent)
-2. O `ThreadListController` deve ter `agentRef: React.MutableRefObject<{ threadId: string | null } | null>`
-3. O `handleClick` deve chamar **apenas** `adapter.onSwitchToThread(uuid)` — sem `runtime.threads.switchToThread`
-4. O `useEffect` que sincroniza `activeId` com `agent.threadId` deve ser **removido** — o adapter já settou `agent.threadId` antes de `setActiveId`
+**Requirements to work:**
+1. The `AguiRuntimeProvider` must expose the `agent` via `controller.agentRef.current = agent` (after the `useMemo` that creates the agent)
+2. The `ThreadListController` must have `agentRef: React.MutableRefObject<{ threadId: string | null } | null>`
+3. The `handleClick` must call **only** `adapter.onSwitchToThread(uuid)` — without `runtime.threads.switchToThread`
+4. The `useEffect` that syncs `activeId` with `agent.threadId` must be **removed** — the adapter already set `agent.threadId` before `setActiveId`
 
-**NÃO fazer:** chamar `runtime.threads.switchToThread(uuid)` — ele chama o adapter internamente E faz um segundo fetch. Chamar o adapter diretamente é a abordagem correta, desde que o adapter sette `agent.threadId` antes do fetch.
+**DON'T:** call `runtime.threads.switchToThread(uuid)` — it calls the adapter internally AND makes a second fetch. Calling the adapter directly is the correct approach, as long as the adapter sets `agent.threadId` before the fetch.
 
-### Generative UI component nao renderiza no chat (CrewToolFallback)
+### Generative UI component doesn't render in the chat (CrewToolFallback)
 
-Quando o usuário reporta "pedi para criar uma apresentação mas o card não apareceu no chat", a causa raiz é que o `CrewToolFallback` (em `CrewRunCard.tsx`) só detecta dispatches de crew (`run_id` + `status === "dispatched"`). Skills que retornam componentes Generative UI (como `PresentationCard`, `PlaybookCard`, etc.) passam batido — o fallback retorna `null` e o card nunca aparece.
+When the user reports "I asked to create a presentation but the card didn't appear in the chat", the root cause is that the `CrewToolFallback` (in `CrewRunCard.tsx`) only detects crew dispatches (`run_id` + `status === "dispatched"`). Skills that return Generative UI components (like `PresentationCard`, `PlaybookCard`, etc.) pass by unnoticed — the fallback returns `null` and the card never appears.
 
-**Sintoma no Network:** a chamada REST ao backend retorna 200 com o JSON contendo `{ "component": "PresentationCard", "props": {...} }`, mas o chat não renderiza nada.
+**Symptom in Network:** the REST call to the backend returns 200 with the JSON containing `{ "component": "PresentationCard", "props": {...} }`, but the chat renders nothing.
 
-**Correção em 2 passos:**
+**Fix in 2 steps:**
 
-1. **`CrewRunCard.tsx`** — `CrewToolFallback` deve detectar `component` no resultado e renderizar o componente correspondente do `UI_REGISTRY`:
+1. **`CrewRunCard.tsx`** — `CrewToolFallback` should detect `component` in the result and render the corresponding component from the `UI_REGISTRY`:
 ```tsx
 import { UI_REGISTRY } from "@/components/generative-ui/registry";
 
@@ -1174,50 +1174,50 @@ export function CrewToolFallback({ result }: { result?: unknown }) {
 }
 ```
 
-2. **`registry.tsx`** — `UI_REGISTRY` deve ser `export const`, não apenas `const`. Sem o export, o import no `CrewRunCard.tsx` falha com `Missing export`.
+2. **`registry.tsx`** — `UI_REGISTRY` must be `export const`, not just `const`. Without the export, the import in `CrewRunCard.tsx` fails with `Missing export`.
 
-**NÃO fazer:** assumir que todo resultado de tool call é um dispatch de crew. Skills do Copilot podem retornar qualquer componente do `UI_REGISTRY`.
+**DON'T:** assume every tool call result is a crew dispatch. Copilot skills can return any component from the `UI_REGISTRY`.
 
-### ViewSet action ausente em modelo relacionado
+### Missing ViewSet action in a related model
 
-Quando uma feature funciona para um modelo (ex: favoritar documentos) mas não para um modelo relacionado (ex: favoritar pastas), a causa raiz mais comum é que o `@action` decorator existe em um ViewSet mas não no outro. Sintoma: o frontend chama `/knowledge/docs/favorites/` e recebe dados, mas `/knowledge/folders/favorites/` retorna 404.
+When a feature works for one model (e.g. favoriting documents) but not for a related model (e.g. favoriting folders), the most common root cause is that the `@action` decorator exists in one ViewSet but not in the other. Symptom: the frontend calls `/knowledge/docs/favorites/` and receives data, but `/knowledge/folders/favorites/` returns 404.
 
-**Correção em 5 passos:**
-1. Verificar se o action existe no ViewSet do modelo faltante
-2. Adicionar o action seguindo o mesmo padrão do ViewSet que já funciona
-3. Adicionar o endpoint correspondente no frontend (`endpoints.ts`)
-4. Adicionar o hook React Query
-5. Atualizar o componente que renderiza a lista para incluir os dados do novo endpoint
+**Fix in 5 steps:**
+1. Verify whether the action exists in the ViewSet of the missing model
+2. Add the action following the same pattern as the ViewSet that already works
+3. Add the corresponding endpoint in the frontend (`endpoints.ts`)
+4. Add the React Query hook
+5. Update the component that renders the list to include the data from the new endpoint
 
-Este padrão é comum em pares Folder/Document, Pai/Filho, ou qualquer relação 1:N onde um ViewSet foi implementado primeiro e o outro ficou para trás.
+This pattern is common in Folder/Document pairs, Parent/Child, or any 1:N relationship where one ViewSet was implemented first and the other was left behind.
 
-Ver `references/padroes-bugs-chat-presentacoes.md` para título automático (is_new vs conv existente), SVG browser-vs-PPTX, e download autenticado via blob.
+See `references/padroes-bugs-chat-presentacoes.md` for automatic title (is_new vs existing conv), SVG browser-vs-PPTX, and authenticated download via blob.
 
-Ver `references/debug-running-process-drf-serializer-pitfalls.md` para: traceback de lib que o disco já não usa = processo antigo em memória (reiniciar servidor, não editar código); `@action` DRF com `url_path` (underscore vs hífen); adicionar campo ao serializer quebra teste de key-set; campo novo exige migration + `--create-db`.
+See `references/debug-running-process-drf-serializer-pitfalls.md` for: lib traceback that the disk no longer uses = old process in memory (restart the server, don't edit code); DRF `@action` with `url_path` (underscore vs hyphen); adding a field to the serializer breaks the key-set test; a new field requires a migration + `--create-db`.
 
-Ver `references/playwright-windows-asyncio-loop.md` para export PNG: se falhar com `NotImplementedError` em `_make_subprocess_transport`, o event loop é Selector (não suporta subprocess) — forçar `WindowsProactorEventLoopPolicy` antes de `asyncio.run()`. Não confundir com "Executable doesn't exist" (browser não instalado → `python -m playwright install chromium`). **Para produção (ECS Linux/container) não usar Playwright/Chromium — preferir `resvg-py` (SVG→PNG em Rust, sem browser/lib nativa); a referência documenta por quê e como (import `resvg_py`, `svg_to_bytes(svg_string=<str>, width, height)`).**
+See `references/playwright-windows-asyncio-loop.md` for PNG export: if it fails with `NotImplementedError` in `_make_subprocess_transport`, the event loop is Selector (doesn't support subprocess) — force `WindowsProactorEventLoopPolicy` before `asyncio.run()`. Don't confuse it with "Executable doesn't exist" (browser not installed → `python -m playwright install chromium`). **For production (ECS Linux/container) don't use Playwright/Chromium — prefer `resvg-py` (SVG→PNG in Rust, no browser/native lib); the reference documents why and how (import `resvg_py`, `svg_to_bytes(svg_string=<str>, width, height)`).**
 
-**Preferir `resvg-py` em vez de Playwright/Chromium para SVG→PNG** — quando o export PNG de slides/carrossel não precisa de browser (o SVG já existe via `svg_renderer`), use `resvg-py` (wheel Rust, sem lib nativa, funciona no Windows e ECS Linux, sem baixar Chromium). `channel="chrome"`/`"msedge"` NÃO funciona em produção (container Linux sem browser). Ver `references/svg-to-png-resvg.md` para API (`resvg_py.svg_to_bytes`, `svg_string` aceita str não bytes) e pitfalls.
+**Prefer `resvg-py` over Playwright/Chromium for SVG→PNG** — when the PNG export of slides/carousel doesn't need a browser (the SVG already exists via `svg_renderer`), use `resvg-py` (Rust wheel, no native lib, works on Windows and ECS Linux, without downloading Chromium). `channel="chrome"`/`"msedge"` does NOT work in production (Linux container without a browser). See `references/svg-to-png-resvg.md` for the API (`resvg_py.svg_to_bytes`, `svg_string` accepts str not bytes) and pitfalls.
 
-**Para export PNG de slides/carrosséis em produção (ECS Linux) ou quando o download do Chromium falha, NÃO use Playwright** — use `resvg-py` (SVG→PNG puro Rust, sem browser, sem lib nativa, funciona em Windows e Linux). O projeto já gera o SVG 1080×1350 via `svg_renderer.py`; basta convertê-lo. `cairosvg` e `svglib`+`reportlab` falham por exigirem libcairo nativa. Detalhes e API quirks em `references/svg-to-png-resvg-alternative.md`.
+**For PNG export of slides/carousels in production (ECS Linux) or when the Chromium download fails, DON'T use Playwright** — use `resvg-py` (pure Rust SVG→PNG, no browser, no native lib, works on Windows and Linux). The project already generates the 1080×1350 SVG via `svg_renderer.py`; just convert it. `cairosvg` and `svglib`+`reportlab` fail because they require the native libcairo. Details and API quirks in `references/svg-to-png-resvg-alternative.md`.
 
-## Quality Gates, Handoff Templates e Dev→QA Loop (Fase 2 do Agency Plan)
+## Quality Gates, Handoff Templates and Dev→QA Loop (Phase 2 of the Agency Plan)
 
-Quando o pipeline NEXUS exige validação de qualidade entre tasks, implemente:
+When the NEXUS pipeline requires quality validation between tasks, implement:
 
-### Modelo
-Adicione campos ao `CrewTemplateTask` (e `CrewInstanceTask`):
+### Model
+Add fields to `CrewTemplateTask` (and `CrewInstanceTask`):
 ```python
-quality_gate = models.BooleanField(default=False)       # True = task validadora
-max_retries = models.PositiveIntegerField(default=3)     # tentativas antes de escalation
-handoff_template = models.TextField(blank=True, default="")  # formato padrao de output
+quality_gate = models.BooleanField(default=False)       # True = validating task
+max_retries = models.PositiveIntegerField(default=3)     # attempts before escalation
+handoff_template = models.TextField(blank=True, default="")  # standard output format
 ```
 
-### Lógica no crew_runner.py
-No `_build_and_run()`, após o kickoff, itere as tasks ordenadas. Para cada task com `quality_gate=True`, leia o output e verifique se começa com `PASS`, `WARN` ou `FAIL`:
-- **PASS** → loga e segue
-- **WARN** → loga aviso e segue
-- **FAIL** → reexecuta a task anterior (do `context`) até `max_retries`. Se exceder, gera chave `_escalation_<task_key>` no output dict.
+### Logic in crew_runner.py
+In `_build_and_run()`, after the kickoff, iterate the ordered tasks. For each task with `quality_gate=True`, read the output and check whether it starts with `PASS`, `WARN` or `FAIL`:
+- **PASS** → log and continue
+- **WARN** → log a warning and continue
+- **FAIL** → re-execute the previous task (from `context`) up to `max_retries`. If exceeded, generate the `_escalation_<task_key>` key in the output dict.
 
 ```python
 for t in ordered_tasks:
@@ -1239,14 +1239,14 @@ for t in ordered_tasks:
 ```
 
 ### Handoff template
-Injete o `handoff_template` na `description` da task durante a criação:
+Inject the `handoff_template` into the task's `description` during creation:
 ```python
 if getattr(t, 'handoff_template', None):
     desc = f"{desc}\n\n=== FORMATO DE SAÍDA (HANDOFF) ===\n{t.handoff_template}"
 ```
 
 ### Seed
-Atualize a função de seed para incluir os novos campos:
+Update the seed function to include the new fields:
 ```python
 CrewTemplateTask.objects.create(
     ...,
@@ -1256,23 +1256,23 @@ CrewTemplateTask.objects.create(
 )
 ```
 
-### SEMPRE verificar divergência sync/async ao migrar features de runner
+### ALWAYS check sync/async divergence when migrating runner features
 
-Quando uma feature (ex.: quality gate) existe no runner SÍNCRONO (`crew_runner.py` → `run_pipeline`) mas o caminho REAL de execução é o ASYNC (`crew_runner_async.py` → `run_pipeline_async`, usado por `run_crew` em `tasks_async.py`), a feature pode ter sido **silenciosamente perdida** na migração. O `run_crew_sync` usa o sync (com a feature), mas o `run_crew` async (o que roda de verdade) usa o async (sem a feature). Sintoma: o FAIL da crew é entregue como resultado final sem retry/escalation.
+When a feature (e.g. quality gate) exists in the SYNCHRONOUS runner (`crew_runner.py` → `run_pipeline`) but the REAL execution path is the ASYNC one (`crew_runner_async.py` → `run_pipeline_async`, used by `run_crew` in `tasks_async.py`), the feature may have been **silently lost** in the migration. `run_crew_sync` uses the sync (with the feature), but the async `run_crew` (the one that actually runs) uses the async (without the feature). Symptom: the crew's FAIL is delivered as the final result without retry/escalation.
 
-**Correção:** ao corrigir um bug de pipeline, verifique AMBOS os runners (`crew_runner.py` e `crew_runner_async.py`) e porte a lógica para os dois. Não assuma que o async espelha o sync.
+**Fix:** when fixing a pipeline bug, check BOTH runners (`crew_runner.py` and `crew_runner_async.py`) and port the logic to both. Don't assume the async mirrors the sync.
 
-### SEMPRE verificar que TODAS as funções que COPIAM tasks copiam os campos do quality gate
+### ALWAYS verify that ALL functions that COPY tasks copy the quality gate fields
 
-`hire_crew` (em `crews/services.py`) e `CpCrewSkill.execute` (em `chat/skills/cp_base_skill.py`) copiam tasks do template para a instância. Se não copiarem `quality_gate`, `max_retries`, `handoff_template`, as tasks copiadas ficam com `quality_gate=False` (default) — e o quality gate **nunca dispara**, mesmo com o runner corrigido. Sintoma: a crew se auto-avalia com FAIL e o retry/escalation não acontece. Correção: adicionar os 3 campos ao `CrewInstanceTask.objects.create/bulk_create` em TODAS as funções de cópia (não só na principal).
+`hire_crew` (in `crews/services.py`) and `CpCrewSkill.execute` (in `chat/skills/cp_base_skill.py`) copy tasks from the template to the instance. If they don't copy `quality_gate`, `max_retries`, `handoff_template`, the copied tasks end up with `quality_gate=False` (default) — and the quality gate **never fires**, even with the runner fixed. Symptom: the crew self-evaluates with FAIL and the retry/escalation doesn't happen. Fix: add the 3 fields to the `CrewInstanceTask.objects.create/bulk_create` in ALL copy functions (not just the main one).
 
-### SEMPRE definir `on_task_done` como SÍNCRONO mas NUNCA salvar ORM síncrono direto
+### ALWAYS define `on_task_done` as SYNCHRONOUS but NEVER save synchronous ORM directly
 
-O callback de progresso do CrewAI (`_make_cb` → `on_task_done(task_key, text)`) é chamado **sem await** dentro do runner. Se você definir `on_task_done` como `async def`, ele nunca é executado (a corrotina é criada e descartada) — o progresso ao vivo não grava nada. Portanto a função DEVE ser síncrona (`def`).
+The CrewAI progress callback (`_make_cb` → `on_task_done(task_key, text)`) is called **without await** inside the runner. If you define `on_task_done` as `async def`, it's never executed (the coroutine is created and discarded) — the live progress doesn't record anything. Therefore the function MUST be synchronous (`def`).
 
-**PORÉM:** esse callback síncrono roda DENTRO do event loop do `kickoff_async`. Chamar `out.save()` (ORM síncrono) diretamente ali levanta `django.core.exceptions.SynchronousOnlyOperation: You cannot call this from an async context`. Sintoma: a crew roda mas o run vira `ERROR` com esse traceback e o card mostra "Erro na execução".
+**HOWEVER:** this synchronous callback runs INSIDE the event loop of `kickoff_async`. Calling `out.save()` (synchronous ORM) directly there raises `django.core.exceptions.SynchronousOnlyOperation: You cannot call this from an async context`. Symptom: the crew runs but the run becomes `ERROR` with this traceback and the card shows "Erro na execução".
 
-**Correção:** dentro do callback síncrono, agendar o save numa thread do executor via `asyncio.run_coroutine_threadsafe` + `sync_to_async`:
+**Fix:** inside the synchronous callback, schedule the save on an executor thread via `asyncio.run_coroutine_threadsafe` + `sync_to_async`:
 ```python
 def _on_task_done(task_key, text):
     link = link_by_key.get(task_key)
@@ -1282,7 +1282,7 @@ def _on_task_done(task_key, text):
         import asyncio
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        # Sem loop (raro) — salva direto.
+        # No loop (rare) — saves directly.
         out = link.output
         out.content = sanitize_output(text)
         out.execution_status = ExecutionStatus.DONE
@@ -1300,46 +1300,46 @@ def _on_task_done(task_key, text):
 
     asyncio.run_coroutine_threadsafe(_save(), loop)
 ```
-Não faça `out.save()` inline dentro do callback (que é síncrono mas roda no loop do async).
+Don't do `out.save()` inline inside the callback (which is synchronous but runs on the async loop).
 
-### SEMPRE reconstruir cards de crew run a partir do `runStatus` no frontend (AG-UI)
+### ALWAYS rebuild crew run cards from `runStatus` in the frontend (AG-UI)
 
-Quando o usuário reporta "o card de execução sumiu após refresh e só o texto apareceu", a causa é que o `toThreadMessage` (em `useConversationThreadList.tsx`) só convertia mensagens com `uiComponent` ou texto em tool-calls — mensagens com `runStatus` (criadas por `post_run_status_message`) eram renderizadas só como texto. Correção em 3 partes:
-1. **Backend** (`chat/run_status.py`): adicionar `crewName` ao `runStatus` (`sig = {"runId": ..., "status": ..., "crewName": ...}`) para o front renderizar o card após refresh.
-2. **Frontend** (`toThreadMessage`): converter mensagens com `runStatus` em tool-call `execute_crew` com `result = { run_id, crew_name, status: "dispatched", finalOutput }` — assim o `CrewToolFallback`/`CrewCard` reconstrói o card e a história da conversa é preservada.
-3. **`CrewCard`**: exibir `finalOutput.content` quando `runStatus === "DONE"` (o resultado aparece no card, não só como texto) e renderizar barra de progresso + lista de tasks a partir do `taskOutputs` do polling em `/crew-runs/<id>/`.
+When the user reports "the execution card disappeared after refresh and only the text appeared", the cause is that `toThreadMessage` (in `useConversationThreadList.tsx`) only converted messages with `uiComponent` or text in tool-calls — messages with `runStatus` (created by `post_run_status_message`) were rendered only as text. Fix in 3 parts:
+1. **Backend** (`chat/run_status.py`): add `crewName` to the `runStatus` (`sig = {"runId": ..., "status": ..., "crewName": ...}`) so the front renders the card after refresh.
+2. **Frontend** (`toThreadMessage`): convert messages with `runStatus` into an `execute_crew` tool-call with `result = { run_id, crew_name, status: "dispatched", finalOutput }` — so the `CrewToolFallback`/`CrewCard` rebuilds the card and the conversation history is preserved.
+3. **`CrewCard`**: display `finalOutput.content` when `runStatus === "DONE"` (the result appears in the card, not just as text) and render a progress bar + task list from the `taskOutputs` of the polling in `/crew-runs/<id>/`.
 
-### SEMPRE mockar o módulo `crewai` INTEIRO (incl. submodule `crewai.tools`) ao testar o runner async
+### ALWAYS mock the ENTIRE `crewai` module (incl. the `crewai.tools` submodule) when testing the async runner
 
-O `run_pipeline_async` faz `from crewai import LLM, Agent, Crew, Process, Task` E `from crewai.tools import tool` DENTRO da função. Para testar o quality gate no async com outputs controlados (FAIL/PASS), instale um módulo `crewai` fake no `sys.modules` **e** o submodule `crewai.tools` (com `tool` decorator). Também mocke `crews.builtin_tools.build_builtin_tools` (importado de `.builtin_tools` dentro da função — NÃO é atributo de `crew_runner_async`, então o patch path é `crews.builtin_tools.build_builtin_tools`, não `crews.crew_runner_async.build_builtin_tools`). O runner cria as Tasks na ordem de `ordered_tasks` sem passar `task_key` ao construtor — use um contador global para mapear a ordem de criação ao output esperado.
+`run_pipeline_async` does `from crewai import LLM, Agent, Crew, Process, Task` AND `from crewai.tools import tool` INSIDE the function. To test the quality gate in the async with controlled outputs (FAIL/PASS), install a fake `crewai` module in `sys.modules` **and** the `crewai.tools` submodule (with the `tool` decorator). Also mock `crews.builtin_tools.build_builtin_tools` (imported from `.builtin_tools` inside the function — it's NOT an attribute of `crew_runner_async`, so the patch path is `crews.builtin_tools.build_builtin_tools`, not `crews.crew_runner_async.build_builtin_tools`). The runner creates the Tasks in the order of `ordered_tasks` without passing `task_key` to the constructor — use a global counter to map the creation order to the expected output.
 
-### SEMPRE testar o card de crew run no BROWSER via loop E2E (chat AG-UI)
+### ALWAYS test the crew run card in the BROWSER via an E2E loop (AG-UI chat)
 
-Quando o bug é no card de execução de crew no chat, não confie só em testes de backend nem no `bun run build` — rode o fluxo real no browser. Receita completa em `references/agui-chat-crew-run-card-e2e.md`. Fluxo:
+When the bug is in the crew execution card in the chat, don't rely only on backend tests or `bun run build` — run the real flow in the browser. Full recipe in `references/agui-chat-crew-run-card-e2e.md`. Flow:
 
-1. **Login** em `http://localhost:8080/chat` (o usuário de teste; se não houver credenciais, criar um usuário novo — AGENTS.md §13).
-2. **Acionar a crew** — digitar "acione o time de presenca digital" e enviar. O Copilot pede contexto.
-3. **Fornecer o contexto** — profissão/instagram/serviços. A crew é disparada (`status: "dispatched"`).
-4. **Verificar progresso real** — ler as bolhas via `Array.from(document.querySelectorAll('.msg__bubble')).map(b=>b.innerText).join('\n---\n')`. O card deve mostrar barra "X de N etapas" + lista das tasks, NÃO um ícone genérico.
-5. **Aguardar a execução** — 7 tasks com LLM levam 1-3 min. Poll o console a cada ~15-30s (a execução é em thread separada, sem callback ao browser).
-6. **Verificar resultado no card** — quando DONE, o card deve exibir `finalOutput.content` no próprio card + botões Aprovar/Rejeitar.
-7. **Clicar em "Aprovar entrega"** — o botão NÃO deve ficar "processando" para sempre. Deve receber o stream do `POST /chat/agui/resume/` (RUN_STARTED → crew.decision → RUN_FINISHED) e voltar ao estado normal. Isto valida que `on_crew_run_approved_callback` roda em thread separada (não bloqueia o resume). Confirmar via console que o botão não fica `disabled` com spinner `animate-spin`.
-8. **Refresh (F5)** — recarregar e verificar que o card CONTINUA visível com o resultado (história preservada). Isto valida o `toThreadMessage` reconstruindo o card a partir do `runStatus`.
-9. **Conversa única** — via `window.__chatDebug` confirmar `convCount` e `activeId` (sem duplicatas).
+1. **Login** at `http://localhost:8080/chat` (the test user; if there are no credentials, create a new user — AGENTS.md §13).
+2. **Trigger the crew** — type "acione o time de presenca digital" and send. The Copilot asks for context.
+3. **Provide the context** — profession/instagram/services. The crew is fired (`status: "dispatched"`).
+4. **Check real progress** — read the bubbles via `Array.from(document.querySelectorAll('.msg__bubble')).map(b=>b.innerText).join('\n---\n')`. The card should show a "X de N etapas" bar + the task list, NOT a generic icon.
+5. **Wait for the execution** — 7 tasks with LLM take 1-3 min. Poll the console every ~15-30s (the execution is in a separate thread, without a callback to the browser).
+6. **Check the result in the card** — when DONE, the card should display `finalOutput.content` in the card itself + Aprovar/Rejeitar buttons.
+7. **Click "Aprovar entrega"** — the button must NOT stay "processing" forever. It should receive the stream from `POST /chat/agui/resume/` (RUN_STARTED → crew.decision → RUN_FINISHED) and return to the normal state. This validates that `on_crew_run_approved_callback` runs in a separate thread (doesn't block the resume). Confirm via console that the button doesn't stay `disabled` with the `animate-spin` spinner.
+8. **Refresh (F5)** — reload and verify that the card REMAINS visible with the result (history preserved). This validates `toThreadMessage` rebuilding the card from the `runStatus`.
+9. **Single conversation** — via `window.__chatDebug` confirm `convCount` and `activeId` (no duplicates).
 
-**Testar o endpoint resume direto (curl/urllib) para isolar travamento de botão:** se o botão ficar "processando", o problema é quase sempre o endpoint `POST /api/v1/chat/agui/resume/` que não retorna headers (timeout). Testar com `urllib.request.urlopen(req, timeout=15)`:
-- **Timeout/`TimeoutError`** → o `_apply_decision` (e o callback de aprovação inline) está bloqueando o request. Causa raiz = `enqueue_task_sync` rodando o callback inline.
-- **200 em ~2s com stream SSE** → correto. O `res.text()` do front vai resolver e o botão para de processar.
+**Test the resume endpoint directly (curl/urllib) to isolate button hanging:** if the button stays "processing", the problem is almost always the `POST /api/v1/chat/agui/resume/` endpoint not returning headers (timeout). Test with `urllib.request.urlopen(req, timeout=15)`:
+- **Timeout/`TimeoutError`** → the `_apply_decision` (and the inline approval callback) is blocking the request. Root cause = `enqueue_task_sync` running the callback inline.
+- **200 in ~2s with SSE stream** → correct. The front's `res.text()` will resolve and the button stops processing.
 
-**Reiniciar o Daphne após editar `config/task_proxy.py`/`callbacks_async.py`/`tasks_async.py`:** esses módulos são importados no boot do ASGI — o `manage.py runserver`/Daphne NÃO faz auto-reload dessas mudanças. Matar o processo que escuta a porta 8000 (`netstat -ano | findstr :8000` → PID → `taskkill /PID <pid> /F`) e relançar. **Pitfall de lançamento:** ao subir via `execute_code`/subprocess, o sandbox Hermes injeta o site-packages dele no `PYTHONPATH`, causando conflito `cffi`/`lxml`/`_overlapped` (daphne falha no boot). Correção: setar `PYTHONPATH` APENAS para `C:\...\.venv\Lib\site-packages` (sem o do Hermes) + `PATH` com `.venv\Scripts` na frente, e usar `python.exe -m daphne` (o `daphne.exe` launcher pode pegar o HOME errado). Testar com `python -c "import asyncio, daphne"` antes de lançar.
+**Restart Daphne after editing `config/task_proxy.py`/`callbacks_async.py`/`tasks_async.py`:** these modules are imported at ASGI boot — `manage.py runserver`/Daphne does NOT auto-reload these changes. Kill the process listening on port 8000 (`netstat -ano | findstr :8000` → PID → `taskkill /PID <pid> /F`) and relaunch. **Launch pitfall:** when starting via `execute_code`/subprocess, the Hermes sandbox injects its site-packages into `PYTHONPATH`, causing a `cffi`/`lxml`/`_overlapped` conflict (daphne fails at boot). Fix: set `PYTHONPATH` ONLY to `C:\...\.venv\Lib\site-packages` (without the Hermes one) + `PATH` with `.venv\Scripts` in front, and use `python.exe -m daphne` (the `daphne.exe` launcher can pick up the wrong HOME). Test with `python -c "import asyncio, daphne"` before launching.
 
-**Confirmar estado real da crew:** ler `window.__chatDebug.activeId` (uuid da conversa) e checar `convCount` — se >1, há duplicata (regressão do interceptor `runAgent`).
+**Confirm the real crew state:** read `window.__chatDebug.activeId` (the conversation uuid) and check `convCount` — if >1, there's a duplicate (regression of the `runAgent` interceptor).
 
-**Documentar como LOOP:** gravar o teste em `.hermes/docs/testes-de-loop/LOOP-<data>-<slug>.md` com critérios de aprovação + tabela de resultados por tentativa (padrão `cp-goal-loop`). Atualizar a linha da tentativa ao concluir.
+**Document as a LOOP:** record the test in `.hermes/docs/testes-de-loop/LOOP-<data>-<slug>.md` with approval criteria + a results table per attempt (`cp-goal-loop` pattern). Update the attempt line when done.
 
-**Pitfall:** o snapshot do browser (`browser_snapshot`) não mostra o texto das bolhas do chat — use `browser_console` com o selector `.msg__bubble` para ler o conteúdo real. O botão de enviar só habilita depois de digitar (snapshot pode mostrar `disabled` — re-snapshot antes de clicar).
+**Pitfall:** the browser snapshot (`browser_snapshot`) doesn't show the text of the chat bubbles — use `browser_console` with the `.msg__bubble` selector to read the real content. The send button only enables after typing (the snapshot may show `disabled` — re-snapshot before clicking).
 
-**SEMPRE renderizar o markdown do `finalOutput.content` no `CrewCard`** — quando o usuário reporta \"o card mostra o resultado mas sem formatação (negritos/listas viram `**texto**` literal)\", a causa é que o `CrewCard` renderiza `finalContent` num `<div className=\"whitespace-pre-wrap\">` (texto plano). Correção: usar `ReactMarkdown` + `remarkGfm` (os mesmos já usados no `AguiChatPage`), com a classe `markdown-body` para herdar o estilo do chat:
+**ALWAYS render the markdown of `finalOutput.content` in the `CrewCard`** — when the user reports "the card shows the result but without formatting (bolding/lists become literal `**texto**`)", the cause is that the `CrewCard` renders `finalContent` in a `<div className="whitespace-pre-wrap">` (plain text). Fix: use `ReactMarkdown` + `remarkGfm` (the same ones already used in `AguiChatPage`), with the `markdown-body` class to inherit the chat's style:
 ```tsx
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1348,40 +1348,40 @@ import remarkGfm from "remark-gfm";
   <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalContent}</ReactMarkdown>
 </div>
 ```
-**Verificar no browser:** `document.querySelectorAll('.msg__bubble .markdown-body')` e contar `strong`/`li` no card da entrega (ex.: `strong=26 li=25` para um PASS longo) — confirma que negritos e listas viraram HTML, não texto literal. Isto é um critério de aprovação próprio do loop E2E do card.
+**Verify in the browser:** `document.querySelectorAll('.msg__bubble .markdown-body')` and count `strong`/`li` in the delivery card (e.g. `strong=26 li=25` for a long PASS) — confirms that bolding and lists became HTML, not literal text. This is an approval criterion of the card's own E2E loop.
 
-## IntegrationLayer (Fase 3 do Agency Plan)
+## IntegrationLayer (Phase 3 of the Agency Plan)
 
-Quando precisar unificar múltiplos backends de integração (Composio, WhatsApp, Asset Library) sob uma única interface:
+When you need to unify multiple integration backends (Composio, WhatsApp, Asset Library) under a single interface:
 
-### Estrutura
+### Structure
 ```python
 def resolve_provider_type(slug: str) -> str:
-    # Retorna "composio", "whatsapp", "asset" ou "unknown"
+    # Returns "composio", "whatsapp", "asset" or "unknown"
 
 def execute_action(organization, provider_slug, action, params, user=None) -> dict:
-    # Retorna {status: "ok"|"error", data: ..., error: ...}
-    # NUNCA levanta exceção — sempre retorna dict com status
+    # Returns {status: "ok"|"error", data: ..., error: ...}
+    # NEVER raises an exception — always returns a dict with status
 
 def list_available_actions(organization) -> list[dict]:
-    # Lista acoes de todos os providers conectados
+    # Lists actions from all connected providers
 
 def check_integration_status(organization, provider_slug=None) -> dict:
-    # Status de um ou todos providers
+    # Status of one or all providers
 
 def validate_required_integrations(organization, required_providers) -> dict:
-    # Retorna {valid, missing: [{provider, type, message}], connected: [...]}
+    # Returns {valid, missing: [{provider, type, message}], connected: [...]}
 ```
 
-### Regras
-- **NUNCA levantar exceção** — sempre retornar `{status: "error", error: "mensagem"}`
-- **Import local** dentro de cada `_execute_*` para evitar circular imports
-- **Stub automático** quando o backend real não está disponível (ex: baileys não instalado)
-- **Rate limiting** mínimo de 3s entre mensagens WhatsApp
+### Rules
+- **NEVER raise an exception** — always return `{status: "error", error: "mensagem"}`
+- **Local import** inside each `_execute_*` to avoid circular imports
+- **Automatic stub** when the real backend isn't available (e.g. baileys not installed)
+- **Rate limiting** of at least 3s between WhatsApp messages
 
-## Agentic UI Components (Fase 4 do Agency Plan)
+## Agentic UI Components (Phase 4 of the Agency Plan)
 
-Skills do Copilot que retornam componentes Generative UI seguem este padrão:
+Copilot skills that return Generative UI components follow this pattern:
 
 ### Backend (skill)
 ```python
@@ -1394,15 +1394,15 @@ class SomeSkill(BaseSkill):
     parameters = {"type": "object", "properties": {...}}
     
     def execute(self, **kwargs) -> dict:
-        # Processa...
+        # Processes...
         return {
-            "component": "ComponentName",  # nome exato no UI_REGISTRY
-            "props": { ... },              # props do componente React
+            "component": "ComponentName",  # exact name in UI_REGISTRY
+            "props": { ... },              # React component props
         }
 ```
 
-### Frontend (componente)
-Criar em `src/components/generative-ui/ComponentName.tsx`:
+### Frontend (component)
+Create in `src/components/generative-ui/ComponentName.tsx`:
 ```tsx
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1417,45 +1417,45 @@ export const ComponentName = ({ prop1, prop2 }: { prop1: string; prop2?: number 
 };
 ```
 
-Registrar em `registry.tsx`:
+Register in `registry.tsx`:
 ```tsx
 import { ComponentName } from "./ComponentName";
 const UI_REGISTRY = { ..., ComponentName };
 ```
 
-### Componentes padrão da Agentic UI
-| Componente | Props | Uso |
+### Standard Agentic UI components
+| Component | Props | Usage |
 |-----------|-------|-----|
-| `PlaybookCard` | name, description, category, icon, agentCount, taskCount, slug, onSelect | Sugestão de playbook |
-| `PlaybookList` | playbooks[], total, onSelect | Lista de playbooks |
-| `IntegrationStatus` | playbookName, integrations[], allConnected, onConnect | Status de integrações |
-| `WhatsAppQRCode` | qrCode, sessionId, expiresAt, onScanned, onRefresh | QR Code WhatsApp |
-| `AssetUploader` | onUpload, maxFiles, accept | Upload drag-and-drop |
-| `CrewProgress` | crewName, runId, status, totalTasks, completedTasks | Barra de progresso |
-| `DeliverableGallery` | crewName, deliverables[], total | Grid de entregáveis |
-| `ProposalPreview` | title, pdfUrl, onDownload, onView | Preview de PDF |
-| `MetricsDashboard` | title, metrics[], period | Grid 2x2 de métricas |
+| `PlaybookCard` | name, description, category, icon, agentCount, taskCount, slug, onSelect | Playbook suggestion |
+| `PlaybookList` | playbooks[], total, onSelect | Playbook list |
+| `IntegrationStatus` | playbookName, integrations[], allConnected, onConnect | Integration status |
+| `WhatsAppQRCode` | qrCode, sessionId, expiresAt, onScanned, onRefresh | WhatsApp QR Code |
+| `AssetUploader` | onUpload, maxFiles, accept | Drag-and-drop upload |
+| `CrewProgress` | crewName, runId, status, totalTasks, completedTasks | Progress bar |
+| `DeliverableGallery` | crewName, deliverables[], total | Deliverables grid |
+| `ProposalPreview` | title, pdfUrl, onDownload, onView | PDF preview |
+| `MetricsDashboard` | title, metrics[], period | 2x2 metrics grid |
 
 ## Script
 
-O script `scripts/run.py` monta e executa a crew automaticamente com agentes embutidos (self-contained — não depende de diretório externo). Ele:
+The `scripts/run.py` script builds and runs the crew automatically with embedded agents (self-contained — doesn't depend on an external directory). It:
 
-1. Cria os agentes CrewAI com definições embutidas no próprio script
-2. Cria as tasks sequenciais: Developer → QA → Evidence
-3. Executa a crew e reporta o resultado
+1. Creates the CrewAI agents with definitions embedded in the script itself
+2. Creates the sequential tasks: Developer → QA → Evidence
+3. Runs the crew and reports the result
 
-Para rodar manualmente:
+To run manually:
 
 ```bash
 python .hermes/skills/cp-bug-fix/scripts/run.py "descrição do bug aqui"
 ```
 
-## Agentes utilizados
+## Agents used
 
-| Agente | Arquivo | Função |
+| Agent | File | Role |
 |--------|---------|--------|
 | Backend Architect | `engineering/engineering-backend-architect.md` | Developer (back-end) |
 | Frontend Developer | `engineering/engineering-frontend-developer.md` | Developer (front-end) |
-| API Tester | `testing/testing-api-tester.md` | QA — validação funcional |
-| Test Automation Engineer | `testing/testing-test-automation-engineer.md` | QA — criação de testes automatizados |
-| Evidence Collector | `testing/testing-evidence-collector.md` | Verificação final com evidências |
+| API Tester | `testing/testing-api-tester.md` | QA — functional validation |
+| Test Automation Engineer | `testing/testing-test-automation-engineer.md` | QA — automated test creation |
+| Evidence Collector | `testing/testing-evidence-collector.md` | Final verification with evidence |

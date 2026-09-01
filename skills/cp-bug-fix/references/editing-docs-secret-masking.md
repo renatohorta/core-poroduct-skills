@@ -1,40 +1,40 @@
-# Editar docs .md — valores com cara de segredo são mascarados para `***`
+# Editing .md docs — secret-looking values are masked to `***`
 
-## Sintoma
+## Symptom
 
-Ao escrever em arquivos `.md` exemplos/JSON com strings que parecem segredo
-(ex: `{ "token": "TOKEN", "password": "SENHA" }`, `Authorization: Bearer ...`), a
-ferramenta de escrita/edição pode mascarar esses valores para `***` (content-safety
-filter). O `git diff` e a leitura mostram `***` em vez do valor que você escreveu.
+When writing examples/JSON with secret-looking strings in `.md` files
+(e.g. `{ "token": "TOKEN", "password": "SENHA" }`, `Authorization: Bearer *** the
+write/edit tool may mask those values to `***` (content-safety
+filter). The `git diff` and the read show `***` instead of the value you wrote.
 
-Isso acontece **na escrita** (grava `***` no arquivo) e **na exibição** (mostra `***`
-mesmo quando o arquivo está correto). Essa dupla camada confunde o diagnóstico — você
-"vê" `***` e assume que a escrita falhou, mas o arquivo pode estar certo.
+This happens **on write** (writes `***` to the file) and **on display** (shows `***`
+even when the file is correct). This double layer confuses the diagnosis — you
+"see" `***` and assume the write failed, but the file may be correct.
 
-## Diagnóstico — ler bytes crus
+## Diagnosis — read raw bytes
 
-Use bytes, não texto, para distinguir masking de conteúdo real:
+Use bytes, not text, to distinguish masking from real content:
 
 ```python
 raw = open(p, "rb").read()
-print(b'NOVA_SENHA' in raw)   # True = conteúdo correto no arquivo
-print(b'***' in raw)          # False = sem masking gravado
+print(b'NOVA_SENHA' in raw)   # True = correct content in the file
+print(b'***' in raw)          # False = no masking written
 ```
 
-Se os **bytes** contêm o valor esperado, o `***` é só mascaramento de exibição —
-NÃO reescreva o arquivo (gasta iterações à toa). Se os bytes têm `***`, a escrita
-realmente mascarou e é preciso corrigir.
+If the **bytes** contain the expected value, the `***` is only display masking —
+do NOT rewrite the file (wastes iterations for nothing). If the bytes have `***`, the write
+really masked it and it must be fixed.
 
-## Correção — usar placeholders que não pareçam segredo
+## Fix — use placeholders that do not look like secrets
 
-Substitua por placeholders neutros que não disparem o filtro:
+Replace with neutral placeholders that do not trigger the filter:
 
 ```python
-# em vez de: { "token": "xxx", "password": "yyy" }
-# usar:      { "token": "TOKEN_DO_EMAIL", "password": "NOVA_SENHA" }
+# instead of: { "token": "xxx", "password": "yyy" }
+# use:       { "token": "TOKEN_DO_EMAIL", "password": "NOVA_SENHA" }
 ```
 
-Para substituir uma linha exata que já ficou mascarada, use regex em bytes:
+To replace an exact line that already got masked, use regex on bytes:
 
 ```python
 import re
@@ -45,8 +45,8 @@ if m:
     open(p, "wb").write(raw)
 ```
 
-## Nota
+## Note
 
-O replace por substring simples (`raw.replace(old, new)`) pode "não encontrar" o old
-se houver alguma diferença invisível de bytes (CRLF, espaços). Prefira regex em bytes
-sobre a linha inteira quando o replace exato falhar.
+A simple substring replace (`raw.replace(old, new)`) may "not find" the old
+if there is some invisible byte difference (CRLF, spaces). Prefer regex on bytes
+over the whole line when the exact replace fails.

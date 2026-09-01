@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-cp-competitive-analysis — Análise Competitiva Crew (self-contained)
+cp-competitive-analysis — Competitive Analysis Crew (self-contained)
 
-Cria uma crew CrewAI com agentes especializados para analisar concorrentes,
-comparar produtos, features, preços, posicionamento e estratégias de mercado,
-gerando relatórios completos de inteligência competitiva.
+Creates a CrewAI crew with specialized agents to analyze competitors, compare
+products, features, prices, positioning and market strategies, generating
+complete competitive intelligence reports.
 
-Uso:
-  python run.py "SaaS de gestão de clínicas; concorrentes: Doctoralia, Zenklub"
-  python run.py --context "nosso produto X" --output analise-competitiva.md
-  python run.py --input contexto.txt
+Usage:
+  python run.py "SaaS for clinic management; competitors: Doctoralia, Zenklub"
+  python run.py --context "our product X" --output competitive-analysis.md
+  python run.py --input context.txt
 """
 
 import argparse
@@ -18,7 +18,7 @@ from pathlib import Path
 from datetime import datetime
 try:
     from crewai import Agent, Task, Crew, Process
-except ImportError:  # DT-07: a lib so e exigida na execucao real, nao no --help
+except ImportError:  # DT-07: the lib is only required for real execution, not --help
     Agent = Task = Crew = Process = None
 import sys as _sys
 from pathlib import Path as _Path
@@ -28,60 +28,60 @@ if str(_SKILLS_ROOT) not in _sys.path:
 from _shared.llm import (build_crew_llm, require_crewai, require_llm,
                          setup_console)
 
-setup_console()  # DT-01: UTF-8 no stdout/stderr (console Windows e cp1252)
+setup_console()  # DT-01: UTF-8 on stdout/stderr (Windows console is cp1252)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# AGENTES EMBUTIDOS
+# EMBEDDED AGENTS
 # ═══════════════════════════════════════════════════════════════════════════
 
 AGENTS = {
-    "analista-de-mercado": {
-        "role": "Analista de Mercado",
-        "goal": "Definir o escopo da análise, mapear o mercado, seu tamanho, crescimento e dinâmica competitiva",
+    "market-analyst": {
+        "role": "Market Analyst",
+        "goal": "Define the scope of the analysis, map the market, its size, growth and competitive dynamics",
         "backstory": (
-            "Analista de mercado experiente com mais de 10 anos em pesquisa de mercado e "
-            "inteligência competitiva. Você é especialista em definir mercados, estimar "
-            "tamanho e crescimento, identificar tendências e descrever a dinâmica "
-            "competitiva de um setor. Você separa fatos de opiniões e sempre distingue "
-            "o que é dado verificado do que é estimativa. Seu lema: 'Um mercado mal "
-            "definido gera uma análise competitiva inútil.'"
+            "Experienced market analyst with over 10 years in market research and "
+            "competitive intelligence. You are an expert at defining markets, estimating "
+            "size and growth, identifying trends and describing the competitive "
+            "dynamics of an industry. You separate facts from opinions and always "
+            "distinguish verified data from estimates. Your motto: 'A poorly "
+            "defined market produces a useless competitive analysis.'"
         ),
     },
-    "analista-de-competidores": {
-        "role": "Analista de Competidores",
-        "goal": "Perfilar cada concorrente: overview, produto, forças, fraquezas e estratégia",
+    "competitor-analyst": {
+        "role": "Competitor Analyst",
+        "goal": "Profile each competitor: overview, product, strengths, weaknesses and strategy",
         "backstory": (
-            "Analista de competidores detalhista e metódico. Você constrói perfis completos "
-            "de cada concorrente: fundação, sede, equipe, financiamento, mercado-alvo, "
-            "portfólio de produtos, forças, fraquezas e abordagem de go-to-market. "
-            "Você usa frameworks como a análise de Porter (objetivos, estratégia, "
-            "suposições, capacidades) para prever o comportamento competitivo. "
-            "Você é imparcial: não exagera forças nem minimiza fraquezas."
+            "Detail-oriented and methodical competitor analyst. You build complete profiles "
+            "of each competitor: founding, headquarters, team, funding, target market, "
+            "product portfolio, strengths, weaknesses and go-to-market approach. "
+            "You use frameworks such as Porter's analysis (objectives, strategy, "
+            "assumptions, capabilities) to predict competitive behavior. "
+            "You are impartial: you do not exaggerate strengths nor minimize weaknesses."
         ),
     },
-    "analista-de-pricing": {
-        "role": "Analista de Pricing e Posicionamento",
-        "goal": "Comparar preços, tiers, posicionamento e construir o mapa de posicionamento competitivo",
+    "pricing-analyst": {
+        "role": "Pricing and Positioning Analyst",
+        "goal": "Compare prices, tiers, positioning and build the competitive positioning map",
         "backstory": (
-            "Especialista em pricing e posicionamento de mercado. Você compara planos e "
-            "tiers de preço (entry, mid-tier, enterprise), identifica estratégias de "
-            "precificação (cost leader, premium, value) e posiciona cada concorrente "
-            "em um mapa de posicionamento (preço vs. inovação, foco estreito vs. amplo). "
-            "Você entende que preço é só um vetor do posicionamento e que a percepção "
-            "de valor importa tanto quanto o número."
+            "Expert in pricing and market positioning. You compare plans and "
+            "price tiers (entry, mid-tier, enterprise), identify pricing "
+            "strategies (cost leader, premium, value) and position each competitor "
+            "on a positioning map (price vs. innovation, narrow vs. broad focus). "
+            "You understand that price is only one vector of positioning and that the "
+            "perception of value matters as much as the number."
         ),
     },
-    "estrategista": {
-        "role": "Estrategista Competitivo",
-        "goal": "Sintetizar SWOT, vantagens competitivas, recomendações estratégicas e battle cards",
+    "strategist": {
+        "role": "Competitive Strategist",
+        "goal": "Synthesize SWOT, competitive advantages, strategic recommendations and battle cards",
         "backstory": (
-            "Estrategista competitivo sênior com formação em estratégia de negócios. "
-            "Você transforma dados de mercado, perfis de concorrentes e análise de "
-            "pricing em insights acionáveis: SWOT, vantagens competitivas, recomendações "
-            "de curto e médio prazo, respostas competitivas a vigiar e battle cards "
-            "para equipes de vendas. Você é pragmático e orientado a ação — cada "
-            "recomendação deve ser executável. Você emite o veredito final de "
-            "completude do relatório (PASS/FAIL)."
+            "Senior competitive strategist with a background in business strategy. "
+            "You turn market data, competitor profiles and pricing "
+            "analysis into actionable insights: SWOT, competitive advantages, short- and "
+            "medium-term recommendations, competitive responses to watch and battle cards "
+            "for sales teams. You are pragmatic and action-oriented — every "
+            "recommendation must be executable. You issue the final report "
+            "completeness verdict (PASS/FAIL)."
         ),
     },
 }
@@ -92,11 +92,11 @@ def get_agent(slug: str) -> Agent:
     data = AGENTS.get(slug)
     if not data:
         name = slug.replace("-", " ").title()
-        print(f"  [!] Agente não encontrado: {slug} — usando fallback genérico")
+        print(f"  [!] Agent not found: {slug} — using generic fallback")
         return Agent(
             role=name,
-            goal=f"Completar a tarefa com excelência como {name}",
-            backstory=f"Agente especializado atuando como {name}.",
+            goal=f"Complete the task with excellence as {name}",
+            backstory=f"Specialized agent acting as {name}.",
             llm=_crew_llm,
             verbose=True,
             allow_delegation=False,
@@ -118,123 +118,123 @@ def get_agent(slug: str) -> Agent:
 def build_crew(context: str, output_path: str = None):
     """Build a CrewAI crew for competitive analysis."""
 
-    analista_mercado = get_agent("analista-de-mercado")
-    analista_competidores = get_agent("analista-de-competidores")
-    analista_pricing = get_agent("analista-de-pricing")
-    estrategista = get_agent("estrategista")
+    market_analyst = get_agent("market-analyst")
+    competitor_analyst = get_agent("competitor-analyst")
+    pricing_analyst = get_agent("pricing-analyst")
+    strategist = get_agent("strategist")
 
-    # --- Task 1: Escopo e Mercado ---
-    mercado = Task(
+    # --- Task 1: Scope and Market ---
+    market = Task(
         description=f"""
-        CONTEXTO DA ANÁLISE:
+        ANALYSIS CONTEXT:
         {context}
 
-        SEU TRABALHO — DEFINIÇÃO DE ESCOPO E MERCADO:
-        1. Defina claramente o mercado/segmento sendo analisado
-        2. Identifique os concorrentes a analisar (os nomeados no contexto, ou proponha
-           critérios e uma lista candidata se nenhum foi citado)
-        3. Estime o tamanho do mercado e a taxa de crescimento (CAGR), marcando claramente
-           o que é estimativa
-        4. Liste as principais tendências do setor
-        5. Descreva a dinâmica competitiva geral (concentração, barreiras, diferenciação)
+        YOUR JOB — SCOPE AND MARKET DEFINITION:
+        1. Clearly define the market/segment being analyzed
+        2. Identify the competitors to analyze (those named in the context, or propose
+           criteria and a candidate list if none were mentioned)
+        3. Estimate the market size and growth rate (CAGR), clearly marking
+           what is an estimate
+        4. List the main industry trends
+        5. Describe the overall competitive dynamics (concentration, barriers, differentiation)
 
-        FORMATO DE SAÍDA:
+        OUTPUT FORMAT:
         ## Market Overview
-        - Definição de mercado: [qual]
-        - Concorrentes identificados: [lista]
-        - Tamanho e crescimento: [estimativas, marcadas como tal]
-        - Tendências: [lista]
-        - Dinâmica competitiva: [descrição]
+        - Market definition: [what]
+        - Identified competitors: [list]
+        - Size and growth: [estimates, marked as such]
+        - Trends: [list]
+        - Competitive dynamics: [description]
         """,
-        expected_output="Definição de escopo, lista de concorrentes, tamanho/crescimento de mercado, tendências e dinâmica competitiva",
-        agent=analista_mercado,
+        expected_output="Scope definition, competitor list, market size/growth, trends and competitive dynamics",
+        agent=market_analyst,
     )
 
-    # --- Task 2: Perfis de Competidores ---
-    perfis = Task(
+    # --- Task 2: Competitor Profiles ---
+    profiles = Task(
         description=f"""
-        CONTEXTO DA ANÁLISE:
+        ANALYSIS CONTEXT:
         {context}
 
-        SEU TRABALHO — PERFIS DE COMPETIDORES:
-        Para CADA concorrente identificado, produza um perfil completo:
+        YOUR JOB — COMPETITOR PROFILES:
+        For EACH identified competitor, produce a complete profile:
 
-        1. **Company Overview**: fundação, sede, funcionários, financiamento/receita, mercado-alvo
-        2. **Product/Service Overview**: principais ofertas
-        3. **Strengths**: 3+ forças
-        4. **Weaknesses**: 3+ fraquezas
-        5. **Strategy**: como competem, abordagem de go-to-market
+        1. **Company Overview**: founding, headquarters, employees, funding/revenue, target market
+        2. **Product/Service Overview**: main offerings
+        3. **Strengths**: 3+ strengths
+        4. **Weaknesses**: 3+ weaknesses
+        5. **Strategy**: how they compete, go-to-market approach
 
-        Use o framework de Porter (objetivos futuros, estratégia atual, suposições,
-        capacidades) para inferir o perfil de resposta competitiva de cada um.
+        Use Porter's framework (future objectives, current strategy, assumptions,
+        capabilities) to infer each one's competitive response profile.
 
-        FORMATO DE SAÍDA (para cada concorrente):
-        ### Competidor: [Nome]
+        OUTPUT FORMAT (for each competitor):
+        ### Competitor: [Name]
         #### Company Overview
-        | Atributo | Detalhe |
+        | Attribute | Detail |
         #### Product/Service Overview
         #### Strengths
         #### Weaknesses
         #### Strategy
         """,
-        expected_output="Perfis completos de cada concorrente com overview, produto, forças, fraquezas e estratégia",
-        agent=analista_competidores,
+        expected_output="Complete profiles of each competitor with overview, product, strengths, weaknesses and strategy",
+        agent=competitor_analyst,
     )
 
-    # --- Task 3: Pricing e Posicionamento ---
+    # --- Task 3: Pricing and Positioning ---
     pricing = Task(
         description=f"""
-        CONTEXTO DA ANÁLISE:
+        ANALYSIS CONTEXT:
         {context}
 
-        SEU TRABALHO — PRICING E POSICIONAMENTO:
-        Com base nos perfis de concorrentes:
+        YOUR JOB — PRICING AND POSITIONING:
+        Based on the competitor profiles:
 
-        1. **Matriz de Features**: compare as principais features/capacidades entre
-           [sua empresa] e cada concorrente (✅ forte, ⚠️ parcial, ❌ ausente)
-        2. **Comparação de Pricing**: organize os planos/tiers (entry/free, mid-tier,
-           enterprise) de cada concorrente lado a lado
-        3. **Insights de Pricing**: identifique a estratégia de cada um (cost leader,
-           premium, value) e o que isso revela
-        4. **Mapa de Posicionamento**: posicione cada concorrente em um mapa
-           (ex: preço alto/baixo vs. inovação alta/baixa, ou foco estreito/amplo)
+        1. **Feature Matrix**: compare the main features/capabilities between
+           [your company] and each competitor (✅ strong, ⚠️ partial, ❌ absent)
+        2. **Pricing Comparison**: organize the plans/tiers (entry/free, mid-tier,
+           enterprise) of each competitor side by side
+        3. **Pricing Insights**: identify each one's strategy (cost leader,
+           premium, value) and what it reveals
+        4. **Positioning Map**: position each competitor on a map
+           (e.g. high/low price vs. high/low innovation, or narrow/broad focus)
 
-        FORMATO DE SAÍDA:
+        OUTPUT FORMAT:
         ## Feature Comparison
-        | Feature | [Sua empresa] | [Comp 1] | [Comp 2] | [Comp 3] |
+        | Feature | [Your company] | [Comp 1] | [Comp 2] | [Comp 3] |
         ## Pricing Comparison
-        | Tier | [Sua empresa] | [Comp 1] | [Comp 2] | [Comp 3] |
+        | Tier | [Your company] | [Comp 1] | [Comp 2] | [Comp 3] |
         ## Positioning Map
-        [descrição textual do mapa de posicionamento]
+        [textual description of the positioning map]
         ## Pricing Insights
         """,
-        expected_output="Matriz de features, comparação de pricing, insights de pricing e mapa de posicionamento",
-        agent=analista_pricing,
+        expected_output="Feature matrix, pricing comparison, pricing insights and positioning map",
+        agent=pricing_analyst,
     )
 
-    # --- Task 4: Estratégia e Battle Cards ---
-    estrategia = Task(
+    # --- Task 4: Strategy and Battle Cards ---
+    strategy = Task(
         description=f"""
-        CONTEXTO DA ANÁLISE:
+        ANALYSIS CONTEXT:
         {context}
 
-        SEU TRABALHO — SÍNTESE ESTRATÉGICA:
-        Com base em todo o material produzido (mercado, perfis, pricing/posicionamento):
+        YOUR JOB — STRATEGIC SYNTHESIS:
+        Based on all the material produced (market, profiles, pricing/positioning):
 
-        1. **Executive Summary**: 3-4 frases com os principais achados e implicações
-           estratégicas + 3 key takeaways
-        2. **SWOT**: forças, fraquezas, oportunidades e ameaças da [sua empresa]
-        3. **Vantagens Competitivas**: suas vantagens vs. cada concorrente, e onde
-           cada concorrente se destaca
-        4. **Recomendações Estratégicas**: ações imediatas, estratégia de médio prazo,
-           e respostas competitivas a vigiar
-        5. **Battle Cards**: para cada concorrente — quando aparecem, pitch deles,
-           nossa resposta, diferenciais-chave, temas de vitória e tratamento de objeções
+        1. **Executive Summary**: 3-4 sentences with the main findings and strategic
+           implications + 3 key takeaways
+        2. **SWOT**: strengths, weaknesses, opportunities and threats of [your company]
+        3. **Competitive Advantages**: your advantages vs. each competitor, and where
+           each competitor stands out
+        4. **Strategic Recommendations**: immediate actions, medium-term strategy,
+           and competitive responses to watch
+        5. **Battle Cards**: for each competitor — when they appear, their pitch,
+           our response, key differentiators, winning themes and objection handling
 
-        Por fim, emita o **veredito de completude**: PASS ou FAIL.
-        Se FAIL, liste o que falta para o relatório ser considerado completo.
+        Finally, issue the **completeness verdict**: PASS or FAIL.
+        If FAIL, list what is missing for the report to be considered complete.
 
-        FORMATO DE SAÍDA:
+        OUTPUT FORMAT:
         ## Executive Summary
         ## SWOT Summary
         ## Competitive Advantages
@@ -242,14 +242,14 @@ def build_crew(context: str, output_path: str = None):
         ## Battle Cards
         ## Quality Gate: PASS/FAIL
         """,
-        expected_output="Relatório estratégico completo: executive summary, SWOT, vantagens, recomendações, battle cards e veredito PASS/FAIL",
-        agent=estrategista,
+        expected_output="Complete strategic report: executive summary, SWOT, advantages, recommendations, battle cards and PASS/FAIL verdict",
+        agent=strategist,
     )
 
     # --- Crew ---
     crew = Crew(
-        agents=[analista_mercado, analista_competidores, analista_pricing, estrategista],
-        tasks=[mercado, perfis, pricing, estrategia],
+        agents=[market_analyst, competitor_analyst, pricing_analyst, strategist],
+        tasks=[market, profiles, pricing, strategy],
         process=Process.sequential,
         verbose=True,
     )
@@ -263,33 +263,33 @@ def build_crew(context: str, output_path: str = None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="cp-competitive-analysis: Análise Competitiva Crew (self-contained)",
+        description="cp-competitive-analysis: Competitive Analysis Crew (self-contained)",
     )
     parser.add_argument(
         "context",
         nargs="?",
-        help="Contexto da análise: sua empresa/produto, concorrentes, indústria, escopo",
+        help="Analysis context: your company/product, competitors, industry, scope",
     )
     parser.add_argument(
         "--input", "-i",
         dest="input_file",
-        help="Arquivo com o contexto (alternativa ao argumento posicional)",
+        help="File with the context (alternative to the positional argument)",
     )
     parser.add_argument(
         "--output", "-o",
         default=None,
-        help="Arquivo de saída para salvar o relatório de análise competitiva",
+        help="Output file to save the competitive analysis report",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Apenas monta a crew e mostra os agentes, sem executar",
+        help="Only builds the crew and shows the agents, without running",
     )
     args = parser.parse_args()
 
-    require_crewai()  # DT-07: mensagem acionavel em vez de traceback
+    require_crewai()  # DT-07: actionable message instead of a traceback
 
-    # --- Resolve contexto ---
+    # --- Resolve context ---
     context = None
     if args.input_file:
         context = Path(args.input_file).read_text(encoding="utf-8")
@@ -297,30 +297,30 @@ def main():
         context = args.context
     else:
         parser.print_help()
-        print("\n❌ Erro: forneça o contexto da análise (argumento ou --input)")
+        print("\n❌ Error: provide the analysis context (argument or --input)")
         sys.exit(1)
 
     output_path = args.output
 
-    print(f"\n📋 Contexto: {context[:120]}...")
-    print(f"📂 Agentes: embutidos (self-contained)")
+    print(f"\n📋 Context: {context[:120]}...")
+    print(f"📂 Agents: embedded (self-contained)")
     print()
 
     crew = build_crew(context, output_path)
 
     if args.dry_run:
-        print("🧪 DRY RUN — crew montada, agentes:")
+        print("🧪 DRY RUN — crew built, agents:")
         for agent in crew.agents:
             print(f"  - {agent.role}")
-        print("\n✅ Crew pronta. Remova --dry-run para executar.")
+        print("\n✅ Crew ready. Remove --dry-run to execute.")
         return
 
-    print("🚀 Executando crew de análise competitiva...\n")
-    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
+    print("🚀 Running competitive analysis crew...\n")
+    require_llm()  # DT-08: fails early, with a message, if there is no LLM
     result = crew.kickoff()
     result_str = str(result)
 
-    print(f"\n✅ Relatório de Análise Competitiva gerado!\n")
+    print(f"\n✅ Competitive Analysis Report generated!\n")
     print(result_str)
 
     # --- Save output ---
@@ -328,15 +328,15 @@ def main():
         out_file = Path(output_path)
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(result_str, encoding="utf-8")
-        print(f"\n📁 Salvo em: {out_file.resolve()}")
+        print(f"\n📁 Saved to: {out_file.resolve()}")
     else:
         # Save to default location
         output_dir = Path(__file__).resolve().parent.parent / "outputs"
         output_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_file = output_dir / f"analise-competitiva_{timestamp}.md"
+        out_file = output_dir / f"competitive-analysis_{timestamp}.md"
         out_file.write_text(result_str, encoding="utf-8")
-        print(f"\n📁 Salvo em: {out_file.resolve()}")
+        print(f"\n📁 Saved to: {out_file.resolve()}")
 
 
 if __name__ == "__main__":

@@ -1,27 +1,27 @@
-# Resolvendo mensagens por id/uuid em endpoints de chat (AG-UI)
+# Resolving messages by id/uuid in chat endpoints (AG-UI)
 
-Padrão de bug real encontrado no branch picker (BUG-20260810). Aplica-se a QUALQUER
-endpoint que recebe o `id` de uma `ChatMessage` (ou de objeto que o frontend envia).
+Real bug pattern found in the branch picker (BUG-20260810). Applies to ANY
+endpoint that receives the `id` of a `ChatMessage` (or of an object the frontend sends).
 
-## O problema (duas armadilhas emendadas)
+## The problem (two traps joined)
 
-1. **`ChatMessage.id` é `BigAutoField` (inteiro)**, mas o frontend (AG-UI) envia o
-   `uuid` no query param — `toThreadMessage` constrói `{ id: m.uuid, ... }`.
-   `filter(pk=uuid_string)` lança `ValueError: Field 'id' expected a number` → **500**.
-2. **O AG-UI usa IDs otimistas** enquanto a mensagem ainda está sendo streamada:
-   `__optimistic__Z0fS1y5`, `msg_29abe6...`. Esses não são uuid nem inteiro → mesmo 500.
+1. **`ChatMessage.id` is `BigAutoField` (integer)**, but the frontend (AG-UI) sends the
+   `uuid` in the query param — `toThreadMessage` builds `{ id: m.uuid, ... }`.
+   `filter(pk=uuid_string)` throws `ValueError: Field 'id' expected a number` → **500**.
+2. **AG-UI uses optimistic IDs** while the message is still being streamed:
+   `__optimistic__Z0fS1y5`, `msg_29abe6...`. These are neither uuid nor integer → same 500.
 
-Sem guard, o frontend (BranchPicker consultando a cada render) entra em **loop de
-requisições 500** — cada `msg.id` otimista dispara nova chamada. O build não pega;
-só aparece em smoke E2E real no browser.
+Without a guard, the frontend (BranchPicker querying on every render) enters a **loop of
+500 requests** — each optimistic `msg.id` fires a new call. The build does not catch it;
+it only appears in a real browser E2E smoke test.
 
-## Correção (backend + frontend)
+## Fix (backend + frontend)
 
-Backend — helper que resolve por uuid OU id, e um guard de id "parece válido":
+Backend — a helper that resolves by uuid OR id, and a "looks valid" id guard:
 
 ```python
 def _looks_like_valid_message_id(value: str) -> bool:
-    """Aceita UUID string OU inteiro (pk). Rejeita ids otimistas do AG-UI."""
+    """Accepts a UUID string OR an integer (pk). Rejects AG-UI optimistic ids."""
     import uuid as _uuid
     s = str(value).strip()
     if not s:
@@ -42,10 +42,10 @@ def _resolve_message(conv, msg_id):
     return CM.objects.filter(conversation=conv, uuid=s).first()
 ```
 
-Uso no `@action`: se `not _looks_like_valid_message_id(msg_id)` → retorna lista vazia
-/ 404 (nunca 500). Senão `base = _resolve_message(conv, msg_id)`.
+Usage in the `@action`: if `not _looks_like_valid_message_id(msg_id)` → return an empty list
+/ 404 (never 500). Otherwise `base = _resolve_message(conv, msg_id)`.
 
-Frontend — pular ids otimistas antes de chamar (evita a requisição inteira):
+Frontend — skip optimistic ids before calling (avoids the whole request):
 
 ```ts
 useEffect(() => {
@@ -55,12 +55,12 @@ useEffect(() => {
 }, [msgId, activeIdRef]);
 ```
 
-## Lição geral
+## General lesson
 
-Sempre que o frontend passa o `id` de uma entidade a um endpoint de chat:
-- Confira o tipo real do PK no modelo (`ChatMessage._meta.pk`) — costuma ser inteiro
-  enquanto o contrato externo usa `uuid`.
-- Aceite os DOIS (uuid e pk inteiro) com um helper `_resolve_*`.
-- Rejeite ids otimistas do AG-UI com guard, retornando resposta vazia/404, NUNCA 500.
-- Teste o fluxo real no browser (smoke E2E), não só build/unit — o loop de 500 só
-  aparece com ids otimistas reais.
+Whenever the frontend passes the `id` of an entity to a chat endpoint:
+- Check the real PK type in the model (`ChatMessage._meta.pk`) — it is usually integer
+  while the external contract uses `uuid`.
+- Accept BOTH (uuid and integer pk) with a `_resolve_*` helper.
+- Reject AG-UI optimistic ids with a guard, returning an empty/404 response, NEVER 500.
+- Test the real flow in the browser (E2E smoke), not just build/unit — the 500 loop only
+  appears with real optimistic ids.

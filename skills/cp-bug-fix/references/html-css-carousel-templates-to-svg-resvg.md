@@ -1,75 +1,75 @@
-# Portar templates HTML/CSS de carrossel → SVG renderer + resvg-py (sem browser)
+# Port carousel HTML/CSS templates → SVG renderer + resvg-py (no browser)
 
-**Quando:** receber templates de carrossel HTML/CSS (ex.: Freepik/sketch/swoosh da
-skill `universal-carousel-template-creator`, ou qualquer pacote de `slide.html` com
-placeholders `{{TITLE}} {{BODY}} {{LAYOUT}} {{SLIDE_NUM}}`) e precisar gerar PNG
-1080×1350 em produção.
+**When:** you receive carousel HTML/CSS templates (e.g. Freepik/sketch/swoosh from the
+`universal-carousel-template-creator` skill, or any package of `slide.html` with
+`{{TITLE}} {{BODY}} {{LAYOUT}} {{SLIDE_NUM}}` placeholders) and need to generate 1080×1350 PNG
+in production.
 
-**Por que não renderizar o HTML direto:** os templates são HTML/CSS. Browser headless
-(Chrome/Edge/Puppeteer/Playwright) NÃO existe no ECS Linux de produção. A skill
-`universal-carousel-template-creator` assume Playwright/Chrome — seguir essa rota
-quebra no deploy. O usuário escolheu portar para SVG + resvg-py (sem browser, roda
-no Windows e ECS Linux).
+**Why not render the HTML directly:** the templates are HTML/CSS. Headless browser
+(Chrome/Edge/Puppeteer/Playwright) does NOT exist on the production ECS Linux. The
+`universal-carousel-template-creator` skill assumes Playwright/Chrome — following that route
+breaks on deploy. The user chose to port to SVG + resvg-py (no browser, runs
+on Windows and ECS Linux).
 
-## Estratégia de portabilidade
+## Portability strategy
 
-1. **Não tente converter o HTML inteiro automaticamente** (invariável/frágil).
-   Extraia a ESSÊNCIA de cada template: paleta (variáveis `:root` do CSS) + família
-   de fontes + tipos de layout (cover/intro/list/steps/quote/pricing/cta).
-2. **Crie um renderer SVG próprio** por template com:
-   - fundo sólido (o conversor SVG→DrawingML não materializa gradiente; resvg-py
-     renderiza gradiente, mas mantenha `* fill` sólido + `fill-opacity` para portar
-     fácil e funcionar em ambos os caminhos),
-   - formas decorativas (círculos/arcos/estrelas) aproximando o template,
-   - tipografia hierárquica usando as fontes reais.
-3. **Copie as fontes reais** dos templates (`_shared_fonts/*.ttf`) para
-   `static/carousel_templates/fonts/` no projeto.
-4. **Renderize com resvg-py passando `font_files=`** para as fontes do template:
+1. **Do not try to convert the whole HTML automatically** (invariable/fragile).
+   Extract the ESSENCE of each template: palette (CSS `:root` variables) + font
+   family + layout types (cover/intro/list/steps/quote/pricing/cta).
+2. **Create your own SVG renderer** per template with:
+   - solid background (the SVG→DrawingML converter does not materialize gradients; resvg-py
+     renders gradients, but keep `* fill` solid + `fill-opacity` to port
+     easily and work in both paths),
+   - decorative shapes (circles/arcs/stars) approximating the template,
+   - hierarchical typography using the real fonts.
+3. **Copy the real fonts** from the templates (`_shared_fonts/*.ttf`) to
+   `static/carousel_templates/fonts/` in the project.
+4. **Render with resvg-py passing `font_files=`** for the template fonts:
 
 ```python
 import resvg_py
 png = resvg_py.svg_to_bytes(svg_string=svg, width=1080, height=1350, font_files=fonts)
 ```
 
-Sem `font_files`, o resvg usa fontes de sistema (Arial) e perde a tipografia da marca.
+Without `font_files`, resvg uses system fonts (Arial) and loses the brand typography.
 
-## Estrutura do renderer (ex.: `chat/skills/carousel_templates.py`)
+## Renderer structure (e.g. `chat/skills/carousel_templates.py`)
 
 - `TEMPLATES = {nome: {bg, ink, accent, card, font_heading, font_body, font_files}}`
-  — dicionário de paletas/fontes por template.
-- `TEMPLATE_NAMES = tuple(TEMPLATES.keys())` — exposto para o LLM escolher o template.
+  — dictionary of palettes/fonts per template.
+- `TEMPLATE_NAMES = tuple(TEMPLATES.keys())` — exposed so the LLM can choose the template.
 - `render_carousel_svg(template, slides, *, title, brand, handle) -> list[str]` —
-  gera um SVG por slide; propaga `handle`/`brand` para slides que não os definem;
-  preenche `slide_num`/`total` automaticamente (ex.: `01`/`07`).
-- Helpers: `_wrap(text, max_chars)` (quebra por contagem de caracteres), `_esc`
+  generates one SVG per slide; propagates `handle`/`brand` to slides that do not define them;
+  fills `slide_num`/`total` automatically (e.g. `01`/`07`).
+- Helpers: `_wrap(text, max_chars)` (breaks by character count), `_esc`
   (html escape), `_wrap_svg(lines, x, y, font, size, fill, lh, weight, max_lines)`.
-- Cada slide é um dict `{layout, title, body, eyebrow, items, cta, handle, slide_num, total}`.
+- Each slide is a dict `{layout, title, body, eyebrow, items, cta, handle, slide_num, total}`.
 
-## Skill que consome o renderer
+## Skill that consumes the renderer
 
-A skill (`instagram_carousel_skill.py`) NÃO usa o pipeline de apresentações (PPTX/SVG
-genérico). Ela:
-1. Chama `llm_client.complete_json(messages, system=...)` (PROVIDER-AGNOSTIC, LiteLLM)
-   com um system prompt que pede `{title, template, slides[]}` + lista os TEMPLATES
-   válidos e os LAYOUTS (cover/bullets/steps/list/quote/pricing/cta) + regras de arco
-   narrativo de Instagram (slide 1 = hook que para o scroll, último = CTA).
-2. Valida template (`_validate_template` cai para default se inválido).
-3. Renderiza SVG→PNG e arquiva via `archive_conversation_file` na pasta da conversa.
-4. Devolve `{"component": "CarouselCard", "props": {title, slides:[{imageUrl, caption}], slideCount, format:"carousel"}}`.
+The skill (`instagram_carousel_skill.py`) does NOT use the presentations pipeline (generic PPTX/SVG).
+It:
+1. Calls `llm_client.complete_json(messages, system=...)` (PROVIDER-AGNOSTIC, LiteLLM)
+   with a system prompt that asks for `{title, template, slides[]}` + lists the valid TEMPLATES
+   and the LAYOUTS (cover/bullets/steps/list/quote/pricing/cta) + Instagram narrative arc
+   rules (slide 1 = hook that stops the scroll, last = CTA).
+2. Validates the template (`_validate_template` falls back to default if invalid).
+3. Renders SVG→PNG and archives via `archive_conversation_file` in the conversation folder.
+4. Returns `{"component": "CarouselCard", "props": {title, slides:[{imageUrl, caption}], slideCount, format:"carousel"}}`.
 
-Mantenha o MESMO nome de skill e o MESMO contrato do CarouselCard → frontend não muda.
+Keep the SAME skill name and the SAME CarouselCard contract → the frontend does not change.
 
 ## Pitfalls
 
-- **`_FONTS_DIR` depende da profundidade do arquivo:** `Path(__file__).resolve().parents[2] / "static" / ...`
-  funciona de `chat/skills/` mas NÃO de `presentations/services/` (profundidade
-  diferente). Verifique ao mover o módulo.
-- **resvg aceita `font_files` (lista de caminhos)** e `font_dirs` — use `font_files`
-  para fontes específicas do template.
-- **Validar template do LLM:** o LLM pode inventar nome de template — fallback para
-  um default seguro (`constellation`).
-- **Skill long-running no chat:** a resposta é "⏳ Estou gerando… recarregue se
-  necessário" e o CarouselCard só aparece no reload (o front re-fetcha o histórico).
-  Isso é esperado — não é bug.
-- **Mock nos testes:** mock `llm_client.complete_json` E `_render` (não o resvg);
-  teste o renderer separadamente com `font_files` para não depender de rede/browser.
+- **`_FONTS_DIR` depends on the file depth:** `Path(__file__).resolve().parents[2] / "static" / ...`
+  works from `chat/skills/` but NOT from `presentations/services/` (different
+  depth). Check when moving the module.
+- **resvg accepts `font_files` (list of paths)** and `font_dirs` — use `font_files`
+  for template-specific fonts.
+- **Validate the LLM template:** the LLM may invent a template name — fall back to
+  a safe default (`constellation`).
+- **Long-running skill in chat:** the response is "⏳ Estou gerando… recarregue se
+  necessário" and the CarouselCard only appears on reload (the frontend re-fetches the history).
+  This is expected — it is not a bug.
+- **Mock in tests:** mock `llm_client.complete_json` AND `_render` (not resvg);
+  test the renderer separately with `font_files` so it does not depend on network/browser.

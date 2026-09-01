@@ -1,34 +1,34 @@
-# DT-02 — Sem suíte de testes automatizados [Concluido]
+# DT-02 — No automated test suite [Done]
 
-**Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
+**Type**: Technical debt · **Priority**: High · **Opened on**: 2026-08-18
 
-## Contexto
+## Context
 
-O repositório tem 15 skills e 15 scripts `run.py`, e **zero testes**. Toda
-validação é manual (`--dry-run` ad hoc), então regressões de contrato CLI só
-aparecem quando o orquestrador quebra em produção.
+The repository has 15 skills and 15 `run.py` scripts, and **zero tests**. All
+validation is manual (ad hoc `--dry-run`), so CLI contract regressions only
+appear when the orchestrator breaks in production.
 
-## Proposta
+## Proposal
 
-`pytest` parametrizado sobre `skills/*/scripts/run.py`:
+`pytest` parametrized over `skills/*/scripts/run.py`:
 
-1. `--help` retorna exit 0 para toda skill.
-2. `--dry-run` (com o briefing no formato correto por skill) retorna exit 0.
-3. `install.sh --dry-run` lista as 15 skills + `_shared`.
-4. `_shared/llm.py`: ordem de resolução (env do agente > `.env` > detecção por
-   chave > default) com `monkeypatch`.
+1. `--help` returns exit 0 for every skill.
+2. `--dry-run` (with the briefing in the correct format per skill) returns exit 0.
+3. `install.sh --dry-run` lists the 15 skills + `_shared`.
+4. `_shared/llm.py`: resolution order (agent env > `.env` > per-key detection >
+   default) with `monkeypatch`.
 
-Nenhum teste deve chamar LLM real — caro e não-determinístico.
+No test should call a real LLM — expensive and non-deterministic.
 
-## Critério de aceite
+## Acceptance criterion
 
-- `pytest` roda em < 60s sem credencial de LLM configurada.
-- Uma skill com contrato CLI quebrado faz o teste falhar.
+- `pytest` runs in < 60s without a configured LLM credential.
+- A skill with a broken CLI contract makes the test fail.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
-credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.
+**Done on 2026-08-18.** Verified with the suite (`pytest`, 158 tests, no
+LLM credential). See `.context/docs/04-quality-qa.md`.

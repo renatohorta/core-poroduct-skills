@@ -1,28 +1,28 @@
-# GrapesJS RTE — Cursor Reset ao Editar Texto
+# GrapesJS RTE — Cursor Reset When Editing Text
 
-## Sintoma
+## Symptom
 
-Usuário dá duplo-clique em componente de texto → RTE ativa → cursor vai para o **início** do texto. Clicar em qualquer posição do texto volta o cursor pro início. Editar é impossível.
+User double-clicks a text component → RTE activates → cursor goes to the **start** of the text. Clicking anywhere in the text returns the cursor to the start. Editing is impossible.
 
-## Causa Raiz
+## Root Cause
 
-O `notify()` (debounced a 400ms) dispara em `component:update`, que é emitido **quando o RTE ativa**. O `getEditorData()` chama `ed.getHtml()` que serializa a árvore de componentes — isso causa um re-render do canvas que **substitui o DOM** do elemento em edição, resetando o cursor para o início.
+The `notify()` (debounced at 400ms) fires on `component:update`, which is emitted **when the RTE activates**. The `getEditorData()` calls `ed.getHtml()` which serializes the component tree — this causes a canvas re-render that **replaces the DOM** of the element being edited, resetting the cursor to the start.
 
-Depois do primeiro re-render, qualquer clique no texto dispara outro `component:update` (porque o GrapesJS detecta mudança de seleção), que chama `notify()` de novo, que serializa e re-renderiza de novo — loop infinito de cursor reset.
+After the first re-render, any click on the text fires another `component:update` (because GrapesJS detects a selection change), which calls `notify()` again, which serializes and re-renders again — infinite cursor-reset loop.
 
-## Correção
+## Fix
 
-Adicionar `if (ed.getEditing()) return;` no callback do `setTimeout` do `notify()`:
+Add `if (ed.getEditing()) return;` in the `setTimeout` callback of `notify()`:
 
 ```tsx
 let notifyTimer: ReturnType<typeof setTimeout> | null = null;
 const notify = () => {
   if (notifyTimer) clearTimeout(notifyTimer);
   notifyTimer = setTimeout(() => {
-    // NÃO salvar enquanto o RTE estiver ativo — ed.getHtml() serializa
-    // a árvore de componentes e causa re-render que reseta o cursor
-    // para o início do texto. O save acontece no blur natural (quando
-    // o usuário clica fora do componente).
+    // Do NOT save while the RTE is active — ed.getHtml() serializes
+    // the component tree and causes a re-render that resets the cursor
+    // to the start of the text. The save happens on natural blur (when
+    // the user clicks outside the component).
     if (ed.getEditing()) return;
     const data = getEditorData();
     if (data) onChange(data);
@@ -30,25 +30,25 @@ const notify = () => {
 };
 ```
 
-`ed.getEditing()` retorna o componente atualmente em edição (RTE ativo), ou `null`/`undefined` se nenhum. Quando retorna truthy, o save é pulado.
+`ed.getEditing()` returns the component currently being edited (RTE active), or `null`/`undefined` if none. When it returns truthy, the save is skipped.
 
-## Por que `ed.getEditing()` funciona
+## Why `ed.getEditing()` works
 
-- `ed.getEditing()` retorna o `Component` sendo editado pelo RTE, ou `null` se o RTE não está ativo
-- É um método nativo do GrapesJS, não uma customização — não introduz race conditions
-- O save (onChange) acontece naturalmente no blur (quando o usuário clica fora do componente), que é quando `ed.getEditing()` volta a ser `null`
+- `ed.getEditing()` returns the `Component` being edited by the RTE, or `null` if the RTE is not active
+- It is a native GrapesJS method, not a customization — it does not introduce race conditions
+- The save (onChange) happens naturally on blur (when the user clicks outside the component), which is when `ed.getEditing()` returns to `null`
 
-## Eventos que disparam `component:update` durante edição
+## Events that fire `component:update` during editing
 
-| Evento | Quando dispara | Causa |
-|--------|---------------|-------|
-| RTE ativa | Duplo-clique | GrapesJS marca componente como `contenteditable` |
-| Clique no texto | Durante edição | GrapesJS detecta mudança de seleção |
-| Digitação | Durante edição | Cada tecla dispara `component:update` |
-| Blur | Fim da edição | Usuário clica fora do componente |
+| Event | When it fires | Cause |
+|-------|---------------|-------|
+| RTE activates | Double-click | GrapesJS marks the component as `contenteditable` |
+| Click on text | During editing | GrapesJS detects a selection change |
+| Typing | During editing | Each key fires `component:update` |
+| Blur | End of editing | User clicks outside the component |
 
-Sem o guard `ed.getEditing()`, todos esses eventos chamam `notify()` → `getEditorData()` → `ed.getHtml()` → re-render → cursor reset.
+Without the `ed.getEditing()` guard, all these events call `notify()` → `getEditorData()` → `ed.getHtml()` → re-render → cursor reset.
 
-## Arquivo
+## File
 
-`src/components/grapesjs-editor.tsx` — função `notify()` dentro do `useEffect` de inicialização do editor.
+`src/components/grapesjs-editor.tsx` — the `notify()` function inside the editor initialization `useEffect`.

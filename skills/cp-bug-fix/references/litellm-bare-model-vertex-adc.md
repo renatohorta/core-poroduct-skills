@@ -1,53 +1,53 @@
-# LiteLLM roteia modelo "pelado" para vertex_ai → DefaultCredentialsError
+# LiteLLM routes a "bare" model to vertex_ai → DefaultCredentialsError
 
-## Sintoma (produção ECS)
-O chat responde, mas com ~15s de atraso por chamada. Log revelador — o MESMO
-modelo resolve para dois providers diferentes:
+## Symptom (production ECS)
+The chat responds, but with ~15s delay per call. Revealing log — the SAME
+model resolves to two different providers:
 
 ```
-LiteLLM completion() model= gemini-2.5-flash; provider = vertex_ai   ← FALHA (ADC)
-LiteLLM completion() model= gemini-2.5-flash; provider = gemini      ← FUNCIONA (API key)
+LiteLLM completion() model= gemini-2.5-flash; provider = vertex_ai   ← FAILS (ADC)
+LiteLLM completion() model= gemini-2.5-flash; provider = gemini      ← WORKS (API key)
 ```
 
 `provider = vertex_ai` → `google.auth.exceptions.DefaultCredentialsError: Your
-default credentials were not found`. O ECS não tem ADC/service account.
+default credentials were not found`. ECS has no ADC/service account.
 
-## Causa raiz
-O secret `LLM_MODEL` em produção está configurado **sem o prefixo `provider/`**
-(ex.: `gemini-2.5-flash` em vez de `gemini/gemini-2.5-flash`). Quando o LiteLLM
-recebe um modelo sem barra, ele assume `vertex_ai` (que exige ADC), não `gemini`
-(que usa `GEMINI_API_KEY`). O fallback `gemini/gemini-2.5-flash` (com prefixo)
-usa API key e funciona — daí o "funciona mas lento".
+## Root cause
+The `LLM_MODEL` secret in production is configured **without the `provider/` prefix**
+(e.g. `gemini-2.5-flash` instead of `gemini/gemini-2.5-flash`). When LiteLLM
+receives a model without a slash, it assumes `vertex_ai` (which requires ADC), not `gemini`
+(which uses `GEMINI_API_KEY`). The `gemini/gemini-2.5-flash` fallback (with prefix)
+uses an API key and works — hence the "works but slow".
 
-## Fix (hardening no código, `chat/llm_client.py`)
-Normalizar o modelo para `provider/model` antes de passar ao LiteLLM:
+## Fix (hardening in code, `chat/llm_client.py`)
+Normalize the model to `provider/model` before passing it to LiteLLM:
 
 ```python
 def _normalize_model(model: str) -> str:
-    """Sem barra → prepend 'gemini/'. Sem isso o LiteLLM roteia p/ vertex_ai."""
+    """Without a slash → prepend 'gemini/'. Without this LiteLLM routes to vertex_ai."""
     if "/" in model:
         return model
     return f"gemini/{model}"
 ```
 
-Aplicar em:
+Apply in:
 - `get_model()` — `_normalize_model(getattr(settings, "LLM_MODEL", ...) or ...)`
-- `_base_kwargs()` — `_normalize_model(model or get_model())` (ponto central onde
-  o modelo chega ao `litellm.completion`)
+- `_base_kwargs()` — `_normalize_model(model or get_model())` (the central point where
+  the model reaches `litellm.completion`)
 - embedding — `_normalize_model(model or getattr(settings, "EMBEDDING_MODEL", ...))`
 
-O caminho das crews já protege: `crew_runner_async._resolve_litellm_model()` usa
-`llm_client.get_model()` (já normalizado) para modelos "pelados" da crew.
+The crews path already protects: `crew_runner_async._resolve_litellm_model()` uses
+`llm_client.get_model()` (already normalized) for the crew's "bare" models.
 
-## Ação em produção (não só código)
-O hardening previne o sintoma, mas o **secret `LLM_MODEL` no AWS ainda está
-errado**. Corrigir para `gemini/gemini-2.5-flash`. Mesmo padrão do bug anterior
-(`gemini-3-flash` inexistente) — config de produção sempre vem de secrets AWS,
-não do código.
+## Production action (not just code)
+The hardening prevents the symptom, but the **`LLM_MODEL` secret in AWS is still
+wrong**. Fix it to `gemini/gemini-2.5-flash`. Same pattern as the previous bug
+(`gemini-3-flash` nonexistent) — production config always comes from AWS secrets,
+not from code.
 
-## Testes
+## Tests
 `tests/chat/test_llm_model_fallback.py` → `ModelNormalizeTests`:
-- bare model ganha prefixo (`gemini-2.5-flash` → `gemini/gemini-2.5-flash`)
-- prefixo explícito preservado (`openai/gpt-4o-mini`, `ollama_chat/...`)
-- `get_model()` com `LLM_MODEL` sem prefixo retorna com prefixo
-- `litellm.completion` recebe o modelo COM prefixo (mock `call_args.kwargs["model"]`)
+- a bare model gains a prefix (`gemini-2.5-flash` → `gemini/gemini-2.5-flash`)
+- an explicit prefix is preserved (`openai/gpt-4o-mini`, `ollama_chat/...`)
+- `get_model()` with a prefix-less `LLM_MODEL` returns with a prefix
+- `litellm.completion` receives the model WITH prefix (mock `call_args.kwargs["model"]`)

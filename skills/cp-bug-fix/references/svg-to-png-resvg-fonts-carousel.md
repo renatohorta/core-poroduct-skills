@@ -1,61 +1,61 @@
-# SVG→PNG com fontes reais via resvg-py (sem browser, ECS-safe)
+# SVG→PNG with real fonts via resvg-py (no browser, ECS-safe)
 
-Quando você precisa renderizar templates de carrossel/post (HTML/CSS de fontes como
-Poppins, Montserrat, AbrilFatface) para PNG **sem depender de Chrome/Edge/Playwright** —
-essencial porque produção roda em ECS Linux sem browser — use **resvg-py** que aceita
-`font_files`/`font_dirs` para embutir as fontes reais na renderização do SVG.
+When you need to render carousel/post templates (HTML/CSS with fonts like
+Poppins, Montserrat, AbrilFatface) to PNG **without depending on Chrome/Edge/Playwright** —
+essential because production runs on ECS Linux without a browser — use **resvg-py**, which accepts
+`font_files`/`font_dirs` to embed the real fonts in the SVG rendering.
 
 ## API
 
 ```python
 import resvg_py
 png_bytes = resvg_py.svg_to_bytes(
-    svg_string=svg,          # str (NÃO bytes)
+    svg_string=svg,          # str (NOT bytes)
     width=1080, height=1350,
-    font_files=[...abs paths .ttf/.otf...],   # fontes custom do template
+    font_files=[...abs paths .ttf/.otf...],   # custom template fonts
 )
 ```
 
-- `svg_string` aceita `str` (não bytes).
-- `font_files` aceita uma lista de caminhos absolutos de `.ttf`/`.otf`. O texto no SVG
-  usa `font-family="Poppins"` etc. e o resvg resolve pelos arquivos fornecidos.
-- Fontes que não são passadas → fallback embutido do resvg (texto ainda renderiza, mas
-  sem a tipografia da marca). Passe TODAS as fontes do template.
+- `svg_string` accepts `str` (not bytes).
+- `font_files` accepts a list of absolute `.ttf`/`.otf` paths. The text in the SVG
+  uses `font-family="Poppins"` etc. and resvg resolves it from the provided files.
+- Fonts that are not passed → resvg's built-in fallback (text still renders, but
+  without the brand typography). Pass ALL the template fonts.
 
-## Por que isso funciona em produção
-- resvg-py é wheel binário Rust — **sem lib nativa, sem browser**. Roda no Windows e no
-  ECS Linux sem mudança no Dockerfile.
-- Alternativas rejeitadas: cairosvg / svglib+reportlab exigem libcairo C nativa;
-  Playwright/Chromium não existem em container Linux e o `channel="chrome"` só funciona
-  no Windows.
+## Why this works in production
+- resvg-py is a Rust binary wheel — **no native lib, no browser**. Runs on Windows and
+  ECS Linux without a Dockerfile change.
+- Rejected alternatives: cairosvg / svglib+reportlab require the native C libcairo;
+  Playwright/Chromium do not exist in a Linux container and `channel="chrome"` only works
+  on Windows.
 
-## Padrão de portar template HTML/CSS → SVG
-Em vez de converter automaticamente o HTML (inviável para templates multi-layout),
-extraia a **paleta** (`:root { --bg, --ink, --accent ... }`), as **fontes**
-(`font-family`) e os **layouts** (`data-layout="cover|intro|list|quote|cta"`) e
-reimplemente-os como geradores de SVG 1080×1350. Templates Freepik/sketch típicos:
-constellation, coral, fashion, pet, sketch, swoosh, sage, oliva, bebas. Deixe o LLM
-selecionar o template/layout via `llm_client.complete_json` (provider-agnostic).
+## Pattern for porting an HTML/CSS template → SVG
+Instead of automatically converting the HTML (inviable for multi-layout templates),
+extract the **palette** (`:root { --bg, --ink, --accent ... }`), the **fonts**
+(`font-family`) and the **layouts** (`data-layout="cover|intro|list|quote|cta"`) and
+reimplement them as 1080×1350 SVG generators. Typical Freepik/sketch templates:
+constellation, coral, fashion, pet, sketch, swoosh, sage, oliva, bebas. Let the LLM
+select the template/layout via `llm_client.complete_json` (provider-agnostic).
 
-## Validação visual sem visão
-Após gerar o PNG, confirme o design no browser abrindo o arquivo e lendo
-`distinctColors` via canvas — um slide real tem 29-400+ cores (fundo + texto +
-decoração); um PNG "vazio" teria 1-2. Isso confirma que texto/acentos renderizaram.
+## Visual validation without vision
+After generating the PNG, confirm the design in the browser by opening the file and reading
+`distinctColors` via canvas — a real slide has 29-400+ colors (background + text +
+decoration); an "empty" PNG would have 1-2. This confirms that text/accents rendered.
 
-## Manter o contrato do CarouselCard
-Ao reimplementar uma skill de carrossel, o `CarouselCard` do front já é navegável
-quando `slides.length > 1` (setas ‹ › + contador n/N + dots). Garanta:
-1. **Sempre 5-10 slides** — force no system prompt E valide no `execute`
-   (`if len(slides) < 5: return {"error": ...}`) para nunca gerar card sem navegação.
-2. **Download funcional** — retorne `downloadUrl`/`pngsUrl` reais. Para carrossel,
-   adicione um endpoint que gera o ZIP dos slides arquivados:
-   - Filtre os `ProductContext` pelo **nome do arquivo** (`os.path.basename(doc.file.name).startswith("slide-")`),
-     NÃO pelo título (o título é o do carrossel, ex. "7 Dicas... 1").
-   - Use `zipfile` + `FileResponse(io.BytesIO(...), as_attachment=True)`; no teste leia
-     `b"".join(resp.streaming_content)` (FileResponse não tem `.content`).
-   - `Content-Type` pode ser `application/x-zip-compressed` (não só `application/zip`).
+## Keep the CarouselCard contract
+When reimplementing a carousel skill, the frontend `CarouselCard` is already navigable
+when `slides.length > 1` (‹ › arrows + n/N counter + dots). Ensure:
+1. **Always 5-10 slides** — force it in the system prompt AND validate in `execute`
+   (`if len(slides) < 5: return {"error": ...}`) to never generate a card without navigation.
+2. **Working download** — return real `downloadUrl`/`pngsUrl`. For a carousel,
+   add an endpoint that generates the ZIP of the archived slides:
+   - Filter the `ProductContext` by the **file name** (`os.path.basename(doc.file.name).startswith("slide-")`),
+     NOT by the title (the title is the carousel's, e.g. "7 Dicas... 1").
+   - Use `zipfile` + `FileResponse(io.BytesIO(...), as_attachment=True)`; in the test read
+     `b"".join(resp.streaming_content)` (FileResponse has no `.content`).
+   - `Content-Type` can be `application/x-zip-compressed` (not only `application/zip`).
 
-## Pitfall de find-and-replace: decorator "roubado"
-Inserir um novo method antes de um existente usando `def <nome>` como âncora pode fazer
-o novo method herdar o decorator do vizinho e o vizinho perder o `@action`. Ver
+## Find-and-replace pitfall: "stolen" decorator
+Inserting a new method before an existing one using `def <nome>` as the anchor can make
+the new method inherit the neighbor's decorator and the neighbor lose its `@action`. See
 SKILL.md "SEMPRE verificar se o find-and-replace não 'roubou' o decorator".

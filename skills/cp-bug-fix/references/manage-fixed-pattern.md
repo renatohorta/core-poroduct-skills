@@ -1,34 +1,34 @@
-# manage.py — Hermes + Projeto Django com lxml conflitante + crewai_tools discovery
+# manage.py — Hermes + Django project with conflicting lxml + crewai_tools discovery
 
-## Problema Duplo
+## Double Problem
 
-### 1. lxml conflitante
+### 1. Conflicting lxml
 
-O Hermes Agent roda em seu próprio venv (`~/AppData/Local/hermes/hermes-agent/venv/`). Quando o Hermes executa comandos Django do projeto via `execute_code` ou `terminal`, o `sys.path` pode carregar o `lxml` do Hermes ANTES do `lxml` do projeto. Isso causa:
+Hermes Agent runs in its own venv (`~/AppData/Local/hermes/hermes-agent/venv/`). When Hermes runs the project's Django commands via `execute_code` or `terminal`, the `sys.path` may load Hermes' `lxml` BEFORE the project's `lxml`. This causes:
 
 ```
 ImportError: cannot import name 'etree' from 'lxml'
 ```
 
-### 2. crewai_tools discovery trava o boot
+### 2. crewai_tools discovery hangs the boot
 
-O módulo `chat/skills/crewai_tools_adapter.py` tentava descobrir automaticamente 63 tools do CrewAI no momento do import. Várias tools chamam `input()` no `__init__` ou fazem I/O de rede, travando o processo **para sempre** (não apenas 5-10s — horas). O `lambda: "N"` que neutralizava `input()` não era suficiente.
+The `chat/skills/crewai_tools_adapter.py` module tried to automatically discover 63 CrewAI tools at import time. Several tools call `input()` in `__init__` or do network I/O, hanging the process **forever** (not just 5-10s — hours). The `lambda: "N"` that neutralized `input()` was not enough.
 
-## Solução Final (aplicada no manage.py)
+## Final Solution (applied in manage.py)
 
-O `manage.py` do projeto agora incorpora duas correções:
+The project's `manage.py` now incorporates two fixes:
 
-1. **Corrige `sys.path`** — remove o site-packages do Hermes e insere o do projeto no topo
-2. **Remove o `crewai_tools_adapter`** — o módulo inteiro foi deletado, junto com `chat/skills/crewai_custom/` e o import em `chat/skills/__init__.py`
+1. **Fixes `sys.path`** — removes Hermes' site-packages and inserts the project's at the top
+2. **Removes the `crewai_tools_adapter`** — the whole module was deleted, along with `chat/skills/crewai_custom/` and the import in `chat/skills/__init__.py`
 
 ```python
-"""manage.py — com path fix e sem crewai_tools discovery."""
+"""manage.py — with path fix and without crewai_tools discovery."""
 import os
 import sys
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-# Corrige sys.path: projeto primeiro, Hermes removido
+# Fixes sys.path: project first, Hermes removed
 _project_site = os.path.join(os.path.dirname(__file__), ".venv", "Lib", "site-packages")
 _hermes_site = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -43,20 +43,20 @@ from django.core.management import execute_from_command_line
 execute_from_command_line(sys.argv)
 ```
 
-## Por que remover em vez de consertar?
+## Why remove instead of fix?
 
-O `crewai_tools_adapter` foi um experimento que nunca funcionou em produção:
-- 63 tools descobertas automaticamente, a maioria com dependências opcionais ausentes
-- Várias chamam `input()` no `__init__` (mesmo com `lambda: "N"`, algumas ignoram)
-- Algumas fazem I/O de rede (Firecrawl, etc.) e podem timeout
-- **O Copilot não usa essas tools** — ele usa as skills nativas (`web_search`, `create_presentation`, `execute_crew`, etc.) registradas manualmente em `chat/skills/`
+The `crewai_tools_adapter` was an experiment that never worked in production:
+- 63 automatically discovered tools, most with missing optional dependencies
+- Several call `input()` in `__init__` (even with `lambda: "N"`, some ignore it)
+- Some do network I/O (Firecrawl, etc.) and can time out
+- **Copilot does not use these tools** — it uses the native skills (`web_search`, `create_presentation`, `execute_crew`, etc.) registered manually in `chat/skills/`
 
-Se um dia for necessário usar uma tool específica do CrewAI, ela deve ser registrada **manualmente** como skill, não descoberta automaticamente.
+If a specific CrewAI tool is ever needed, it must be registered **manually** as a skill, not discovered automatically.
 
-## Uso
+## Usage
 
 ```bash
-.venv\Scripts\python manage.py check    # ~5s (antes travava para sempre)
+.venv\Scripts\python manage.py check    # ~5s (before it hung forever)
 .venv\Scripts\python manage.py migrate
-.venv\Scripts\python manage.py runserver  # funciona sem --noreload
+.venv\Scripts\python manage.py runserver  # works without --noreload
 ```

@@ -1,61 +1,61 @@
-# Kanban / Esteira — Core Product Skills
+# Kanban / Pipeline — Core Product Skills
 
-> Disciplina: Esteira de execução (`cp-agilista`). Atualizado em 2026-08-18.
+> Discipline: Execution pipeline (`cp-agile`). Updated 2026-08-18.
 
 ## Status
 
-- [x] Backlog inicial registrado
-- Fonte de verdade do kanban: **local** (`.context/kanban/`). Trello, se conectado,
-  é apenas uma visão espelhada.
+- [x] Initial backlog recorded
+- Kanban source of truth: **local** (`.context/kanban/`). Trello, if connected,
+  is only a mirrored view.
 
-## Fluxo
+## Flow
 
 ```
-.context/inbox/{iniciativas,tasks,bugs,debitos-tecnicos}/  ← entrada bruta (rascunhos)
-        │  triagem manual (humano ou agente)
+.context/inbox/{initiatives,tasks,bugs,tech-debt}/  ← raw intake (drafts)
+        │  manual triage (human or agent)
         ▼
-.context/kanban/{1-backlog,2-todo,...}/                  ← trabalho triado em fluxo
-        │  cp-agilista (polling)
+.context/kanban/{1-backlog,2-todo,...}/                  ← triaged work in flow
+        │  cp-agile (polling)
         ▼
-   cp-orquestrador  ──► skill do modo adequado ──► .context/docs/<disciplina>.md
+   cp-orchestrator  ──► skill of the appropriate mode ──► .context/docs/<discipline>.md
         │
-        └─► dúvida/impedimento ──► .context/kanban/blocked/ ──► aguarda resposta humana
+        └─► question/blocker ──► .context/kanban/blocked/ ──► waits for human answer
 ```
 
 ## Board
 
 ### 🔵 Backlog
 
-_(vazio — todo o backlog levantado na inicializacao foi concluido em 2026-08-18)_
+_(empty — all backlog raised at initialization was completed on 2026-08-18)_
 
-Trabalho novo entra como rascunho em `.context/inbox/`. Após triado, move-se para `.context/kanban/1-backlog/`.
+New work enters as a draft in `.context/inbox/`. After triage, it moves to `.context/kanban/1-backlog/`.
 
-### 🟡 Em andamento
+### 🟡 In progress
 
-_(vazio)_
+_(empty)_
 
-### 🟢 Concluido
+### 🟢 Done
 
-| ID | Item | Data |
+| ID | Item | Date |
 |----|------|------|
-| DT-02 | Suite de smoke tests (`--help`, `--dry-run`, exit codes) | 2026-08-18 |
-| DT-03 | Validacao do contrato `invoke` x `argparse` | 2026-08-18 |
-| DT-04 | Autenticacao opcional no `claude_proxy.py` (`CLAUDE_PROXY_TOKEN`) | 2026-08-18 |
+| DT-02 | Smoke test suite (`--help`, `--dry-run`, exit codes) | 2026-08-18 |
+| DT-03 | Validation of the `invoke` x `argparse` contract | 2026-08-18 |
+| DT-04 | Optional authentication in `claude_proxy.py` (`CLAUDE_PROXY_TOKEN`) | 2026-08-18 |
 | DT-05 | `requirements.txt` + `requirements-dev.txt` | 2026-08-18 |
-| DT-06 | CI (GitHub Actions: Linux 3.12/3.13 + Windows informativo) | 2026-08-18 |
-| DOC-01 | Porta do proxy alinhada em 8090 | 2026-08-18 |
-| BUG-03 | Quality gate reprova por exit code != 0 | 2026-08-18 |
-| BUG-04 | Quality gate casa keywords por palavra inteira | 2026-08-18 |
-| BUG-05 | `cp-goal-loop` deriva passo unico do `--goal` | 2026-08-18 |
-| DT-07 | `crewai` com import guardado — `--help` em 15/15 | 2026-08-18 |
-| DT-08 | `require_llm()` falha cedo com mensagem acionavel | 2026-08-18 |
-| DT-01 | `setup_console()` forca UTF-8 no stdout/stderr | 2026-08-18 |
-| INIT-01 | Inicializacao da documentacao em `.context/` | 2026-08-18 |
+| DT-06 | CI (GitHub Actions: Linux 3.12/3.13 + Windows informative) | 2026-08-18 |
+| DOC-01 | Proxy port aligned at 8090 | 2026-08-18 |
+| BUG-03 | Quality gate fails on exit code != 0 | 2026-08-18 |
+| BUG-04 | Quality gate matches keywords by whole word | 2026-08-18 |
+| BUG-05 | `cp-goal-loop` derives a single step from `--goal` | 2026-08-18 |
+| DT-07 | `crewai` with guarded import — `--help` in 15/15 | 2026-08-18 |
+| DT-08 | `require_llm()` fails early with actionable message | 2026-08-18 |
+| DT-01 | `setup_console()` forces UTF-8 on stdout/stderr | 2026-08-18 |
+| INIT-01 | Documentation initialization in `.context/` | 2026-08-18 |
 
-## Convenções
+## Conventions
 
-- Um arquivo `.md` por item, dentro da pasta de kanban correspondente.
-- Item bruto (não triado) fica em `.context/inbox/`; após triado, move-se com `git mv` para `.context/kanban/`.
-- Item concluído: marcar `[Concluído]` (feature) ou `[Corrigido]` (bug) no título e
-  mover com `git mv` para a pasta de processados, preservando o histórico.
-- Prioridade segue MoSCoW, alinhada a `.context/docs/01-requisitos.md`.
+- One `.md` file per item, inside the corresponding kanban folder.
+- Raw (untriaged) item stays in `.context/inbox/`; after triage, move it with `git mv` to `.context/kanban/`.
+- Completed item: mark `[Done]` (feature) or `[Fixed]` (bug) in the title and
+  move it with `git mv` to the processed folder, preserving history.
+- Priority follows MoSCoW, aligned with `.context/docs/01-requirements.md`.

@@ -1,17 +1,17 @@
-# Padrões de bugs pós-migração (additions)
+# Post-migration bug patterns (additions)
 
-Pitfalls class-level adicionados em sessões recentes de bugfix no Crewbotics (Django/DRF + Postgres).
+Class-level pitfalls added in recent Crewbotics bugfix sessions (Django/DRF + Postgres).
 
-## 1. `operator does not exist: uuid = integer` em TODOS os endpoints filtrados por organização
+## 1. `operator does not exist: uuid = integer` in ALL endpoints filtered by organization
 
-**Sintoma:** dashboard, crews, crew-runs, outputs e knowledge usage todos retornam 500 com:
+**Symptom:** dashboard, crews, crew-runs, outputs and knowledge usage all return 500 with:
 ```
 psycopg.errors.UndefinedFunction: operator does not exist: uuid = integer
 LINE 1: ..._status" = 'DONE' AND "crews_crewrun"."organization_id" = 1)
 HINT:  No operator matches the given name and argument types.
 ```
 
-**Causa raiz:** numa migração de PK UUID→bigint (ex: `accounts/0009_retype_fk_columns_to_bigint.py` que faz `RESTART IDENTITY CASCADE` + retype das PKs), a migration retipou `organization_id` de apenas ALGUMAS tabelas (frequentemente `accounts_invite`, `accounts_user`, `pages_page`, `presentations_presentation`) e **esqueceu** as de domínio:
+**Root cause:** in a PK UUID→bigint migration (e.g. `accounts/0009_retype_fk_columns_to_bigint.py` that does `RESTART IDENTITY CASCADE` + PK retype), the migration retyped `organization_id` of only SOME tables (often `accounts_invite`, `accounts_user`, `pages_page`, `presentations_presentation`) and **forgot** the domain ones:
 - `crews_crewrun`, `crews_crewinstance`, `crews_crewchatsession`, `crews_crewschedule`
 - `agents_agentinstance`, `agents_agentoutput`
 - `knowledge_productcontext`, `knowledge_knowledgefolder`
@@ -21,17 +21,17 @@ HINT:  No operator matches the given name and argument types.
 - `pages_pagefolder`
 - `activity_activitylog`
 
-Essas ficam com `organization_id` como `uuid`, enquanto `accounts_organization.id` virou `bigint`. A query `WHERE organization_id = 1` (inteiro) falha.
+These keep `organization_id` as `uuid`, while `accounts_organization.id` became `bigint`. The query `WHERE organization_id = 1` (integer) fails.
 
-**Diagnóstico:**
+**Diagnosis:**
 ```sql
 SELECT table_name, data_type FROM information_schema.columns
 WHERE column_name='organization_id' AND table_schema='public'
 ORDER BY table_name;
 ```
-Compare com o tipo de `accounts_organization.id` (deve ser bigint). Toda linha `uuid` = bug.
+Compare with the type of `accounts_organization.id` (must be bigint). Every `uuid` row = bug.
 
-**Correção:** migration RunSQL idempotente, por tabela:
+**Fix:** idempotent RunSQL migration, per table:
 ```sql
 DO $$
 DECLARE fk_name text;
@@ -53,19 +53,19 @@ BEGIN
   END IF;
 END $$;
 ```
-**Testar num banco já consistente** — deve rodar como no-op sem erro (valida a idempotência).
-**Deploy:** se o erro está em produção, a migration precisa ser aplicada lá (o rollout do workflow de deploy roda `migrate`).
+**Test on an already-consistent database** — it must run as a no-op without error (validates idempotency).
+**Deploy:** if the error is in production, the migration must be applied there (the deploy workflow rollout runs `migrate`).
 
-## 1b. MESMO bug, mas nas FKs de `user_id` (e `decision_by_id`) — a migration 0009 esqueceu AMBAS as classes de FK
+## 1b. SAME bug, but on the `user_id` FKs (and `decision_by_id`) — migration 0009 forgot BOTH FK classes
 
-**Sintoma:** depois de corrigir `organization_id`, um endpoint que filtra por `user` (ex: `GET /api/v1/chat/conversations/`) ainda retorna 500 com `operator does not exist: uuid = integer` na coluna `user_id`:
+**Symptom:** after fixing `organization_id`, an endpoint that filters by `user` (e.g. `GET /api/v1/chat/conversations/`) still returns 500 with `operator does not exist: uuid = integer` on the `user_id` column:
 ```
 LINE 1: ...ization_id" = 1 AND "chat_conversation"."user_id" = 1 ...
 ```
 
-**Causa raiz:** a migration de PK UUID→bigint retipou `organization_id` de algumas tabelas E as PKs, mas **esqueceu de retipar as FKs que referenciam `accounts_user`** (`user_id`) e `crews_crewrun.decision_by_id`. Em produção essas colunas ficaram `uuid` enquanto `User.id` virou `bigint`.
+**Root cause:** the PK UUID→bigint migration retyped `organization_id` of some tables AND the PKs, but **forgot to retype the FKs that reference `accounts_user`** (`user_id`) and `crews_crewrun.decision_by_id`. In production these columns stayed `uuid` while `User.id` became `bigint`.
 
-**Diagnóstico — listar TODAS as FKs que referenciam as PKs principais (não só organization):**
+**Diagnosis — list ALL the FKs that reference the main PKs (not just organization):**
 ```sql
 SELECT tc.table_name, kcu.column_name, ccu.table_name AS ref_table
 FROM information_schema.table_constraints tc
@@ -75,11 +75,11 @@ WHERE tc.constraint_type='FOREIGN KEY'
   AND ccu.table_name IN ('accounts_user','accounts_organization')
 ORDER BY ccu.table_name, tc.table_name;
 ```
-Compare cada coluna com o tipo da PK referenciada. Toda linha `uuid` = bug.
+Compare each column with the type of the referenced PK. Every `uuid` row = bug.
 
-**Correção:** mesma migration RunSQL idempotente, mas para as FKs de `user_id`/`decision_by_id` (referenciando `accounts_user`). Tabelas típicas: `activity_activitylog.user_id`, `chat_agenttask.user_id`, `chat_conversation.user_id`, `crews_crewchatsession.user_id`, `crews_crewrun.decision_by_id`, `accounts_passwordresettoken.user_id`, `accounts_user_groups.user_id`, `accounts_user_user_permissions.user_id`, `django_admin_log.user_id`, `token_blacklist_outstandingtoken.user_id`.
+**Fix:** same idempotent RunSQL migration, but for the `user_id`/`decision_by_id` FKs (referencing `accounts_user`). Typical tables: `activity_activitylog.user_id`, `chat_agenttask.user_id`, `chat_conversation.user_id`, `crews_crewchatsession.user_id`, `crews_crewrun.decision_by_id`, `accounts_passwordresettoken.user_id`, `accounts_user_groups.user_id`, `accounts_user_user_permissions.user_id`, `django_admin_log.user_id`, `token_blacklist_outstandingtoken.user_id`.
 
-**PITFALL CRÍTICO — usar `to_regclass`, NÃO `'tabela'::regclass`:** quando a migration de retype vive no app `accounts` mas referencia tabelas de OUTROS apps (activity, chat, crews...), o `'activity_activitylog'::regclass` lança erro durante `pytest --create-db` porque a tabela ainda não foi criada (as migrations de activity rodam DEPOIS das de accounts). Use `to_regclass('tabela')` que retorna NULL em vez de lançar, e pule o bloco se NULL:
+**CRITICAL PITFALL — use `to_regclass`, NOT `'tabela'::regclass`:** when the retype migration lives in the `accounts` app but references tables from OTHER apps (activity, chat, crews...), the `'activity_activitylog'::regclass` throws an error during `pytest --create-db` because the table has not been created yet (the activity migrations run AFTER the accounts ones). Use `to_regclass('tabela')` which returns NULL instead of throwing, and skip the block if NULL:
 ```sql
 DO $$
 DECLARE tbl_oid oid := to_regclass('activity_activitylog');
@@ -88,12 +88,12 @@ BEGIN
   ...
 END $$;
 ```
-Sem isso, a migration passa no dev (banco já populado) mas quebra a suíte de testes que recria o schema do zero.
+Without this, the migration passes in dev (already-populated database) but breaks the test suite that recreates the schema from scratch.
 
-## 2. `exclude` / `__in` é case-sensitive no Postgres — não dar `.lower()` nos valores
+## 2. `exclude` / `__in` is case-sensitive in Postgres — do not `.lower()` the values
 
-**Sintoma:** ao implementar "exclua tudo exceto X", o item X que deveria ser mantido acaba excluído.
+**Symptom:** when implementing "exclude everything except X", the item X that should be kept ends up excluded.
 
-**Causa:** o código lowercasing os valores antes do match (`keep = [str(x).strip().lower() ...]`), mas o `title__in=[...]` no Postgres é case-sensitive. `'the ultimate...'` (lowercase) não casa com `'The Ultimate...'` (título real).
+**Cause:** the code lowercased the values before the match (`keep = [str(x).strip().lower() ...]`), but `title__in=[...]` in Postgres is case-sensitive. `'the ultimate...'` (lowercase) does not match `'The Ultimate...'` (real title).
 
-**Correção:** manter `str(x).strip()` (case original) para a query `__in`. Adicionar teste de regressão que verifica que o item com case exato é mantido e que um item com case divergente é excluído.
+**Fix:** keep `str(x).strip()` (original case) for the `__in` query. Add a regression test that verifies the exact-case item is kept and that an item with divergent case is excluded.

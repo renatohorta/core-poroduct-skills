@@ -1,10 +1,10 @@
-"""DT-02 — Smoke tests das skills cp-*.
+"""DT-02 — Smoke tests of the cp-* skills.
 
-Verifica o mínimo que toda skill deve garantir, sem chamar LLM:
-  - `--help` funciona sempre (mesmo sem crewai instalado)
-  - `--dry-run` monta a crew sem exigir credencial
-  - a ausência de credencial falha com código 2 e mensagem acionável
-  - a ausência de crewai falha com código 3 e mensagem acionável
+Verifies the minimum every skill must guarantee, without calling an LLM:
+  - `--help` always works (even without crewai installed)
+  - `--dry-run` builds the crew without requiring a credential
+  - the absence of a credential fails with code 2 and an actionable message
+  - the absence of crewai fails with code 3 and an actionable message
 """
 import subprocess
 import sys
@@ -17,21 +17,21 @@ from conftest import (EXIT_NO_CREWAI, EXIT_NO_LLM, EXIT_OK, REPO_ROOT,
 
 SKILLS = skill_names()
 
-# Briefing mínimo aceito por cada skill, conforme seu contrato CLI próprio.
-# Ver .context/docs/02-arquitetura.md (metadado `invoke`).
+# Minimum briefing accepted by each skill, per its own CLI contract.
+# See .context/docs/02-architecture.md (the `invoke` metadata).
 BRIEFING_ARGS = {
-    "cp-goal-loop": ["--goal", "objetivo de teste"],
-    "cp-agilista": [],
-    "cp-inicializador-doc": [],
+    "cp-goal-loop": ["--goal", "test goal"],
+    "cp-agile": [],
+    "cp-doc-initializer": [],
 }
-DEFAULT_BRIEFING = ["briefing de teste"]
+DEFAULT_BRIEFING = ["test briefing"]
 
-# Skills que não usam LLM: são Python puro e rodam integralmente sem credencial.
-NO_LLM_SKILLS = {"cp-agilista", "cp-inicializador-doc"}
+# Skills that do not use an LLM: they are pure Python and run fully without a credential.
+NO_LLM_SKILLS = {"cp-agile", "cp-doc-initializer"}
 
 
 def briefing_for(skill: str, tmp_path=None):
-    if skill == "cp-inicializador-doc":
+    if skill == "cp-doc-initializer":
         return ["--dir", str(tmp_path or tempfile.mkdtemp())]
     return BRIEFING_ARGS.get(skill, DEFAULT_BRIEFING)
 
@@ -45,116 +45,116 @@ def run_skill(skill, args, env, python_cmd, timeout=120):
 
 
 @pytest.mark.parametrize("skill", SKILLS)
-def test_help_sempre_funciona(skill, clean_env, python_cmd):
-    """`--help` deve funcionar em toda skill, inclusive sem crewai (DT-07).
+def test_help_always_works(skill, clean_env, python_cmd):
+    """`--help` must work in every skill, including without crewai (DT-07).
 
-    Regressão: antes do DT-07, 12 das 15 skills importavam crewai no topo do
-    módulo e morriam com ModuleNotFoundError antes do argparse.
+    Regression: before DT-07, 12 of the 15 skills imported crewai at the top of
+    the module and died with ModuleNotFoundError before argparse.
     """
     r = run_skill(skill, ["--help"], clean_env, python_cmd)
-    assert r.returncode == EXIT_OK, f"--help falhou:\n{r.stdout}\n{r.stderr}"
+    assert r.returncode == EXIT_OK, f"--help failed:\n{r.stdout}\n{r.stderr}"
     assert "usage:" in r.stdout.lower()
 
 
 @pytest.mark.parametrize("skill", SKILLS)
-def test_help_funciona_sem_crewai(skill, clean_env, python_cmd, tmp_path):
-    """`--help` não pode depender de crewai — simulado bloqueando o import."""
+def test_help_works_without_crewai(skill, clean_env, python_cmd, tmp_path):
+    """`--help` cannot depend on crewai — simulated by blocking the import."""
     blocker = tmp_path / "crewai.py"
-    blocker.write_text("raise ImportError('crewai bloqueado pelo teste')\n", encoding="utf-8")
+    blocker.write_text("raise ImportError('crewai blocked by the test')\n", encoding="utf-8")
     env = dict(clean_env)
     env["PYTHONPATH"] = str(tmp_path)
 
     r = run_skill(skill, ["--help"], env, python_cmd)
     assert r.returncode == EXIT_OK, (
-        f"--help quebrou sem crewai (DT-07):\n{r.stdout}\n{r.stderr}")
+        f"--help broke without crewai (DT-07):\n{r.stdout}\n{r.stderr}")
 
 
 @pytest.mark.parametrize("skill", sorted(set(SKILLS) - NO_LLM_SKILLS))
-def test_dry_run_nao_exige_credencial(skill, clean_env, python_cmd):
-    """`--dry-run` monta a crew e lista os agentes sem nenhuma chave de LLM."""
+def test_dry_run_does_not_require_credential(skill, clean_env, python_cmd):
+    """`--dry-run` builds the crew and lists the agents without any LLM key."""
     r = run_skill(skill, briefing_for(skill) + ["--dry-run"], clean_env, python_cmd)
     assert r.returncode == EXIT_OK, (
-        f"--dry-run exigiu credencial:\n{r.stdout}\n{r.stderr}")
+        f"--dry-run required a credential:\n{r.stdout}\n{r.stderr}")
 
 
-@pytest.mark.parametrize("skill", sorted(set(SKILLS) - NO_LLM_SKILLS - {"cp-orquestrador"}))
-def test_sem_llm_falha_com_mensagem_acionavel(skill, clean_env, python_cmd):
-    """Sem credencial, a execução real sai com 2 e diz o que configurar (DT-08).
+@pytest.mark.parametrize("skill", sorted(set(SKILLS) - NO_LLM_SKILLS - {"cp-orchestrator"}))
+def test_without_llm_fails_with_actionable_message(skill, clean_env, python_cmd):
+    """Without a credential, the real execution exits with 2 and says what to configure (DT-08).
 
-    Regressão: antes, `build_crew_llm()` devolvia None, o None chegava ao
-    Agent() e o CrewAI caía no default OpenAI, falhando lá na frente com
+    Regression: before, `build_crew_llm()` returned None, the None reached the
+    Agent() and CrewAI fell into the OpenAI default, failing later with
     `OPENAI_API_KEY is required`.
     """
     r = run_skill(skill, briefing_for(skill), clean_env, python_cmd)
-    saida = r.stdout + r.stderr
+    output = r.stdout + r.stderr
     assert r.returncode == EXIT_NO_LLM, (
-        f"esperava exit {EXIT_NO_LLM}, veio {r.returncode}:\n{saida}")
-    assert "LLM_API_KEY" in saida, "a mensagem precisa dizer o que configurar"
-    assert "--dry-run" in saida, "a mensagem precisa apontar a alternativa sem LLM"
+        f"expected exit {EXIT_NO_LLM}, got {r.returncode}:\n{output}")
+    assert "LLM_API_KEY" in output, "the message must say what to configure"
+    assert "--dry-run" in output, "the message must point to the no-LLM alternative"
 
 
 @pytest.mark.parametrize("skill", sorted(set(SKILLS) - NO_LLM_SKILLS))
-def test_sem_crewai_falha_com_mensagem_acionavel(skill, clean_env, python_cmd, tmp_path):
-    """Sem a lib, a execução sai com 3 e instrui a instalar (DT-07)."""
+def test_without_crewai_fails_with_actionable_message(skill, clean_env, python_cmd, tmp_path):
+    """Without the lib, the execution exits with 3 and instructs to install (DT-07)."""
     blocker = tmp_path / "crewai.py"
-    blocker.write_text("raise ImportError('crewai bloqueado pelo teste')\n", encoding="utf-8")
+    blocker.write_text("raise ImportError('crewai blocked by the test')\n", encoding="utf-8")
     env = dict(clean_env)
     env["PYTHONPATH"] = str(tmp_path)
 
     r = run_skill(skill, briefing_for(skill), env, python_cmd)
-    saida = r.stdout + r.stderr
+    output = r.stdout + r.stderr
     assert r.returncode == EXIT_NO_CREWAI, (
-        f"esperava exit {EXIT_NO_CREWAI}, veio {r.returncode}:\n{saida}")
-    assert "pip install crewai" in saida
-    assert "Traceback" not in saida, "deve ser mensagem acionável, não traceback"
+        f"expected exit {EXIT_NO_CREWAI}, got {r.returncode}:\n{output}")
+    assert "pip install crewai" in output
+    assert "Traceback" not in output, "must be an actionable message, not a traceback"
 
 
 @pytest.mark.parametrize("skill", sorted(NO_LLM_SKILLS))
-def test_skills_sem_llm_rodam_integralmente(skill, clean_env, python_cmd, tmp_path):
-    """cp-agilista e cp-inicializador-doc são Python puro: rodam sem credencial."""
+def test_skills_without_llm_run_fully(skill, clean_env, python_cmd, tmp_path):
+    """cp-agile and cp-doc-initializer are pure Python: run without a credential."""
     args = briefing_for(skill, tmp_path) + ["--dry-run"]
     r = run_skill(skill, args, clean_env, python_cmd)
-    assert r.returncode == EXIT_OK, f"{skill} falhou sem LLM:\n{r.stdout}\n{r.stderr}"
+    assert r.returncode == EXIT_OK, f"{skill} failed without an LLM:\n{r.stdout}\n{r.stderr}"
 
 
-def test_inicializador_cria_kanban_desde_o_inicio(clean_env, python_cmd, tmp_path):
-    """O kanban nasce na inicializacao, nao no primeiro run do cp-agilista.
+def test_initializer_creates_kanban_from_the_start(clean_env, python_cmd, tmp_path):
+    """The kanban is born at initialization, not on the first cp-agile run.
 
-    Regressao: `.context/docs/06-kanban.md` e o `cp-agilista` referenciam
-    `.context/kanban/`, mas so o `--init` do agilista criava as colunas — em
-    projeto novo o ponteiro ficava orfao.
+    Regression: `.context/docs/06-kanban.md` and `cp-agile` reference
+    `.context/kanban/`, but only the agile `--init` created the columns — in a
+    new project the pointer was orphaned.
     """
-    r = run_skill("cp-inicializador-doc", ["--dir", str(tmp_path)],
+    r = run_skill("cp-doc-initializer", ["--dir", str(tmp_path)],
                   clean_env, python_cmd)
-    assert r.returncode == EXIT_OK, f"inicializador falhou: {r.stdout} {r.stderr}"
+    assert r.returncode == EXIT_OK, f"initializer failed: {r.stdout} {r.stderr}"
 
     kanban = tmp_path / ".context" / "kanban"
-    assert (kanban / "README.md").is_file(), "kanban/README.md nao foi criado"
+    assert (kanban / "README.md").is_file(), "kanban/README.md was not created"
 
-    # As colunas espelham KANBAN_COLUMNS + BLOCKED_DIR de cp-agilista.
-    colunas = ["1-backlog", "2-todo", "3-doing", "4-review",
+    # The columns mirror KANBAN_COLUMNS + BLOCKED_DIR of cp-agile.
+    columns = ["1-backlog", "2-todo", "3-doing", "4-review",
                "5-testing", "6-staging", "7-done", "blocked"]
-    for col in colunas:
-        assert (kanban / col).is_dir(), f"coluna {col} nao foi criada"
-        # git nao versiona diretorio vazio: sem .gitkeep a estrutura nao viaja.
-        assert (kanban / col / ".gitkeep").is_file(), f"{col}/.gitkeep faltando"
+    for col in columns:
+        assert (kanban / col).is_dir(), f"column {col} was not created"
+        # git does not version an empty directory: without .gitkeep the structure does not travel.
+        assert (kanban / col / ".gitkeep").is_file(), f"{col}/.gitkeep missing"
 
 
-def test_colunas_do_kanban_batem_entre_agilista_e_inicializador():
-    """As duas skills declaram as colunas separadamente — nao podem divergir."""
+def test_kanban_columns_match_between_agile_and_initializer():
+    """The two skills declare the columns separately — they cannot diverge."""
     import re
 
-    def colunas(skill, const):
+    def columns(skill, const):
         src = skill_script(skill).read_text(encoding="utf-8")
-        bloco = re.search(rf"^{const} = \[(.*?)\]", src, re.S | re.M)
-        assert bloco, f"{const} nao encontrado em {skill}"
-        return re.findall(r'"([^"]+)"', bloco.group(1))
+        block = re.search(rf"^{const} = \[(.*?)\]", src, re.S | re.M)
+        assert block, f"{const} not found in {skill}"
+        return re.findall(r'"([^"]+)"', block.group(1))
 
-    assert colunas("cp-agilista", "KANBAN_COLUMNS") ==         colunas("cp-inicializador-doc", "KANBAN_COLUMNS")
+    assert columns("cp-agile", "KANBAN_COLUMNS") ==         columns("cp-doc-initializer", "KANBAN_COLUMNS")
 
 
-def test_install_sh_dry_run_lista_todas_as_skills(clean_env, tmp_path, bash_cmd):
-    """`install.sh --dry-run` deve listar as 15 skills e o helper _shared."""
+def test_install_sh_dry_run_lists_all_skills(clean_env, tmp_path, bash_cmd):
+    """`install.sh --dry-run` must list the 15 skills and the _shared helper."""
     env = dict(clean_env)
     env["HERMES_SKILLS_DIR"] = str(tmp_path / "hermes")
     env["CLAUDE_SKILLS_DIR"] = str(tmp_path / "claude")
@@ -164,7 +164,7 @@ def test_install_sh_dry_run_lista_todas_as_skills(clean_env, tmp_path, bash_cmd)
         capture_output=True, text=True, timeout=120,
         cwd=str(REPO_ROOT), env=env, encoding="utf-8", errors="replace",
     )
-    assert r.returncode == EXIT_OK, f"install.sh falhou:\n{r.stdout}\n{r.stderr}"
+    assert r.returncode == EXIT_OK, f"install.sh failed:\n{r.stdout}\n{r.stderr}"
     for skill in SKILLS:
-        assert skill in r.stdout, f"{skill} não apareceu no plano de instalação"
-    assert "_shared" in r.stdout, "_shared precisa ser propagado (não é skill)"
+        assert skill in r.stdout, f"{skill} did not appear in the install plan"
+    assert "_shared" in r.stdout, "_shared must be propagated (it is not a skill)"

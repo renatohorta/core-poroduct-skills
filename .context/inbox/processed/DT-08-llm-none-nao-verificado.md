@@ -1,45 +1,46 @@
-# DT-08 — `build_crew_llm()` retorna None e ninguém verifica [Corrigido]
+# DT-08 — `build_crew_llm()` returns None and nobody checks it [Fixed]
 
-**Tipo**: Débito técnico / Bug · **Prioridade**: Alta · **Aberto em**: 2026-08-18
-**Verificado empiricamente**: sim (13/13 skills que usam LLM)
+**Type**: Technical debt / Bug · **Priority**: High · **Opened on**: 2026-08-18
+**Verified empirically**: yes (13/13 skills that use an LLM)
 
-## Contexto
+## Context
 
-`skills/_shared/llm.py` documenta explicitamente o contrato:
+`skills/_shared/llm.py` explicitly documents the contract:
 
-> "Retorna None se o crewai não estiver instalado ou se não houver chave
-> configurada (**a skill pode então avisar** em vez de cair no default OpenAI)."
+> "Returns None if crewai is not installed or if there is no configured key
+> (**the skill can then warn** instead of falling into the OpenAI default)."
 
-**Nenhuma skill implementa esse "avisar".** O padrão em todas as 13 é:
+**No skill implements that "warn".** The pattern in all 13 is:
 
 ```python
-_crew_llm = build_crew_llm()      # pode ser None
-return Agent(..., llm=_crew_llm)  # nunca verificado
+_crew_llm = build_crew_llm()      # can be None
+return Agent(..., llm=_crew_llm)  # never checked
 ```
 
-Busca por qualquer checagem de `_crew_llm` fora da atribuição e do `llm=`:
-zero ocorrências.
+A search for any check of `_crew_llm` outside the assignment and the `llm=`:
+zero occurrences.
 
-## Evidência
+## Evidence
 
-Com `crewai` presente (stub instrumentado) e **sem chave**, cada skill:
+With `crewai` present (instrumented stub) and **no key**, each skill:
 
-| Skill | agentes criados | com `llm=None` | `LLM()` construído | chegou ao `kickoff()` |
-|-------|----------------|----------------|--------------------|-----------------------|
-| cp-requisitos | 4 | 4 | não | **sim** |
-| cp-arquitetura | 5 | 5 | não | **sim** |
-| cp-implementacao | 5 | 5 | não | **sim** |
-| cp-testes | 5 | 5 | não | **sim** |
-| cp-seguranca / devops / documentacao / qualidade / bug-fix / competitive-analysis / manutencao / orquestrador | 4 | 4 | não | **sim** |
+| Skill | agents created | with `llm=None` | `LLM()` built | reached `kickoff()` |
+|-------|----------------|-----------------|---------------|---------------------|
+| cp-requirements | 4 | 4 | no | **yes** |
+| cp-architecture | 5 | 5 | no | **yes** |
+| cp-implementation | 5 | 5 | no | **yes** |
+| cp-testing | 5 | 5 | no | **yes** |
+| cp-security / devops / documentation / quality / bug-fix / competitive-analysis / maintenance / orchestrator | 4 | 4 | no | **yes** |
 
-Ou seja: 100% dos agentes ficam sem LLM e a execução avança até o `kickoff()`
-**sem um único aviso**. Em CrewAI real, `Agent(llm=None)` cai no default OpenAI —
-exatamente o `OPENAI_API_KEY is required` que o helper existe para evitar.
+That is: 100% of the agents end up without an LLM and execution advances to
+`kickoff()` **without a single warning**. In real CrewAI, `Agent(llm=None)` falls
+into the OpenAI default — exactly the `OPENAI_API_KEY is required` the helper
+exists to avoid.
 
-## Correção proposta
+## Proposed fix
 
-Falhar cedo, com mensagem que diz o que fazer. Em `build_crew()` de cada skill
-(ou num helper novo `require_llm()` em `_shared/llm.py`):
+Fail early, with a message that says what to do. In each skill's `build_crew()`
+(or in a new `require_llm()` helper in `_shared/llm.py`):
 
 ```python
 from _shared.llm import build_crew_llm, get_llm_config
@@ -48,27 +49,28 @@ def require_llm():
     llm = build_crew_llm()
     if llm is None:
         cfg = get_llm_config()
-        print("❌ Nenhum LLM configurado.")
-        print(f"   Modelo resolvido: {cfg['model']} (sem chave)")
-        print("   Configure LLM_API_KEY/LLM_MODEL no ambiente ou em .env")
-        print("   (veja .env.example). Use --dry-run para inspecionar sem LLM.")
+        print("❌ No LLM configured.")
+        print(f"   Resolved model: {cfg['model']} (no key)")
+        print("   Configure LLM_API_KEY/LLM_MODEL in the environment or in .env")
+        print("   (see .env.example). Use --dry-run to inspect without an LLM.")
         sys.exit(2)
     return llm
 ```
 
-Chamar no início da execução real — **nunca** em `--dry-run`, que deve continuar
-funcionando sem credencial.
+Call it at the start of the real execution — **never** in `--dry-run`, which must
+keep working without credentials.
 
-## Critério de aceite
+## Acceptance criterion
 
-- Sem chave, a skill sai com código 2 e mensagem acionável, antes de montar a crew.
-- Com `--dry-run`, a skill continua funcionando sem chave.
+- Without a key, the skill exits with code 2 and an actionable message, before
+  building the crew.
+- With `--dry-run`, the skill keeps working without a key.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Corrigido em 2026-08-18**, propagado aos agentes via `./scripts/install.sh`.
-Verificado empiricamente com o harness de duas camadas (sem `crewai` / com
-`crewai` stub e sem chave). Ver `.context/docs/04-qualidade-qa.md`.
+**Fixed on 2026-08-18**, propagated to the agents via `./scripts/install.sh`.
+Verified empirically with the two-layer harness (without `crewai` / with
+`crewai` stub and no key). See `.context/docs/04-quality-qa.md`.

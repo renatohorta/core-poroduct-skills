@@ -1,16 +1,16 @@
-# Aprovar/Rejeitar no card de crew — botão trava "processando"
+# Approve/Reject on the crew card — button stuck "processing"
 
-## Sintoma
-Usuário clica em "Aprovar entrega" (ou "Rejeitar") no card de resultado da crew no chat. O botão fica com spinner (`animate-spin`), `disabled=true`, e **nunca** volta ao normal. Nenhuma resposta/ack aparece. A mensagem da crew concluiu (DONE) mas a decisão não é confirmada.
+## Symptom
+User clicks "Aprovar entrega" (or "Rejeitar") on the crew result card in chat. The button stays with a spinner (`animate-spin`), `disabled=true`, and **never** returns to normal. No response/ack appears. The crew message completed (DONE) but the decision is not confirmed.
 
-## Causa raiz
-O front (em `CrewRunCard.tsx`, função `decide`) faz `POST /api/v1/chat/agui/resume/` e chama `await res.text()`, que espera o **stream SSE fechar**. O backend (`chat/agui/views.py` → `_apply_decision`) chama `enqueue_task_sync("on_crew_run_approved_callback", ...)`.
+## Root cause
+The frontend (in `CrewRunCard.tsx`, `decide` function) does `POST /api/v1/chat/agui/resume/` and calls `await res.text()`, which waits for the **SSE stream to close**. The backend (`chat/agui/views.py` → `_apply_decision`) calls `enqueue_task_sync("on_crew_run_approved_callback", ...)`.
 
-Se esse callback roda **inline** (via `asyncio.run` no `except RuntimeError` de `config/task_proxy.py`), ele executa operações longas (integrações Composio, criação de página) DENTRO do request. O endpoint nunca retorna headers → `res.text()` fica pendurado → botão "processando" para sempre.
+If that callback runs **inline** (via `asyncio.run` in the `except RuntimeError` of `config/task_proxy.py`), it executes long operations (Composio integrations, page creation) INSIDE the request. The endpoint never returns headers → `res.text()` hangs → "processing" button forever.
 
-## Diagnóstico
-1. Reproduzir no browser: clicar em aprovar, verificar que o botão fica `disabled` + spinner (`document.querySelector(...).disabled`, `innerHTML` com `lucide-loader-circle animate-spin`).
-2. Testar o endpoint direto:
+## Diagnosis
+1. Reproduce in the browser: click approve, verify that the button stays `disabled` + spinner (`document.querySelector(...).disabled`, `innerHTML` with `lucide-loader-circle animate-spin`).
+2. Test the endpoint directly:
 ```python
 import urllib.request, json
 # login → access token
@@ -20,13 +20,13 @@ req = urllib.request.Request(
     headers={"Content-Type": "application/json", "Authorization": f"Bearer {access}"})
 resp = urllib.request.urlopen(req, timeout=15)   # TimeoutError ⇒ inline blocking
 ```
-- `TimeoutError` → callback rodando inline (bug).
-- `200` em ~2s com stream `RUN_STARTED → crew.decision → RUN_FINISHED` → correto.
+- `TimeoutError` → callback running inline (bug).
+- `200` in ~2s with stream `RUN_STARTED → crew.decision → RUN_FINISHED` → correct.
 
-## Correção (2 partes)
+## Fix (2 parts)
 
-### 1. `config/task_proxy.py` — callbacks de aprovação em thread separada
-No `except RuntimeError`, o set de tasks longas NÃO pode conter só `run_crew`. Incluir:
+### 1. `config/task_proxy.py` — approval callbacks in a separate thread
+In the `except RuntimeError`, the set of long tasks must NOT contain only `run_crew`. Include:
 ```python
 _LONG_TASKS = {
     "run_crew",
@@ -34,19 +34,19 @@ _LONG_TASKS = {
     "on_crew_run_rejected_callback",
 }
 if name in _LONG_TASKS:
-    # roda em daemon thread com asyncio.run(); retorna imediatamente
+    # runs in a daemon thread with asyncio.run(); returns immediately
 ```
 
-### 2. `crews/callbacks_async.py` — isolar ORM síncrono (SynchronousOnlyOperation)
-Ao mover o callback para thread, aparecem erros latentes mascarados pelo inline:
-- `_create_page_from_run` chamava `_final_task_output(run)`, `run.crew.custom_name`, `run.created_at` (ORM síncrono) em contexto async → `SynchronousOnlyOperation`.
-- Fix: helper síncrono `_read_final_meta(run, _final_task_output)` retornando `(final_link, crew_name, created_at, org_id)`, chamado via `sync_to_async`. Usar `organization_id`/`uuid`, nunca `run.organization`/`pk`.
-- `PageViewSet.publish(request, pk=...)` → o `PageViewSet` tem `lookup_field="uuid"`. Usar `publish(request, uuid=str(page.uuid))`, senão `publish() got an unexpected keyword argument 'pk'`.
+### 2. `crews/callbacks_async.py` — isolate synchronous ORM (SynchronousOnlyOperation)
+When moving the callback to a thread, latent errors masked by the inline appear:
+- `_create_page_from_run` called `_final_task_output(run)`, `run.crew.custom_name`, `run.created_at` (synchronous ORM) in an async context → `SynchronousOnlyOperation`.
+- Fix: synchronous helper `_read_final_meta(run, _final_task_output)` returning `(final_link, crew_name, created_at, org_id)`, called via `sync_to_async`. Use `organization_id`/`uuid`, never `run.organization`/`pk`.
+- `PageViewSet.publish(request, pk=...)` → the `PageViewSet` has `lookup_field="uuid"`. Use `publish(request, uuid=str(page.uuid))`, otherwise `publish() got an unexpected keyword argument 'pk'`.
 
-## Verificação
-- Teste de regressão `tests/chat/test_resume_nonblocking.py`: chama `enqueue_task_sync("on_crew_run_approved_callback", fake_callback, ...)` num teste síncrono (sem event loop) e asserta que (a) retorna < 3s (não bloqueia) e (b) o callback roda numa thread diferente (`threading.get_ident()`).
+## Verification
+- Regression test `tests/chat/test_resume_nonblocking.py`: calls `enqueue_task_sync("on_crew_run_approved_callback", fake_callback, ...)` in a synchronous test (no event loop) and asserts that (a) it returns < 3s (does not block) and (b) the callback runs in a different thread (`threading.get_ident()`).
 - `pytest tests/chat/test_resume_nonblocking.py tests/chat/test_agui_resume_done.py --create-db`.
-- Loop E2E no browser: clicar aprovar → botão volta ao normal, ack aparece.
+- E2E loop in the browser: click approve → button returns to normal, ack appears.
 
-## Reiniciar o Daphne
-Módulos editados são importados no boot do ASGI (sem auto-reload). Matar o PID da porta 8000 e relançar. Ao subir via subprocess/execute_code, setar `PYTHONPATH` SÓ para `.venv\Lib\site-packages` (senão conflito cffi/lxml/_overlapped com o venv do Hermes) e usar `python.exe -m daphne` (não `daphne.exe`). Testar `python -c "import asyncio, daphne"` antes.
+## Restart Daphne
+Edited modules are imported at ASGI boot (no auto-reload). Kill the PID on port 8000 and relaunch. When starting via subprocess/execute_code, set `PYTHONPATH` ONLY to `.venv\Lib\site-packages` (otherwise cffi/lxml/_overlapped conflict with the Hermes venv) and use `python.exe -m daphne` (not `daphne.exe`). Test `python -c "import asyncio, daphne"` first.

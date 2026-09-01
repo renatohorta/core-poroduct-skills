@@ -2,7 +2,7 @@
 
 ## Version
 
-`ddgs==9.14.4` (installed via pip in project venv).
+`ddgs==9.14.4` (installed via pip in the project venv).
 
 ## Import: avoid the lazy proxy
 
@@ -25,7 +25,7 @@ fails with `ImportError: cannot import name 'etree'`.
 ## `images()` method signature
 
 ```python
-# BROKEN — ddgs 9.x ignores `keywords=` keyword:
+# BROKEN — ddgs 9.x ignores the `keywords=` keyword:
 ddgs.images(keywords=query, max_results=5)
 
 # WORKS — query is the FIRST positional argument:
@@ -51,22 +51,22 @@ All search methods follow the same positional-query pattern.
 
 ## DNS failure: `record type OPT only allowed in additional section`
 
-**Sintoma:** todos os engines do ddgs falham intermitentemente com:
+**Symptom:** all ddgs engines fail intermittently with:
 
 ```
 Error in engine google: DDGSException("ConnectError: ... dns error > protocol error: decoding error: record type OPT only allowed in additional section")
 ```
 
-**Causa raiz:** o ddgs usa o `primp` (HTTP client Rust) que por padrão usa o resolver
-DNS **hickory** embutido. Esse resolver falha intermitentemente decodificando respostas
-EDNS0 (OPT). Como TODOS os engines usam o mesmo client primp, uma única falha de DNS
-derruba a busca inteira. É intermitente (~50% de falha no Windows).
+**Root cause:** ddgs uses `primp` (Rust HTTP client) which by default uses the built-in
+**hickory** DNS resolver. This resolver intermittently fails decoding EDNS0 (OPT)
+responses. Since ALL engines use the same primp client, a single DNS failure
+brings down the whole search. It is intermittent (~50% failure on Windows).
 
-**Diagnóstico:** rodar `ddgs.text()` várias vezes — às vezes OK, às vezes `record type OPT`.
+**Diagnosis:** run `ddgs.text()` several times — sometimes OK, sometimes `record type OPT`.
 
-**Correção:** forçar `dns_resolver="system"` no client primp. Como `primp.Client` é uma
-extensão Rust (não sub-classable e `__init__` não substituível), patchear o
-`BaseSearchEngine.__init__` do ddgs para construir o client com `dns_resolver="system"`:
+**Fix:** force `dns_resolver="system"` on the primp client. Since `primp.Client` is a
+Rust extension (not sub-classable and `__init__` not replaceable), patch the
+ddgs `BaseSearchEngine.__init__` to build the client with `dns_resolver="system"`:
 
 ```python
 import primp
@@ -105,5 +105,5 @@ def _patched_init(self, proxy=None, timeout=None, *, verify=True):
 BaseSearchEngine.__init__ = _patched_init
 ```
 
-Validado: 6/6 OK estável (antes ~50% falha). Referência da correção no projeto:
+Validated: 6/6 OK stable (before ~50% failure). Fix reference in the project:
 `chat/web_search.py` → `_patch_ddgs_system_dns()`.

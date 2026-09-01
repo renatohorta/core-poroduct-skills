@@ -43,7 +43,7 @@ Verify: `.venv/Scripts/python.exe -m celery -A config inspect ping -t 5`
 4. Click "ENTRAR"
 5. Verify: Dashboard loads with user info in sidebar
 
-## Phase 1: Base de Conhecimento (via Browser)
+## Phase 1: Knowledge Base (via Browser)
 
 | Step | Action | Verification |
 |------|--------|-------------|
@@ -55,7 +55,7 @@ Verify: `.venv/Scripts/python.exe -m celery -A config inspect ping -t 5`
 
 **Note:** Browser file upload requires a real file selection dialog. For automated testing, use the multipart API upload (see `references/e2e-crud-testing.md`) and verify the result in the browser.
 
-## Phase 2: Páginas (via Browser)
+## Phase 2: Pages (via Browser)
 
 | Step | Action | Verification |
 |------|--------|-------------|
@@ -67,7 +67,7 @@ Verify: `.venv/Scripts/python.exe -m celery -A config inspect ping -t 5`
 | Unpublish | Click "Despublicar" | Status changes to "Rascunho" |
 | Delete | Click "Excluir" | Page removed from list |
 
-## Phase 3: Apresentações (via Browser)
+## Phase 3: Presentations (via Browser)
 
 | Step | Action | Verification |
 |------|--------|-------------|
@@ -79,7 +79,7 @@ Verify: `.venv/Scripts/python.exe -m celery -A config inspect ping -t 5`
 
 **Note:** If Presentations don't have a dedicated frontend page yet, test via API (see `references/e2e-crud-testing.md` Phase 3).
 
-## Phase 4: Chat e RAG (via Browser)
+## Phase 4: Chat and RAG (via Browser)
 
 | Step | Action | Verification |
 |------|--------|-------------|
@@ -94,56 +94,56 @@ Verify: `.venv/Scripts/python.exe -m celery -A config inspect ping -t 5`
 Create `.hermes/docs/testes-de-loop/LOOP-NNN-<slug>.md` with:
 
 ```markdown
-# Teste de Loop: <title>
+# Loop Test: <title>
 
 **ID:** LOOP-NNN
-**Data de Criação:** YYYY-MM-DD
-**Status:** ⏳ Pendente
+**Creation Date:** YYYY-MM-DD
+**Status:** ⏳ Pending
 
-## Objetivo
+## Objective
 
 <description>
 
-## Critérios de Aprovação
+## Approval Criteria
 
-### Fase 1: Base de Conhecimento
-1. ✅ Criar pasta na base de conhecimento
-2. ✅ Upload de arquivo .md
-3. ✅ Verificar indexação
-4. ✅ Renomear arquivo
-5. ✅ Excluir (soft delete)
-6. ✅ Restaurar da lixeira
+### Phase 1: Knowledge Base
+1. ✅ Create folder in the knowledge base
+2. ✅ Upload .md file
+3. ✅ Verify indexing
+4. ✅ Rename file
+5. ✅ Delete (soft delete)
+6. ✅ Restore from trash
 
-### Fase 2: Páginas
-7. ✅ Listar templates
-8. ✅ Criar página a partir de template
-9. ✅ Publicar página
-10. ✅ Servir página publicada
-11. ✅ Despublicar página
-12. ✅ Excluir página
+### Phase 2: Pages
+7. ✅ List templates
+8. ✅ Create page from template
+9. ✅ Publish page
+10. ✅ Serve published page
+11. ✅ Unpublish page
+12. ✅ Delete page
 
-### Fase 3: Apresentações
-13. ✅ Criar apresentação
-14. ✅ Editar título
-15. ✅ Regenerar .pptx
-16. ✅ Excluir apresentação
+### Phase 3: Presentations
+13. ✅ Create presentation
+14. ✅ Edit title
+15. ✅ Regenerate .pptx
+16. ✅ Delete presentation
 
-### Fase 4: Chat e RAG
-17. ✅ Conversar com o Copilot
-18. ✅ Copilot responde com base no RAG
+### Phase 4: Chat and RAG
+17. ✅ Chat with Copilot
+18. ✅ Copilot responds based on RAG
 
-## Tabela de Resultados
+## Results Table
 
-| # | Tentativa | Data | Status | Observações |
+| # | Attempt | Date | Status | Notes |
 |---|-----------|------|--------|-------------|
-| 1 | Execução inicial | YYYY-MM-DD | ⏳ Pendente | |
+| 1 | Initial execution | YYYY-MM-DD | ⏳ Pending | |
 
-## Bloco de Tratamento de Bugs
+## Bug Handling Block
 
-Se durante a execução do teste for encontrado um bug:
-1. Diagnosticar a causa raiz
-2. Criar arquivo em `.hermes/inbox/bugs/BUG-YYYYMMDD-<slug>.md`
-3. Corrigir o código
-4. Atualizar a tabela com o resultado
-5. Reiniciar o teste da fase que falhou
+If a bug is found during test execution:
+1. Diagnose the root cause
+2. Create a file in `.hermes/inbox/bugs/BUG-YYYYMMDD-<slug>.md`
+3. Fix the code
+4. Update the table with the result
+5. Restart the test from the phase that failed
 ```

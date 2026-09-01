@@ -1,74 +1,74 @@
-# Padrões de Bugs Pós-Migração (Celery → Asyncio)
+# Post-Migration Bug Patterns (Celery → Asyncio)
 
-Reproduzidos nesta sessão (2026-08-04). Use como checklist ao encontrar `ModuleNotFoundError`, `ImportError` ou `SyntaxError` após uma migração que deletou/renomeou módulos.
+Reproduced in this session (2026-08-04). Use as a checklist when you find `ModuleNotFoundError`, `ImportError` or `SyntaxError` after a migration that deleted/renamed modules.
 
-## 1. Import de módulo deletado
+## 1. Import of a deleted module
 
-**Sintoma:** `ModuleNotFoundError: No module named 'agents.tasks'`
+**Symptom:** `ModuleNotFoundError: No module named 'agents.tasks'`
 
-**Causa:** O módulo `agents/tasks.py` foi deletado (substituído por `agents/tasks_async.py`), mas `agents/views.py` ainda tinha `from .tasks import run_agent`.
+**Cause:** The `agents/tasks.py` module was deleted (replaced by `agents/tasks_async.py`), but `agents/views.py` still had `from .tasks import run_agent`.
 
-**Correção:** Remover a linha obsoleta. O import correto (`from agents.tasks_async import run_agent`) já existia logo abaixo.
+**Fix:** Remove the obsolete line. The correct import (`from agents.tasks_async import run_agent`) already existed right below.
 
-**Padrão:** Ocorreu em 4 arquivos:
+**Pattern:** Occurred in 4 files:
 - `agents/views.py`: `from .tasks import run_agent`
 - `knowledge/views.py`: `from .tasks import index_document`
 - `integrations/views.py`: `from .tasks import process_webhook_event`
 - `crews/services.py`: `from .tasks import run_crew` (2x)
 
-## 2. Import inserido dentro de multi-line import
+## 2. Import inserted inside a multi-line import
 
-**Sintoma:** `SyntaxError: invalid syntax` apontando para a linha do import.
+**Symptom:** `SyntaxError: invalid syntax` pointing to the import line.
 
-**Causa:** Ao inserir `from config.task_proxy import enqueue_task_sync` programaticamente, ele caiu DENTRO dos parênteses de:
+**Cause:** When inserting `from config.task_proxy import enqueue_task_sync` programmatically, it landed INSIDE the parentheses of:
 ```python
 from .models import (
     CrewInstance,
 ```
-Resultando em:
+Resulting in:
 ```python
 from .models import (
 from config.task_proxy import enqueue_task_sync  # ← SyntaxError
     CrewInstance,
 ```
 
-**Correção:** Mover os imports para antes do bloco `from .models import (`.
+**Fix:** Move the imports to before the `from .models import (` block.
 
-**Ocorreu em:** `crews/services.py`, `integrations/views.py`
+**Occurred in:** `crews/services.py`, `integrations/views.py`
 
-## 3. Indentação quebrada em try/except
+## 3. Broken indentation in try/except
 
-**Sintoma:** `IndentationError: unindent does not match any outer indentation level`
+**Symptom:** `IndentationError: unindent does not match any outer indentation level`
 
-**Causa:** O replace de `index_document.delay(str(doc.id))` por `enqueue_task_sync(...)` quebrou a indentação do bloco `try` circundante. O `try:` ficou num nível e o `enqueue_task_sync` em outro.
+**Cause:** The replace of `index_document.delay(str(doc.id))` with `enqueue_task_sync(...)` broke the indentation of the surrounding `try` block. The `try:` ended up at one level and `enqueue_task_sync` at another.
 
-**Ocorreu em:** `knowledge/archiving.py` e `crews/services.py`
+**Occurred in:** `knowledge/archiving.py` and `crews/services.py`
 
-## 4. Função async faltando no módulo de destino
+## 4. Async function missing in the destination module
 
-**Sintoma:** `ImportError: cannot import name 'run_crew' from 'crews.tasks_async'`
+**Symptom:** `ImportError: cannot import name 'run_crew' from 'crews.tasks_async'`
 
-**Causa:** A função `run_crew` (pipeline completo) existia no `crews/tasks.py` antigo mas NUNCA foi portada para `crews/tasks_async.py`. O `crew_runner_async.py` tinha o motor baixo-nível (`run_pipeline_async`), mas a função de alto-nível que `services.py` importava não existia.
+**Cause:** The `run_crew` function (full pipeline) existed in the old `crews/tasks.py` but was NEVER ported to `crews/tasks_async.py`. The `crew_runner_async.py` had the low-level engine (`run_pipeline_async`), but the high-level function that `services.py` imported did not exist.
 
-**Correção:** Adicionar `async def run_crew(crew_run_id)` completa em `crews/tasks_async.py` (141 linhas).
+**Fix:** Add the complete `async def run_crew(crew_run_id)` in `crews/tasks_async.py` (141 lines).
 
-## 5. Import duplicado lado a lado
+## 5. Duplicate side-by-side import
 
-**Sintoma:** O import antigo e o novo foram inseridos lado a lado:
+**Symptom:** The old and new imports were inserted side by side:
 ```python
-from .tasks import run_agent       # ← quebra (módulo deletado)
-from agents.tasks_async import run_agent  # ← funcionaria se chegasse aqui
+from .tasks import run_agent       # ← breaks (deleted module)
+from agents.tasks_async import run_agent  # ← would work if it got here
 ```
 
-**Causa:** O Python executa o primeiro import — se o módulo foi deletado, nunca chega no segundo.
+**Cause:** Python executes the first import — if the module was deleted, it never reaches the second.
 
-## 6. `manage.py` travando por conflito de `lxml` do Hermes
+## 6. `manage.py` hanging due to Hermes `lxml` conflict
 
-**Sintoma:** `ImportError: cannot import name 'etree' from 'lxml'` apontando para o site-packages do Hermes, não do projeto.
+**Symptom:** `ImportError: cannot import name 'etree' from 'lxml'` pointing to Hermes' site-packages, not the project's.
 
-**Causa:** O `sys.path` carrega o site-packages do Hermes antes do do projeto. O Hermes tem um `lxml` incompatível.
+**Cause:** The `sys.path` loads Hermes' site-packages before the project's. Hermes has an incompatible `lxml`.
 
-**Correção definitiva no manage.py:**
+**Definitive fix in manage.py:**
 ```python
 import sys
 project_site = os.path.join(os.path.dirname(__file__), '.venv', 'Lib', 'site-packages')
@@ -82,128 +82,128 @@ sys.path.insert(0, project_site)
 sys.path = [p for p in sys.path if hermes_site not in p]
 ```
 
-## 7. `crewai_tools_adapter.py` travando o boot para sempre
+## 7. `crewai_tools_adapter.py` hanging the boot forever
 
-**Sintoma:** `manage.py check` / `migrate` / `runserver` trava por horas (não segundos). O processo fica pendurado sem dar erro.
+**Symptom:** `manage.py check` / `migrate` / `runserver` hangs for hours (not seconds). The process stays stuck without an error.
 
-**Causa:** O módulo `chat/skills/crewai_tools_adapter.py` tenta descobrir 63 tools do CrewAI no momento do `import`. Várias chamam `input()` no `__init__` perguntando "Quer instalar a dependência? [y/N]" — mesmo com o `lambda: "N"` que neutraliza `input()`, algumas ferramentas fazem I/O de rede e penduram o processo **para sempre**.
+**Cause:** The `chat/skills/crewai_tools_adapter.py` module tries to discover 63 CrewAI tools at `import` time. Several call `input()` in `__init__` asking "Quer instalar a dependência? [y/N]" — even with the `lambda: "N"` that neutralizes `input()`, some tools do network I/O and hang the process **forever**.
 
-**Solução definitiva (não apenas env var):**
-1. Deletar `chat/skills/crewai_tools_adapter.py`
-2. Deletar `chat/skills/crewai_custom/` (diretório inteiro)
-3. Remover o import de `chat/skills/__init__.py`
-4. Remover a classe de teste `CrewAIToolsAdapterTests` de `tests/chat/test_core.py`
+**Definitive solution (not just an env var):**
+1. Delete `chat/skills/crewai_tools_adapter.py`
+2. Delete `chat/skills/crewai_custom/` (entire directory)
+3. Remove the import from `chat/skills/__init__.py`
+4. Remove the `CrewAIToolsAdapterTests` test class from `tests/chat/test_core.py`
 
-**O Copilot não usa essas tools.** Ele usa as skills nativas registradas manualmente em `chat/skills/`.
+**Copilot does not use these tools.** It uses the native skills registered manually in `chat/skills/`.
 
-## 8. Chamada de `async def` em código síncrono sem `asyncio.run()`
+## 8. Calling an `async def` in synchronous code without `asyncio.run()`
 
-**Sintoma:** `RuntimeWarning: coroutine 'X' was never awaited` + teste falha porque a função retornou uma corrotina em vez do resultado.
+**Symptom:** `RuntimeWarning: coroutine 'X' was never awaited` + test fails because the function returned a coroutine instead of the result.
 
-**Correção:** Envolver em `asyncio.run()`:
+**Fix:** Wrap in `asyncio.run()`:
 ```python
 import asyncio
 asyncio.run(process_webhook_event(str(evt.id)))
 ```
 
-## 9. `doc.id` vs `doc.pk` em testes de knowledge
+## 9. `doc.id` vs `doc.pk` in knowledge tests
 
-**Sintoma:** `ProductContext.DoesNotExist` ao chamar `index_document(str(doc.id))`.
+**Symptom:** `ProductContext.DoesNotExist` when calling `index_document(str(doc.id))`.
 
-**Causa:** `doc.id` retorna o UUID público (campo `uuid` do CoreModel), mas `index_document` espera o PK interno.
+**Cause:** `doc.id` returns the public UUID (`uuid` field of CoreModel), but `index_document` expects the internal PK.
 
-**Correção:** Usar `doc.pk` em vez de `doc.id`.
+**Fix:** Use `doc.pk` instead of `doc.id`.
 
-## 10. `run_pipeline` está em `crew_runner_async`, não em `tasks_async`
+## 10. `run_pipeline` is in `crew_runner_async`, not in `tasks_async`
 
-**Sintoma:** `AttributeError: module 'crews.tasks_async' has no attribute 'run_pipeline'`
+**Symptom:** `AttributeError: module 'crews.tasks_async' has no attribute 'run_pipeline'`
 
-**Correção:** Trocar o path do patch:
+**Fix:** Change the patch path:
 ```python
-# Antes:
+# Before:
 @patch("crews.tasks_async.run_pipeline")
-# Depois:
+# After:
 @patch("crews.crew_runner_async.run_pipeline_async")
 ```
 
-## 11. `asyncio.run(asyncio.run(...))` duplicado
+## 11. Duplicate `asyncio.run(asyncio.run(...))`
 
-**Sintoma:** `ValueError: a coroutine was expected, got 0`
+**Symptom:** `ValueError: a coroutine was expected, got 0`
 
-**Correção:** Usar apenas um `asyncio.run()`.
+**Fix:** Use only one `asyncio.run()`.
 
-## 12. Settings de LLM deletadas acidentalmente
+## 12. LLM settings accidentally deleted
 
-**Sintoma:** `AttributeError: 'Settings' object has no attribute 'LLM_MODEL'`
+**Symptom:** `AttributeError: 'Settings' object has no attribute 'LLM_MODEL'`
 
-**Correção:** Restaurar o bloco completo de settings LLM. Verificar no git diff o que foi removido.
+**Fix:** Restore the complete LLM settings block. Check the git diff for what was removed.
 
-## 13. Settings de compatibilidade faltando
+## 13. Missing compatibility settings
 
-**Sintoma:** `AttributeError: 'Settings' object has no attribute 'CELERY_TASK_ALWAYS_EAGER'`
+**Symptom:** `AttributeError: 'Settings' object has no attribute 'CELERY_TASK_ALWAYS_EAGER'`
 
-**Correção:** Adicionar como compatibilidade:
+**Fix:** Add as compatibility:
 ```python
 CELERY_TASK_ALWAYS_EAGER = True
 CREW_RUN_STALE_AFTER = env_int("CREW_RUN_STALE_AFTER", 300)
 ```
 
-## 14. `database_sync_to_async` não existe no asgiref instalado
+## 14. `database_sync_to_async` does not exist in the installed asgiref
 
-**Sintoma:** `ImportError: cannot import name 'database_sync_to_async'`
+**Symptom:** `ImportError: cannot import name 'database_sync_to_async'`
 
-**Correção:** Usar `sync_to_async` (existe em todas as versões) combinado com `TransactionTestCase`.
+**Fix:** Use `sync_to_async` (exists in all versions) combined with `TransactionTestCase`.
 
-## 15. Testes somem silenciosamente por erro de sintaxe
+## 15. Tests silently disappear due to a syntax error
 
-**Sintoma:** A contagem de testes cai (ex: 429 → 369) sem aviso claro.
+**Symptom:** The test count drops (e.g. 429 → 369) without a clear warning.
 
-**Correção:** Verificar a contagem de testes ANTES e DEPOIS de cada alteração. Se caiu, algum arquivo não carregou.
+**Fix:** Check the test count BEFORE and AFTER each change. If it dropped, some file did not load.
 
-## 16. `@mock.patch` vs `@patch` — import correto
+## 16. `@mock.patch` vs `@patch` — correct import
 
-**Sintoma:** `NameError: name 'mock' is not defined`
+**Symptom:** `NameError: name 'mock' is not defined`
 
-**Correto:**
+**Correct:**
 ```python
 from unittest.mock import patch
 @patch("path.to.module")
 ```
 
-## 17. Parêntese extra de substituição regex
+## 17. Extra parenthesis from regex replacement
 
-**Sintoma:** `SyntaxError: unmatched ')'` apontando para `asyncio.run(...))`.
+**Symptom:** `SyntaxError: unmatched ')'` pointing to `asyncio.run(...))`.
 
-**Correção:** Sempre verificar o resultado de substituições em bloco. Usar `compile()` para validar sintaxe.
+**Fix:** Always verify the result of block replacements. Use `compile()` to validate syntax.
 
-## 18. Import no meio do arquivo (depois de decorator)
+## 18. Import in the middle of the file (after a decorator)
 
-**Sintoma:** `SyntaxError: invalid syntax` em linha de import depois de um decorator.
+**Symptom:** `SyntaxError: invalid syntax` on an import line after a decorator.
 
-**Correção:** Imports SEMPRE no topo do arquivo, antes de qualquer código.
+**Fix:** Imports ALWAYS at the top of the file, before any code.
 
-## 21. Rota dupla ao incluir urls com path parameter
+## 21. Double route when including urls with a path parameter
 
-**Sintoma:** 404 ao acessar `/serve/<slug>/` mesmo com a rota configurada.
+**Symptom:** 404 when accessing `/serve/<slug>/` even with the route configured.
 
-**Causa:** `path("serve/<slug:slug>/", include("pages.urls"))` captura o slug no prefixo, e `pages/urls.py` também tem `<slug:slug>/`. Resultado: `/serve/<slug>/<slug>/` — slug capturado duas vezes.
+**Cause:** `path("serve/<slug:slug>/", include("pages.urls"))` captures the slug in the prefix, and `pages/urls.py` also has `<slug:slug>/`. Result: `/serve/<slug>/<slug>/` — slug captured twice.
 
-**Correção:** O prefixo não deve ter o path parameter:
+**Fix:** The prefix must not have the path parameter:
 ```python
-# ERRADO:
+# WRONG:
 path("serve/<slug:slug>/", include("pages.urls"))
 
-# CERTO:
+# RIGHT:
 path("serve/", include("pages.urls"))
 ```
 
-## 22. Vite proxy faltando para nova rota pública
+## 22. Missing Vite proxy for a new public route
 
-**Sintoma:** 404 ao acessar `/serve/<slug>/` pelo frontend (:8080), mas funciona no backend (:8000).
+**Symptom:** 404 when accessing `/serve/<slug>/` through the frontend (:8080), but it works on the backend (:8000).
 
-**Causa:** O Vite dev server só redireciona ao backend as rotas listadas em `server.proxy` no `vite.config.ts`. Rotas novas precisam ser adicionadas.
+**Cause:** The Vite dev server only redirects to the backend the routes listed in `server.proxy` in `vite.config.ts`. New routes need to be added.
 
-**Correção:**
+**Fix:**
 ```typescript
 server: {
   proxy: {
@@ -215,16 +215,16 @@ server: {
 }
 ```
 
-## 23. `enqueue_task_sync` sem event loop — task nunca executa
+## 23. `enqueue_task_sync` without an event loop — task never runs
 
-**Sintoma:** Tasks de background (gerar título da conversa, indexar documento) nunca completam. O servidor roda com `manage.py runserver` (WSGI), não Daphne (ASGI).
+**Symptom:** Background tasks (generate conversation title, index document) never complete. The server runs with `manage.py runserver` (WSGI), not Daphne (ASGI).
 
-**Causa:** `manage.py runserver` (WSGI) não tem event loop rodando. A `TaskQueue` e o `Scheduler` só sobem no `LifespanASGI.startup()` do Daphne. Sem event loop, `enqueue_task_sync()` caía no `except RuntimeError` e chamava `asyncio.run(enqueue_task(...))`, que criava um loop temporário, enfileirava a task na `TaskQueue`... mas a `TaskQueue` **não tem workers rodando** porque eles só sobem no ASGI lifespan.
+**Cause:** `manage.py runserver` (WSGI) has no running event loop. The `TaskQueue` and the `Scheduler` only start in `LifespanASGI.startup()` of Daphne. Without an event loop, `enqueue_task_sync()` fell into the `except RuntimeError` and called `asyncio.run(enqueue_task(...))`, which created a temporary loop, queued the task in the `TaskQueue`... but the `TaskQueue` **has no workers running** because they only start in the ASGI lifespan.
 
-**Correção:** Em `config/task_proxy.py`, quando não há event loop rodando, executar a task **inline** em vez de enfileirar:
+**Fix:** In `config/task_proxy.py`, when there is no running event loop, execute the task **inline** instead of queuing:
 ```python
 except RuntimeError:
-    # Sem loop rodando (WSGI) — executa inline
+    # No loop running (WSGI) — executes inline
     try:
         result = coro_factory(*args, **kwargs)
         if hasattr(result, '__await__'):
@@ -235,17 +235,17 @@ except RuntimeError:
         return str(uuid.uuid4())
 ```
 
-**Como detectar:** Verificar o header `Server:` na resposta HTTP. Se for `WSGIServer` (Django runserver) ou `Cheroot` (waitress), é WSGI. Se for `daphne` ou `uvicorn`, é ASGI.
+**How to detect:** Check the `Server:` header in the HTTP response. If it is `WSGIServer` (Django runserver) or `Cheroot` (waitress), it is WSGI. If it is `daphne` or `uvicorn`, it is ASGI.
 
-## 25. Paginação DRF quebra frontend que esperava array plano
+## 25. DRF pagination breaks a frontend that expected a flat array
 
-**Sintoma:** Dashboard de atividades mostrava "Nenhuma atividade no período" mesmo com dados no banco. O `useQuery` recebia `{ count, results }` mas o componente esperava um array.
+**Symptom:** The activities dashboard showed "Nenhuma atividade no período" even with data in the database. The `useQuery` received `{ count, results }` but the component expected an array.
 
-**Causa:** Adicionar `pagination_class` a um ViewSet do DRF que antes retornava `T[]` muda a resposta para `{ count, next, previous, results: T[] }`. O frontend que consumia `data` como array agora recebe um objeto.
+**Cause:** Adding `pagination_class` to a DRF ViewSet that previously returned `T[]` changes the response to `{ count, next, previous, results: T[] }`. The frontend that consumed `data` as an array now receives an object.
 
-**Correção em 3 camadas:**
+**Fix in 3 layers:**
 
-1. **Backend:** Adicionar `pagination_class` ao ViewSet:
+1. **Backend:** Add `pagination_class` to the ViewSet:
 ```python
 from rest_framework.pagination import PageNumberPagination
 
@@ -258,58 +258,58 @@ class MyViewSet(...):
     pagination_class = MyPagination
 ```
 
-2. **API endpoint type:** Atualizar o tipo de retorno no `endpoints.ts`:
+2. **API endpoint type:** Update the return type in `endpoints.ts`:
 ```typescript
-// Antes:
+// Before:
 api.get<T[]>("/path/")
-// Depois:
+// After:
 api.get<PaginatedResponse<T>>("/path/")
 ```
 
-3. **Hook de query:** Adicionar `page` e `page_size` aos params, e extrair `results`:
+3. **Query hook:** Add `page` and `page_size` to the params, and extract `results`:
 ```typescript
-// No hook:
+// In the hook:
 useAuthedQuery({
   queryKey: ["key", params],
-  queryFn: () => api.list(params),  // retorna PaginatedResponse
-  select: (data) => data.results,   // extrai o array
+  queryFn: () => api.list(params),  // returns PaginatedResponse
+  select: (data) => data.results,   // extracts the array
 })
 ```
 
-4. **Componente:** Adicionar state de página + botões Anterior/Próxima:
+4. **Component:** Add page state + Previous/Next buttons:
 ```typescript
 const [page, setPage] = useState(1);
 const { data: pageData } = useQuery(params);
 const logs = pageData?.results ?? [];
 const totalPages = Math.ceil((pageData?.count ?? 0) / pageSize);
-// Render: "{page} de {totalPages}" + Anterior/Próxima
+// Render: "{page} de {totalPages}" + Previous/Next
 ```
 
-**Ocorreu em:** `dashboard.tsx` (ActivityFeed) + `activity/views.py` (ActivityLogViewSet)
+**Occurred in:** `dashboard.tsx` (ActivityFeed) + `activity/views.py` (ActivityLogViewSet)
 
-## 26. Frontend/Backend page_size fora de sincronia
+## 26. Frontend/Backend page_size out of sync
 
-**Sintoma:** O backend retorna 10 itens por página mas o frontend mostra "1 de 2" calculado com base em 30 itens por página. A paginação mostra números errados.
+**Symptom:** The backend returns 10 items per page but the frontend shows "1 de 2" calculated based on 30 items per page. The pagination shows wrong numbers.
 
-**Causa:** `page_size` foi alterado no backend (`ActivityLogPagination.page_size = 10`) mas o frontend ainda tinha `page_size: 30` hardcoded em 3 lugares:
-1. Parâmetro da chamada API: `page_size: 30`
-2. Cálculo de totalPages: `Math.ceil(totalCount / 30)`
-3. Slice redundante: `logs?.slice(0, 30)` (desnecessário com paginação)
+**Cause:** `page_size` was changed in the backend (`ActivityLogPagination.page_size = 10`) but the frontend still had `page_size: 30` hardcoded in 3 places:
+1. API call parameter: `page_size: 30`
+2. totalPages calculation: `Math.ceil(totalCount / 30)`
+3. Redundant slice: `logs?.slice(0, 30)` (unnecessary with pagination)
 
-**Correção:** Sempre que alterar `page_size` no backend, buscar no frontend por TODAS as ocorrências do valor antigo:
+**Fix:** Whenever you change `page_size` in the backend, search the frontend for ALL occurrences of the old value:
 ```bash
 grep -rn "page_size: 30\|/ 30\|slice(0, 30)" src/
 ```
 
-**Padrão:** O frontend hardcoda o page_size em vez de derivar do backend. Considere extrair para uma constante compartilhada ou usar o valor do backend via API.
+**Pattern:** The frontend hardcodes the page_size instead of deriving it from the backend. Consider extracting it to a shared constant or using the backend value via API.
 
-## 27. Layout de paginação sobrepondo conteúdo abaixo
+## 27. Pagination layout overlapping content below
 
-**Sintoma:** Os botões "Anterior 1 de 2 Próxima" aparecem sobrepostos ao conteúdo abaixo do card de atividades.
+**Symptom:** The "Anterior 1 de 2 Próxima" buttons appear overlapping the content below the activities card.
 
-**Causa:** O container da paginação não tem `clear: both` nem `position: relative`, permitindo que elementos flutuantes ou com posicionamento absoluto do conteúdo acima interfiram.
+**Cause:** The pagination container has neither `clear: both` nor `position: relative`, allowing floating or absolutely-positioned elements from the content above to interfere.
 
-**Correção:**
+**Fix:**
 ```tsx
 <div style={{
   display: "flex",
@@ -334,15 +334,15 @@ grep -rn "page_size: 30\|/ 30\|slice(0, 30)" src/
 </div>
 ```
 
-**Propriedades críticas:** `clear: both` (evita overlap com floats), `whiteSpace: nowrap` (evita quebra do "X de Y"), `position: relative` (cria stacking context), `marginTop` (espaçamento do conteúdo acima).
+**Critical properties:** `clear: both` (prevents overlap with floats), `whiteSpace: nowrap` (prevents the "X de Y" from wrapping), `position: relative` (creates a stacking context), `marginTop` (spacing from the content above).
 
-**Sintoma:** Dashboard de atividades mostrava "Nenhuma atividade no período" mesmo com dados no banco. O `useQuery` recebia `{ count, results }` mas o componente esperava um array.
+**Symptom:** The activities dashboard showed "Nenhuma atividade no período" even with data in the database. The `useQuery` received `{ count, results }` but the component expected an array.
 
-**Causa:** Adicionar `pagination_class` a um ViewSet do DRF que antes retornava `T[]` muda a resposta para `{ count, next, previous, results: T[] }`. O frontend que consumia `data` como array agora recebe um objeto.
+**Cause:** Adding `pagination_class` to a DRF ViewSet that previously returned `T[]` changes the response to `{ count, next, previous, results: T[] }`. The frontend that consumed `data` as an array now receives an object.
 
-**Correção em 3 camadas:**
+**Fix in 3 layers:**
 
-1. **Backend:** Adicionar `pagination_class` ao ViewSet:
+1. **Backend:** Add `pagination_class` to the ViewSet:
 ```python
 from rest_framework.pagination import PageNumberPagination
 
@@ -355,53 +355,53 @@ class MyViewSet(...):
     pagination_class = MyPagination
 ```
 
-2. **API endpoint type:** Atualizar o tipo de retorno no `endpoints.ts`:
+2. **API endpoint type:** Update the return type in `endpoints.ts`:
 ```typescript
-// Antes:
+// Before:
 api.get<T[]>("/path/")
-// Depois:
+// After:
 api.get<PaginatedResponse<T>>("/path/")
 ```
 
-3. **Hook de query:** Adicionar `page` e `page_size` aos params, e extrair `results`:
+3. **Query hook:** Add `page` and `page_size` to the params, and extract `results`:
 ```typescript
-// No hook:
+// In the hook:
 useAuthedQuery({
   queryKey: ["key", params],
-  queryFn: () => api.list(params),  // retorna PaginatedResponse
-  select: (data) => data.results,   // extrai o array
+  queryFn: () => api.list(params),  // returns PaginatedResponse
+  select: (data) => data.results,   // extracts the array
 })
 ```
 
-4. **Componente:** Adicionar state de página + botões Anterior/Próxima:
+4. **Component:** Add page state + Previous/Next buttons:
 ```typescript
 const [page, setPage] = useState(1);
 const { data: pageData } = useQuery(params);
 const logs = pageData?.results ?? [];
 const totalPages = Math.ceil((pageData?.count ?? 0) / pageSize);
-// Render: "{page} de {totalPages}" + Anterior/Próxima
+// Render: "{page} de {totalPages}" + Previous/Next
 ```
 
-**Ocorreu em:** `dashboard.tsx` (ActivityFeed) + `activity/views.py` (ActivityLogViewSet)
+**Occurred in:** `dashboard.tsx` (ActivityFeed) + `activity/views.py` (ActivityLogViewSet)
 
-**Sintoma:** O remote `main` tem commits que o `main` local não tem. Commits futuros partem da feature branch e o `main` local fica para trás.
+**Symptom:** The remote `main` has commits that the local `main` does not. Future commits start from the feature branch and the local `main` falls behind.
 
-**Causa:** `git push origin HEAD:main` atualiza o remote mas não o branch local `main`.
+**Cause:** `git push origin HEAD:main` updates the remote but not the local `main` branch.
 
-**Correção:**
+**Fix:**
 ```bash
 git checkout main
-git merge feature-branch    # fast-forward (já está no remote)
-git push origin main         # confirma (já sincronizado)
-git checkout feature-branch  # volta a trabalhar
+git merge feature-branch    # fast-forward (already on the remote)
+git push origin main         # confirms (already synced)
+git checkout feature-branch  # back to work
 ```
 
-**Como detectar:** `git log --oneline main..origin/main` mostra commits que estão no remote mas não no local. `git log --oneline origin/main..main` mostra o inverso.
+**How to detect:** `git log --oneline main..origin/main` shows commits that are on the remote but not local. `git log --oneline origin/main..main` shows the reverse.
 
-## Varredura Completa (obrigatória após migração)
+## Complete Scan (mandatory after migration)
 
 ```python
-# 1. Imports stale
+# 1. Stale imports
 deleted_modules = [
     "agents.tasks", "chat.tasks", "crews.tasks", "crews.callbacks",
     "knowledge.tasks", "integrations.tasks", "activity.tasks", "config.celery",
@@ -417,7 +417,7 @@ for root, dirs, files in os.walk(project_dir):
                     if s.startswith(f'from {mod} import') or s.startswith(f'import {mod}'):
                         print(f"STALE: {rel}: {s}")
 
-# 2. Settings essenciais
+# 2. Essential settings
 essential_settings = ["LLM_MODEL", "LLM_API_KEY", "LLM_API_BASE", "LLM_TEMPERATURE", "LLM_TIMEOUT"]
 with open("config/settings.py") as f:
     content = f.read()
@@ -425,6 +425,6 @@ for s in essential_settings:
     if s not in content:
         print(f"MISSING: {s}")
 
-# 3. Chamadas async sem await
-# Procurar por padrões como: `process_webhook_event(str(...))` sem `asyncio.run()`
+# 3. Async calls without await
+# Look for patterns like: `process_webhook_event(str(...))` without `asyncio.run()`
 ```

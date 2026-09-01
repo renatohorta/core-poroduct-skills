@@ -1,86 +1,86 @@
-# Instalação e Atualização
+# Installation and Update
 
-Este repositório é a **fonte única de verdade** das Core Product Skills. O script
-`scripts/install.sh` propaga as skills para os agentes (Hermes e Claude).
+This repository is the **single source of truth** for the Core Product Skills. The
+`scripts/install.sh` script propagates the skills to the agents (Hermes and Claude).
 
-## Pré-requisitos
+## Prerequisites
 
-Para **propagar** as skills (uso normal):
+To **propagate** the skills (normal use):
 
-- **bash** (Git Bash no Windows, ou bash nativo em Linux/macOS)
-- Acesso de escrita aos diretórios de skills dos agentes
+- **bash** (Git Bash on Windows, or native bash on Linux/macOS)
+- Write access to the agents' skills directories
 
-Para **executar** as skills, o agente hospedeiro precisa de `crewai` instalado.
-Sem ele, `--help` continua funcionando e a execução sai com código 3 e instrução
-de instalação (nunca com traceback).
+To **run** the skills, the host agent needs `crewai` installed. Without it,
+`--help` still works and execution exits with code 3 and an install instruction
+(never with a traceback).
 
-## Ambiente de desenvolvimento
+## Development environment
 
 ```bash
 uv venv --python 3.12 .venv
 uv pip install --python .venv -r requirements-dev.txt
-.venv/Scripts/python.exe -m pytest      # Windows  (.venv/bin/python no Unix)
+.venv/Scripts/python.exe -m pytest      # Windows  (.venv/bin/python on Unix)
 ```
 
-> **Python 3.14**: o resolvedor do `pip` pode travar o `crewai` numa versão
-> antiga (0.11.x) por causa de metadados de wheels transitivos. Com `uv`, a
-> resolução chega em 1.15.x normalmente. Na dúvida, use 3.12 ou 3.13.
+> **Python 3.14**: the `pip` resolver may pin `crewai` to an old version
+> (0.11.x) because of transitive wheel metadata. With `uv`, resolution normally
+> reaches 1.15.x. When in doubt, use 3.12 or 3.13.
 
-## Instalação
+## Installation
 
 ```bash
-# Instala/atualiza TODAS as skills no Hermes e no Claude
+# Installs/updates ALL skills in Hermes and Claude
 ./scripts/install.sh
 
-# Apenas no Hermes
+# Only in Hermes
 ./scripts/install.sh --hermes
 
-# Apenas no Claude
+# Only in Claude
 ./scripts/install.sh --claude
 
-# Apenas uma skill específica
-./scripts/install.sh --skill cp-requisitos
+# Only one specific skill
+./scripts/install.sh --skill cp-requirements
 
-# Simulação (mostra o que faria, sem copiar)
+# Simulation (shows what it would do, without copying)
 ./scripts/install.sh --dry-run
 ```
 
-## Diretórios de destino
+## Destination directories
 
-O script detecta o destino automaticamente, mas você pode sobrescrever via env vars:
+The script detects the destination automatically, but you can override it via env vars:
 
 | Env var | Default (Windows) | Default (Linux/macOS) |
 |---------|-------------------|----------------------|
 | `HERMES_SKILLS_DIR` | `%LOCALAPPDATA%\hermes\skills` | `~/.hermes/skills` |
 | `CLAUDE_SKILLS_DIR` | `~/.claude/skills` | `~/.claude/skills` |
 
-### Estrutura de destino
+### Destination structure
 
-- **Hermes**: as skills são instaladas na categoria `creative`:
+- **Hermes**: the skills are installed in the `creative` category:
   `$HERMES_SKILLS_DIR/creative/<skill>/`
-- **Claude**: as skills são instaladas flat:
+- **Claude**: the skills are installed flat:
   `$CLAUDE_SKILLS_DIR/<skill>/`
 
-## Fluxo de atualização
+## Update flow
 
-1. Edite as skills **neste repositório** (em `skills/`).
-2. Rode `./scripts/install.sh` para propagar.
-3. Reinicie o agente (Hermes recarrega skills no próximo turno; Claude recarrega
-   no próximo comando).
+1. Edit the skills **in this repository** (in `skills/`).
+2. Run `./scripts/install.sh` to propagate.
+3. Restart the agent (Hermes reloads skills on the next turn; Claude reloads on
+   the next command).
 
-## Exemplo
+## Example
 
 ```bash
-# Atualiza só o orquestrador no Hermes
-./scripts/install.sh --hermes --skill cp-orquestrador
+# Updates only the orchestrator in Hermes
+./scripts/install.sh --hermes --skill cp-orchestrator
 
-# Atualiza tudo no Claude
+# Updates everything in Claude
 ./scripts/install.sh --claude
 ```
 
 ## Troubleshooting
 
-- **"Nenhuma skill encontrada"**: confirme que `skills/` existe no repositório.
-- **Permissão negada**: no Linux/macOS, rode `chmod +x scripts/install.sh`.
-- **Claude não vê a skill**: confirme que `~/.claude/skills/<skill>/SKILL.md` existe
-  e que o Claude foi reiniciado.
+- **"No skill found"**: confirm that `skills/` exists in the repository.
+- **Permission denied**: on Linux/macOS, run `chmod +x scripts/install.sh`.
+- **Claude does not see the skill**: confirm that `~/.claude/skills/<skill>/SKILL.md`
+  exists and that Claude was restarted.

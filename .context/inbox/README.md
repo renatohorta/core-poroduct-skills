@@ -1,11 +1,11 @@
-# inbox — Entrada de trabalho
+# inbox — Work intake
 
-Um arquivo `.md` por item.
+One `.md` file per item.
 
-| Pasta | Conteudo |
-|---|---|
-| `iniciativas/` | Iniciativas de produto |
-| `tasks/` | Tarefas |
-| `bugs/` | Bugs abertos |
-| `debitos-tecnicos/` | Debitos tecnicos abertos |
-| `processed/` | Itens resolvidos, com `[Concluido]`/`[Corrigido]` no titulo |
+| Folder | Content |
+|--------|---------|
+| `initiatives/` | Product initiatives |
+| `tasks/` | Tasks |
+| `bugs/` | Open bugs |
+| `tech-debt/` | Open technical debt |
+| `processed/` | Resolved items, with `[Done]`/`[Fixed]` in the title |

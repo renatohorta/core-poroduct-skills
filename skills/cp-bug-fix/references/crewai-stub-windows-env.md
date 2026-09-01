@@ -1,30 +1,30 @@
-# Crew roda em STUB ("crewai ausente") mesmo com Gemini configurado — Windows
+# Crew runs in STUB ("crewai ausente") even with Gemini configured — Windows
 
-## Sintoma
-- O card de execução da crew mostra `[STUB — crewai ausente]` como output de cada task.
-- O log do Daphne mostra `crew.kickoff stub (crewai ausente) crew=<nome>`.
-- MAS o Gemini ESTÁ configurado: `is_configured()` retorna `True`, `GEMINI_API_KEY` presente no `.env`, e o log mostra chamadas `LiteLLM completion() model= gemini-2.5-flash; provider = gemini` (essas são de OUTRAS partes — Copilot/chat — não da crew).
+## Symptom
+- The crew execution card shows `[STUB — crewai ausente]` as the output of each task.
+- The Daphne log shows `crew.kickoff stub (crewai ausente) crew=<nome>`.
+- BUT Gemini IS configured: `is_configured()` returns `True`, `GEMINI_API_KEY` present in the `.env`, and the log shows `LiteLLM completion() model= gemini-2.5-flash; provider = gemini` calls (these are from OTHER parts — Copilot/chat — not the crew).
 
-## Causa raiz
-O `run_pipeline_async` decide o stub por:
+## Root cause
+`run_pipeline_async` decides the stub by:
 ```python
 if not _crewai_available() or not llm_configured:
     reason = "crewai ausente" if not _crewai_available() else "LLM não configurado"
 ```
-`_crewai_available()` faz `import crewai` num try/except. Se o import falhar, retorna `False` → stub. **A chave do Gemini é irrelevante aqui** — o problema é o import do crewai.
+`_crewai_available()` does `import crewai` in a try/except. If the import fails, it returns `False` → stub. **The Gemini key is irrelevant here** — the problem is the crewai import.
 
-O `import crewai` (1.15.5) puxa `chromadb` (que chama `Path.home()`) e `crewai_core` (telemetria, que chama `Path(LOCALAPPDATA)`). No Windows, se o processo não tiver as variáveis de home no ambiente, o import quebra:
+The `import crewai` (1.15.5) pulls in `chromadb` (which calls `Path.home()`) and `crewai_core` (telemetry, which calls `Path(LOCALAPPDATA)`). On Windows, if the process does not have the home variables in the environment, the import breaks:
 
 ```
 RuntimeError: Could not determine home directory.   # chromadb → Path.home()
 TypeError: argument should be a str or an os.PathLike object ... not 'NoneType'  # crewai_core → Path(LOCALAPPDATA)
 ```
 
-## Quando acontece
-Quando o Daphne é relançado via `subprocess.Popen` com um `env` construído à mão (ex.: só `DJANGO_SETTINGS_MODULE`, `PYTHONPATH`, `SystemRoot`, `WINDIR`) — sem `USERPROFILE`/`HOME`/`LOCALAPPDATA`/`APPDATA`/`TEMP`. O sandbox do Hermes não injeta essas vars no subprocesso.
+## When it happens
+When Daphne is relaunched via `subprocess.Popen` with a hand-built `env` (e.g. only `DJANGO_SETTINGS_MODULE`, `PYTHONPATH`, `SystemRoot`, `WINDIR`) — without `USERPROFILE`/`HOME`/`LOCALAPPDATA`/`APPDATA`/`TEMP`. The Hermes sandbox does not inject these vars into the subprocess.
 
-## Correção
-Relançar o Daphne com o ambiente Windows completo:
+## Fix
+Relaunch Daphne with the full Windows environment:
 ```python
 env = {
     "DJANGO_SETTINGS_MODULE": "config.settings",
@@ -44,12 +44,12 @@ env = {
 }
 ```
 
-## Verificação
-Antes de relançar, testar o import com o MESMO env que será usado:
+## Verification
+Before relaunching, test the import with the SAME env that will be used:
 ```bash
 python -c "import crewai; print('crewai OK', crewai.__version__)"
 ```
-Se imprimir `crewai OK 1.15.5`, o env está correto. Se der `RuntimeError: Could not determine home directory` ou `TypeError ... not 'NoneType'`, falta `USERPROFILE`/`LOCALAPPDATA`.
+If it prints `crewai OK 1.15.5`, the env is correct. If it gives `RuntimeError: Could not determine home directory` or `TypeError ... not 'NoneType'`, `USERPROFILE`/`LOCALAPPDATA` are missing.
 
-## Nota
-Isso é um problema do processo de reinício via subprocess com env incompleto — NÃO do código do projeto. Quando o backend é iniciado pelo shell normal do usuário, essas vars existem e o crewai importa sem erro. Não é um bug de produção.
+## Note
+This is a problem of the restart process via subprocess with an incomplete env — NOT of the project code. When the backend is started by the user's normal shell, these vars exist and crewai imports without error. It is not a production bug.

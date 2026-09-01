@@ -1,68 +1,68 @@
-# .context/ — Fonte de Verdade do Projeto
+# .context/ — Project Source of Truth
 
-**Projeto**: Core Product Skills — repositório canônico das skills `cp-*` da
-Fábrica de Software (CrewAI), propagadas para o **Hermes Agent** e o **Claude Code**.
+**Project**: Core Product Skills — canonical repository of the `cp-*` skills of
+the Software Factory (CrewAI), propagated to the **Hermes Agent** and **Claude Code**.
 
-Este diretório é a **fonte de verdade única** do contexto do projeto. Todos os
-agentes devem ler e escrever contexto aqui, **nunca** em `.hermes/` ou `.claude/`.
+This directory is the **single source of truth** for the project context. All
+agents must read and write context here, **never** in `.hermes/` or `.claude/`.
 
-## Por onde começar
+## Where to start
 
-| Quero… | Leia |
-|--------|------|
-| Entender o produto | `docs/00-vision.md` |
-| Saber o que o sistema faz e o que falta | `docs/01-requisitos.md` |
-| Entender como funciona por dentro | `docs/02-arquitetura.md` |
-| Instalar/operar/depurar | `docs/05-devops-operacoes.md` |
-| Ver o que está na fila | `docs/06-kanban.md`, `kanban/` |
-| Saber por que algo é assim | `tracking/decisoes.md` |
+| I want to… | Read |
+|------------|------|
+| Understand the product | `docs/00-vision.md` |
+| Know what the system does and what is missing | `docs/01-requirements.md` |
+| Understand how it works internally | `docs/02-architecture.md` |
+| Install/operate/debug | `docs/05-devops-operations.md` |
+| See what is in the queue | `docs/06-kanban.md`, `kanban/` |
+| Know why something is the way it is | `tracking/decisions.md` |
 
-## Estrutura
+## Structure
 
-### docs/ — Disciplinas de engenharia
-| Arquivo | Disciplina | Skill que escreve |
-|---------|-----------|-------------------|
-| `00-vision.md` | Visão do produto | `cp-inicializador-doc` |
-| `01-requisitos.md` | Requisitos | `cp-requisitos`, `cp-competitive-analysis` |
-| `02-arquitetura.md` | Arquitetura | `cp-arquitetura`, `cp-implementacao`, `cp-manutencao` |
-| `03-seguranca-lgpd.md` | Segurança/LGPD | `cp-seguranca` |
-| `04-qualidade-qa.md` | Qualidade/QA | `cp-testes`, `cp-documentacao`, `cp-qualidade`, `cp-bug-fix` |
-| `05-devops-operacoes.md` | DevOps/Operações | `cp-devops`, `cp-goal-loop` |
-| `06-kanban.md` | Kanban/esteira | `cp-agilista` |
+### docs/ — Engineering disciplines
+| File | Discipline | Skill that writes |
+|------|-----------|-------------------|
+| `00-vision.md` | Product vision | `cp-doc-initializer` |
+| `01-requirements.md` | Requirements | `cp-requirements`, `cp-competitive-analysis` |
+| `02-architecture.md` | Architecture | `cp-architecture`, `cp-implementation`, `cp-maintenance` |
+| `03-security-lgpd.md` | Security/LGPD | `cp-security` |
+| `04-quality-qa.md` | Quality/QA | `cp-testing`, `cp-documentation`, `cp-quality`, `cp-bug-fix` |
+| `05-devops-operations.md` | DevOps/Operations | `cp-devops`, `cp-goal-loop` |
+| `06-kanban.md` | Kanban/pipeline | `cp-agile` |
 
-### inbox/ — Entrada de trabalho
-Um arquivo `.md` por item.
+### inbox/ — Work intake
+One `.md` file per item.
 
-- `iniciativas/` — Iniciativas de produto
-- `tasks/` — Tarefas
+- `initiatives/` — Product initiatives
+- `tasks/` — Tasks
 - `bugs/` — Bugs (`DT-01`, `DOC-01`)
-- `debitos-tecnicos/` — Débitos técnicos (`DT-02` … `DT-06`)
+- `tech-debt/` — Technical debt (`DT-02` … `DT-06`)
 
-### tracking/ — Rastreamento
-- `progresso.md` — Progresso geral e próximos passos
-- `decisoes.md` — Registro de decisões (ADR-0001 … ADR-0006)
+### tracking/ — Tracking
+- `progress.md` — Overall progress and next steps
+- `decisions.md` — Decision log (ADR-0001 … ADR-0006)
 
-### kanban/ — Esteira de execução (`cp-agilista`)
-Fonte de verdade do fluxo de tarefas; o Trello, quando conectado, é só um
-espelho. Uma task é um `.md` com frontmatter YAML e a coluna é a pasta:
+### kanban/ — Execution pipeline (`cp-agile`)
+Source of truth for the task flow; Trello, when connected, is only a
+mirror. A task is a `.md` with YAML frontmatter and the column is the folder:
 `1-backlog/` → `2-todo/` → `3-doing/` → `4-review/` → `5-testing/` →
-`6-staging/` → `7-done/`, mais `blocked/` para dúvidas e impedimentos.
+`6-staging/` → `7-done/`, plus `blocked/` for questions and blockers.
 
-Item bruto entra em `inbox/`; depois de triado, vira task em `kanban/1-backlog/`.
-Detalhes em `kanban/README.md`.
+Raw items enter `inbox/`; after triage, they become tasks in `kanban/1-backlog/`.
+Details in `kanban/README.md`.
 
-## Regras
+## Rules
 
-1. Toda skill `cp-*` documenta seus artefatos em `docs/`, conforme o mapa acima.
-2. Trabalho novo entra por `inbox/`, não direto em `docs/`; ao ser triado,
-   passa a `kanban/1-backlog/`.
-3. Decisão relevante vira ADR em `tracking/decisoes.md` — com contexto e
-   consequências, não só a conclusão.
-4. Em divergência entre `.context/` e `docs/` (documentação humana do repositório),
-   **`.context/` prevalece**.
+1. Every `cp-*` skill documents its artifacts in `docs/`, per the map above.
+2. New work enters through `inbox/`, not directly in `docs/`; once triaged,
+   it moves to `kanban/1-backlog/`.
+3. A relevant decision becomes an ADR in `tracking/decisions.md` — with context
+   and consequences, not just the conclusion.
+4. In a divergence between `.context/` and `docs/` (the repository's human
+   documentation), **`.context/` prevails**.
 
-## Relação com `docs/` na raiz
+## Relationship with `docs/` at the root
 
-`docs/` (`ARCHITECTURE.md`, `INSTALLATION.md`, `SKILLS.md`) é documentação de
-apresentação, voltada a leitores humanos. `.context/` é o contexto operacional,
-voltado a agentes — inclui estado real, gaps e pendências.
+`docs/` (`ARCHITECTURE.md`, `INSTALLATION.md`, `SKILLS.md`) is presentation
+documentation, aimed at human readers. `.context/` is the operational context,
+aimed at agents — it includes real state, gaps and pending items.

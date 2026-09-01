@@ -1,39 +1,39 @@
 # AG-UI message `id` ↔ Django `pk`/`uuid` resolution (branch picker 500 loop)
 
-## Sintoma
-Endpoints do backend que recebem um `?message=<id>` vindo do frontend AG-UI
-retornam **500 em loop**. Traceback típico:
+## Symptom
+Backend endpoints that receive a `?message=<id>` coming from the AG-UI frontend
+return **500 in a loop**. Typical traceback:
 ```
 ValueError: Field 'id' expected a number but got '3dccd053-f23d-4b71-b8e5-c1604a3174fd'.
 ```
-No Daphne log, centenas de linhas `GET .../branches/?message=... 500` em sequência.
+In the Daphne log, hundreds of `GET .../branches/?message=... 500` lines in sequence.
 
-## Causa raiz (DUAS camadas)
-1. **`ChatMessage.id` é `BigAutoField` (inteiro), mas o front AG-UI envia o `uuid`.**
-   O `toThreadMessage` (em `useConversationThreadList.tsx`) monta o `ThreadMessage`
-   com `id: m.uuid` (o UUID), não o `m.id` (inteiro). O backend fazia
-   `ChatMessage.objects.filter(pk=msg_id)` — passando um UUID string para um campo
-   inteiro → `ValueError` → 500.
-2. **IDs otimistas do AG-UI.** Enquanto a mensagem está sendo streamada, o runtime
-   AG-UI usa ids locais tipo `__optimistic__Z0fS1y5` ou `msg_29abe6cbe5ab`. Esses
-   não são UUID nem inteiro → o mesmo `ValueError`.
+## Root cause (TWO layers)
+1. **`ChatMessage.id` is `BigAutoField` (integer), but the AG-UI frontend sends the `uuid`.**
+   The `toThreadMessage` (in `useConversationThreadList.tsx`) builds the `ThreadMessage`
+   with `id: m.uuid` (the UUID), not `m.id` (integer). The backend did
+   `ChatMessage.objects.filter(pk=msg_id)` — passing a UUID string to an integer
+   field → `ValueError` → 500.
+2. **AG-UI optimistic IDs.** While the message is being streamed, the AG-UI
+   runtime uses local ids like `__optimistic__Z0fS1y5` or `msg_29abe6cbe5ab`. These
+   are neither UUID nor integer → the same `ValueError`.
 
-## Correção (backend, `chat/views.py`)
-Helper que aceita UUID **ou** inteiro, e rejeita IDs otimistas:
+## Fix (backend, `chat/views.py`)
+Helper that accepts UUID **or** integer, and rejects optimistic IDs:
 
 ```python
 def _looks_like_valid_message_id(value) -> bool:
     import uuid as _uuid
     s = str(value).strip()
     if not s: return False
-    if s.isdigit(): return True          # pk inteiro
+    if s.isdigit(): return True          # integer pk
     try:
         _uuid.UUID(s); return True        # uuid string
     except (ValueError, TypeError):
-        return False                       # otimista/desconhecido
+        return False                       # optimistic/unknown
 
 def _resolve_message(conv, msg_id):
-    """Resolve ChatMessage por `uuid` (o que o front envia) OU `id` (pk int)."""
+    """Resolve ChatMessage by `uuid` (what the frontend sends) OR `id` (int pk)."""
     from .models import ChatMessage as CM
     s = str(msg_id).strip()
     if s.isdigit():
@@ -41,13 +41,13 @@ def _resolve_message(conv, msg_id):
     return CM.objects.filter(conversation=conv, uuid=s).first()
 ```
 
-Nos `@action` de ViewSet, SEMPRE:
-1. Guard de ID válido primeiro (`if not _looks_like_valid_message_id(msg_id): return ...`),
-   retornando resposta vazia/404 — **nunca** deixar chegar ao `filter(pk=...)`.
-2. Resolver via `_resolve_message(conv, msg_id)`, não `filter(pk=msg_id)`.
+In the ViewSet `@action`s, ALWAYS:
+1. Guard the valid ID first (`if not _looks_like_valid_message_id(msg_id): return ...`),
+   returning an empty/404 response — **never** let it reach `filter(pk=...)`.
+2. Resolve via `_resolve_message(conv, msg_id)`, not `filter(pk=msg_id)`.
 
-## Correção (frontend, `AguiChatPage.tsx` — BranchPicker)
-Pular IDs otimistas antes de chamar o backend:
+## Fix (frontend, `AguiChatPage.tsx` — BranchPicker)
+Skip optimistic IDs before calling the backend:
 ```tsx
 useEffect(() => {
   if (!msgId) { setBranches([]); return; }
@@ -56,13 +56,13 @@ useEffect(() => {
 }, [msgId, activeIdRef]);
 ```
 
-## Regra geral
-Qualquer endpoint do backend que o AG-UI consome por um id de mensagem deve
-resolver por **uuid OU pk inteiro**, e nunca assumir que `pk=<uuid>` funciona
-(o `pk` do ChatMessage é inteiro, o front envia o uuid). Adicionar teste que
-chama o endpoint com o `uuid` (o que o front realmente manda) — o teste com
-`root.pk` passa mas esconde o bug de produção, porque o front nunca envia pk.
+## General rule
+Any backend endpoint that AG-UI consumes by a message id must
+resolve by **uuid OR integer pk**, and never assume that `pk=<uuid>` works
+(the ChatMessage `pk` is integer, the frontend sends the uuid). Add a test that
+calls the endpoint with the `uuid` (what the frontend actually sends) — the test with
+`root.pk` passes but hides the production bug, because the frontend never sends pk.
 
-## Testes
-- `test_branches_accepts_uuid_what_frontend_sends` — chama com `root.uuid`, não pk.
-- `test_branches_optimistic_id_returns_empty_not_500` — `__optimistic__...` → 200 vazio.
+## Tests
+- `test_branches_accepts_uuid_what_frontend_sends` — calls with `root.uuid`, not pk.
+- `test_branches_optimistic_id_returns_empty_not_500` — `__optimistic__...` → 200 empty.

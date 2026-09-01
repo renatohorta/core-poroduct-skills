@@ -1,44 +1,44 @@
-# "Chat indisponível" no upload de anexo (AG-UI)
+# "Chat indisponível" on attachment upload (AG-UI)
 
-## Diagnóstico rápido
+## Quick diagnosis
 
-A mensagem "Chat indisponível / Não foi possível carregar o chat" NÃO é erro de
-servidor — é o `ChatErrorBoundary` (em `src/routes/chat.tsx`) capturando QUALQUER
-exceção lançada pelo `AguiChatPage`.
+The "Chat indisponível / Não foi possível carregar o chat" message is NOT a
+server error — it is the `ChatErrorBoundary` (in `src/routes/chat.tsx`) catching ANY
+exception thrown by the `AguiChatPage`.
 
-1. **Teste o backend primeiro.** Escreva um teste de reprodução no padrão
-   `tests/chat/test_upload_*.py` (APIClient + `force_authenticate` + `SimpleUploadedFile`
-   com `content_type="image/png"` e nome com `.png` — se usar `io.BytesIO` sem nome,
-   `derive_kind` retorna TXT). Se o endpoint devolve 201 + `FileAttachment`, o bug
-   é frontend.
-   - Pitfall: o related_name de `ChatMessage.conversation` é `messages`, não
+1. **Test the backend first.** Write a reproduction test in the
+   `tests/chat/test_upload_*.py` pattern (APIClient + `force_authenticate` + `SimpleUploadedFile`
+   with `content_type="image/png"` and a name with `.png` — if you use `io.BytesIO` without a name,
+   `derive_kind` returns TXT). If the endpoint returns 201 + `FileAttachment`, the bug
+   is frontend.
+   - Pitfall: the related_name of `ChatMessage.conversation` is `messages`, not
      `chat_messages`.
-2. **Se backend OK, o bug é frontend.** O ErrorBoundary captura o `throw` do `send`
-   de attachments.
+2. **If the backend is OK, the bug is frontend.** The ErrorBoundary catches the `throw` from the `send`
+   of attachments.
 
-## Causa raiz clássica
+## Classic root cause
 
-No adapter de attachments do `AguiChatPage.tsx` (o `send` em
-`useAgUiRuntime({ adapters: { attachments } })`), o código fazia:
+In the attachments adapter of `AguiChatPage.tsx` (the `send` in
+`useAgUiRuntime({ adapters: { attachments } })`), the code did:
 
 ```ts
 send: async (attachment: any) => {
   const convId = controller.activeIdRef?.current;
-  if (!convId) throw new Error("Nenhuma conversa ativa para upload."); // ← dispara ErrorBoundary
+  if (!convId) throw new Error("Nenhuma conversa ativa para upload."); // ← fires ErrorBoundary
   ...
 }
 ```
 
-Quando `activeIdRef.current` é `null` (primeira interação, estado vazio, ou após
-refresh sem conversa selecionada), o `throw` propaga para o `ChatErrorBoundary`
+When `activeIdRef.current` is `null` (first interaction, empty state, or after
+refresh without a selected conversation), the `throw` propagates to the `ChatErrorBoundary`
 → "Chat indisponível".
 
-O `sendPrompt` do MESMO arquivo já tinha a lógica correta de criar conversa quando
-não há thread ativa — o `send` de attachments não replicava.
+The `sendPrompt` of the SAME file already had the correct logic to create a conversation when
+there is no active thread — the attachment `send` did not replicate it.
 
-## Correção
+## Fix
 
-No `send` de attachments, replicar a lógica do `sendPrompt`:
+In the attachment `send`, replicate the `sendPrompt` logic:
 
 ```ts
 send: async (attachment: any) => {
@@ -55,19 +55,19 @@ send: async (attachment: any) => {
 }
 ```
 
-`controller` tem `adapter` e `pendingThreadIdRef` expostos no provider
-(`useConversationThreadList`). `chatApi.createSession(title?)` aceita título.
+`controller` has `adapter` and `pendingThreadIdRef` exposed in the provider
+(`useConversationThreadList`). `chatApi.createSession(title?)` accepts a title.
 
-## Pitfall de teste no browser
+## Browser test pitfall
 
-O botão "Anexar arquivo" (`<ComposerPrimitive.AddAttachment>`, `.chat__attach`)
-abre o file picker NATIVO do browser, que NÃO é automatizável via DOM — o clique
-via `browser_click` não cria um `input[type=file]` acessível para injeção
-programática de arquivo. Não perca tempo tentando injetar via `DataTransfer` num
-input que não aparece no DOM.
+The "Anexar arquivo" button (`<ComposerPrimitive.AddAttachment>`, `.chat__attach`)
+opens the browser's NATIVE file picker, which is NOT automatable via DOM — the click
+via `browser_click` does not create an accessible `input[type=file]` for programmatic
+file injection. Do not waste time trying to inject via `DataTransfer` into an
+input that does not appear in the DOM.
 
-Valide o fix por:
-- Teste de backend (endpoint devolve 201 + FileAttachment).
-- `bun run build` (compila TS sem erro).
-- Pedir ao usuário para testar manualmente o anexo no browser (anexar PNG antes
-  de enviar qualquer mensagem — o cenário sem conversa ativa).
+Validate the fix by:
+- Backend test (endpoint returns 201 + FileAttachment).
+- `bun run build` (compiles TS without error).
+- Ask the user to manually test the attachment in the browser (attach a PNG before
+  sending any message — the no-active-conversation scenario).

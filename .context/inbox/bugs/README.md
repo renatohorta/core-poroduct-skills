@@ -1,3 +1,3 @@
 # bugs
 
-<!-- Itens de bugs são registrados aqui. Formato: um arquivo .md por item. -->
+<!-- Bug items are recorded here. Format: one .md file per item. -->

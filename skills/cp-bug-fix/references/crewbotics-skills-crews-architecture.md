@@ -1,78 +1,78 @@
-# Crewbotics — Skills x Crews: Arquitetura Real (2026-08-08)
+# Crewbotics — Skills x Crews: Real Architecture (2026-08-08)
 
-Visão de arquitetura descoberta ao investigar "posso apagar os templates de crew
-do marketplace se as skills fazem a mesma coisa?". Resposta: **não são a mesma
-coisa, e apagar quebra o Copilot**. Guarde isto antes de qualquer refactor de
-skills/crews no projeto.
+Architecture view discovered while investigating "can I delete the crew templates
+from the marketplace if the skills do the same thing?". Answer: **they are not the same
+thing, and deleting breaks Copilot**. Keep this in mind before any skills/crews
+refactor in the project.
 
-## Dois mecanismos distintos
+## Two distinct mechanisms
 
-1. **Skills** — capacidades de conversa que o LLM chama via function calling.
-   - Registradas 100% em CÓDIGO via `@register_skill` (decorator). **Não há modelo
-     no banco para skill** — não é editável via admin (por design).
-   - Atômicas (executam direto): `web_search`, `analyze_image`, `create_presentation`,
+1. **Skills** — conversation capabilities that the LLM calls via function calling.
+   - Registered 100% in CODE via `@register_skill` (decorator). **There is no model
+     in the database for a skill** — it is not editable via admin (by design).
+   - Atomic (execute directly): `web_search`, `analyze_image`, `create_presentation`,
      `canvas_design`, `generate_image`, `execute_crew`, `list_crews`, etc.
-   - Compostas (`CpCrewSkill`): acionam uma crew. Buscam `CrewTemplate` por
-     `template_slug`, criam `CrewInstance` (copia members/tasks) e chamam
+   - Composite (`CpCrewSkill`): fire a crew. They look up `CrewTemplate` by
+     `template_slug`, create a `CrewInstance` (copies members/tasks) and call
      `dispatch_run`.
 
-2. **Crews / CrewTemplate** — o motor multi-agente.
-   - `CrewTemplate` é o catálogo (marketplace), com `CrewTemplateMember` (agentes,
-     tools por agente) + `CrewTemplateTask` (tasks, quality_gate, handoff,
-     is_output, tools por task). Tem admin (`crews/admin.py`) com inlines.
-   - `CrewInstance` = crew contratada/customizada pelo usuário, copia members/tasks
-     do template. Acionável via `dispatch_run` e via skill `execute_crew`.
+2. **Crews / CrewTemplate** — the multi-agent engine.
+   - `CrewTemplate` is the catalog (marketplace), with `CrewTemplateMember` (agents,
+     tools per agent) + `CrewTemplateTask` (tasks, quality_gate, handoff,
+     is_output, tools per task). It has admin (`crews/admin.py`) with inlines.
+   - `CrewInstance` = crew hired/customized by the user, copies members/tasks
+     from the template. Fireable via `dispatch_run` and via the `execute_crew` skill.
 
-## Ponto crítico: skill composta DEPENDE do CrewTemplate
+## Critical point: the composite skill DEPENDS on the CrewTemplate
 
-`CpCrewSkill.execute()` faz:
+`CpCrewSkill.execute()` does:
 ```python
 template = CrewTemplate.objects.filter(
     metadata__crew_slug=self.template_slug, is_public=True).first()
 if not template:
     return {"error": f"Template '{self.template_slug}' não encontrado no marketplace."}
 ```
-Cada uma das 46 skills `cp_*` (Fábrica de Software) tem `template_slug = "cp_*"`.
-**Em 2026-08-08 havia 0 templates `cp_*` no banco** (só os 6 `agency-*`) → todas as
-46 skills `cp_*` retornavam "Template não encontrado" (quebradas).
+Each of the 46 `cp_*` skills (Software Factory) has `template_slug = "cp_*"`.
+**On 2026-08-08 there were 0 `cp_*` templates in the database** (only the 6 `agency-*`) → all
+46 `cp_*` skills returned "Template não encontrado" (broken).
 
-Implicação: **esconder/apagar o marketplace NÃO faz as skills "assumirem"** — as
-skills `cp_*` procuram slugs `cp_*`, não `agency-*`. Para as skills do Copilot
-funcionarem é preciso POPULAR os templates `cp_*` (internos, `is_public=False`).
+Implication: **hiding/deleting the marketplace does NOT make the skills "take over"** — the
+`cp_*` skills look for `cp_*` slugs, not `agency-*`. For the Copilot skills
+to work you must POPULATE the `cp_*` templates (internal, `is_public=False`).
 
-## Estado dos dados (08/08)
+## Data state (08/08)
 
-- Templates agency no banco (6, todos is_public=True): agency-campanha-marketing-
-  multicanal, agency-carousel-creator-instagram (criado na sessão), agency-feature-
+- Agency templates in the database (6, all is_public=True): agency-campanha-marketing-
+  multicanal, agency-carousel-creator-instagram (created in the session), agency-feature-
   enterprise, agency-lancamento-produto-digital, agency-presenca-digital-profissional,
   agency-resposta-crise.
-- `crews/seed_data/crew_templates.json` está VAZIO (`{"crews": []}`). Os `cp_*` NUNCA
-  foram seedados.
-- `crews/seed_data/agency_crew_templates.json` tem os 6 agency.
+- `crews/seed_data/crew_templates.json` is EMPTY (`{"crews": []}`). The `cp_*` were NEVER
+  seeded.
+- `crews/seed_data/agency_crew_templates.json` has the 6 agency ones.
 
-## Seed atual é DESTRUTIVO
+## Current seed is DESTRUCTIVE
 
-`upsert_agency_crews` e `upsert_crews` fazem `obj.members.all().delete()` +
-`obj.tasks.all().delete()` e recriam. **Qualquer edição no admin é perdida no próximo
-seed.** Se o usuário pedir "editar template via admin", é preciso tornar o seed
-não-destrutivo (só popular 1ª vez ou por flag) — ainda não feito (a sessão terminou
-antes disso).
+`upsert_agency_crews` and `upsert_crews` do `obj.members.all().delete()` +
+`obj.tasks.all().delete()` and recreate. **Any admin edit is lost on the next
+seed.** If the user asks to "edit a template via admin", the seed must be made
+non-destructive (only populate the 1st time or via a flag) — not yet done (the session ended
+before that).
 
-## Componentização alvo (direção do usuário)
+## Target componentization (user's direction)
 
-Usuário quer "componentização ao máximo, mantendo em código, sem editar tudo por
-banco". Visão de camadas:
-- SKILL (processo auto-contido) → Skill atômica | Skill composta (→ crew)
-- CREW (motor) → agentes reutilizáveis (Python, não JSON) + tasks reutilizáveis
-- Substituir o `agency_crew_templates.json` por definições Python de agentes/tasks/
-  crews compostos (cada agente definido 1x e referenciado por N crews).
-- Já há reuso parcial: `agency-reality-checker` aparece em 5 crews, `agency-content-
-  creator` em 4, etc. (20 agentes distintos usados em 35 instâncias).
+The user wants "maximum componentization, keeping it in code, without editing everything via
+the database". Layer view:
+- SKILL (self-contained process) → atomic skill | composite skill (→ crew)
+- CREW (engine) → reusable agents (Python, not JSON) + reusable tasks
+- Replace `agency_crew_templates.json` with Python definitions of agents/tasks/
+  composite crews (each agent defined 1x and referenced by N crews).
+- There is already partial reuse: `agency-reality-checker` appears in 5 crews, `agency-content-
+  creator` in 4, etc. (20 distinct agents used in 35 instances).
 
-## Ferramentas/execução úteis nesta área
+## Useful tools/execution in this area
 
-- Rodar queries Django com o venv do projeto e **PYTHONPATH limpo** (só
-  `.venv\Lib\site-packages`), senão o sandbox Hermes injeta o PIL/venv dele e dá
-  `ImportError: cannot import name '_imaging'`. Usar:
-  `env = dict(os.environ); env["PYTHONPATH"] = <site-packages do projeto>`
-- Inspetar o catálogo de skills sem instanciar com usuário: `from chat.skills.registry import _registry` e iterar `sorted(_registry.keys())`.
+- Run Django queries with the project venv and a **clean PYTHONPATH** (only
+  `.venv\Lib\site-packages`), otherwise the Hermes sandbox injects its PIL/venv and gives
+  `ImportError: cannot import name '_imaging'`. Use:
+  `env = dict(os.environ); env["PYTHONPATH"] = <project site-packages>`
+- Inspect the skill catalog without instantiating with a user: `from chat.skills.registry import _registry` and iterate `sorted(_registry.keys())`.

@@ -1,31 +1,31 @@
-# DT-06 — Sem CI [Concluido]
+# DT-06 — No CI [Done]
 
-**Tipo**: Débito técnico · **Prioridade**: Média · **Aberto em**: 2026-08-18
-**Depende de**: DT-02, DT-05
+**Type**: Technical debt · **Priority**: Medium · **Opened on**: 2026-08-18
+**Depends on**: DT-02, DT-05
 
-## Contexto
+## Context
 
-Não há workflow de CI. Nada valida um push antes de as skills serem propagadas
-para os agentes por `install.sh`.
+There is no CI workflow. Nothing validates a push before the skills are
+propagated to the agents by `install.sh`.
 
-## Proposta
+## Proposal
 
-Workflow (GitHub Actions) a cada push/PR:
+Workflow (GitHub Actions) on every push/PR:
 
-1. `bash -n scripts/install.sh` (sintaxe) e `./scripts/install.sh --dry-run`
-   com `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` apontando para tempdir.
-2. `pytest` (smoke + contrato, DT-02/DT-03).
-3. Verificação de higiene: nenhum path absoluto de máquina (`C:\Users\`, `/home/`)
-   e nenhum padrão de chave de API nos arquivos versionados.
+1. `bash -n scripts/install.sh` (syntax) and `./scripts/install.sh --dry-run`
+   with `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` pointing to a tempdir.
+2. `pytest` (smoke + contract, DT-02/DT-03).
+3. Hygiene check: no absolute machine path (`C:\Users\`, `/home/`)
+   and no API key pattern in the committed files.
 
-## Critério de aceite
+## Acceptance criterion
 
-- PR com skill quebrada é bloqueado pelo CI.
+- A PR with a broken skill is blocked by CI.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
-credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.
+**Done on 2026-08-18.** Verified with the suite (`pytest`, 158 tests, no
+LLM credential). See `.context/docs/04-quality-qa.md`.

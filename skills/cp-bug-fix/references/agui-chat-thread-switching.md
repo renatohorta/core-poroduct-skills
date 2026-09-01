@@ -53,12 +53,12 @@ The user clicks a conversation, types a message, and the message appears in a **
 2. **`base.threadId` is NOT set by the runtime.** The `HttpAgent` constructor generates a random UUID for `this.threadId`. The AG-UI runtime does **not** set `agent.threadId` when switching threads — it only calls the adapter. Using `base.threadId` as a fallback is worse than having no interceptor: the value is always truthy (a fake UUID), so the interceptor passes a non-existent UUID to the backend, which silently creates a new conversation.
 
 ```tsx
-// ERRADO — ctrl.activeId é React state, stale no closure:
+// WRONG — ctrl.activeId is React state, stale in the closure:
 if (!agentRef.current) {
   const base = new HttpAgent({...});
   base.runAgent = async function (params, subscriber) {
     const ctrl = controller;
-    if (!ctrl.activeId) {  // ← sempre null! closure capturou valor inicial
+    if (!ctrl.activeId) {  // ← always null! closure captured the initial value
       const conv = await chatApi.createSession();
       base.threadId = conv.uuid;
     }
@@ -66,8 +66,8 @@ if (!agentRef.current) {
   };
 }
 
-// ERRADO — base.threadId é UUID aleatório do construtor, sempre truthy:
-if (base.threadId) {  // ← sempre truthy! UUID fake, backend cria conversa nova
+// WRONG — base.threadId is a random constructor UUID, always truthy:
+if (base.threadId) {  // ← always truthy! fake UUID, backend creates a new conversation
   params = { ...params, threadId: base.threadId };
   return origRunAgent(params, subscriber);
 }

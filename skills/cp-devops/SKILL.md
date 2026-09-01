@@ -1,183 +1,183 @@
 ---
 name: cp-devops
-description: "DevOps e Infraestrutura — cria uma crew CrewAI com Engenheiros de CI/CD, Infraestrutura, Monitoramento e Segurança de Infra para configurar pipelines, provisionar infraestrutura e realizar deploy. Use quando o usuário disser 'fazer deploy', 'configurar CI/CD', 'provisionar infraestrutura', 'subir ambiente', 'configurar monitoramento'."
+description: "DevOps and Infrastructure — creates a CrewAI crew with CI/CD, Infrastructure, Monitoring and Infra Security Engineers to configure pipelines, provision infrastructure and deploy. Use when the user says 'deploy', 'configure CI/CD', 'provision infrastructure', 'set up environment', 'configure monitoring'."
 ---
 
-# cp-devops — DevOps e Infraestrutura Crew
+# cp-devops — DevOps and Infrastructure Crew
 
-Cria uma crew CrewAI self-contained com agentes especializados em DevOps e Infraestrutura para configurar pipelines de CI/CD, provisionar infraestrutura como código, configurar monitoramento e realizar revisão de segurança.
+Creates a self-contained CrewAI crew with agents specialized in DevOps and Infrastructure to configure CI/CD pipelines, provision infrastructure as code, configure monitoring and perform security review.
 
-## Agentes
+## Agents
 
-| Agente | Função |
+| Agent | Role |
 |--------|--------|
-| **Engenheiro de CI/CD** | Configura pipelines de build/test/deploy (GitHub Actions, GitLab CI) |
-| **Engenheiro de Infraestrutura** | Terraform, Docker, Kubernetes, cloud (AWS/GCP/Azure) |
-| **Engenheiro de Monitoramento** | Configura logging, métricas, alertas (Grafana, Prometheus, Datadog) |
-| **Engenheiro de Segurança de Infra** | Revisa segurança da infraestrutura, firewalls, IAM, secrets |
+| **CI/CD Engineer** | Configures build/test/deploy pipelines (GitHub Actions, GitLab CI) |
+| **Infrastructure Engineer** | Terraform, Docker, Kubernetes, cloud (AWS/GCP/Azure) |
+| **Monitoring Engineer** | Configures logging, metrics, alerts (Grafana, Prometheus, Datadog) |
+| **Infra Security Engineer** | Reviews infrastructure security, firewalls, IAM, secrets |
 
-## Pipeline (Tasks Sequenciais)
+## Pipeline (Sequential Tasks)
 
 ```
-1. Análise de Requisitos de Infra  →  (Eng. Infraestrutura)
-2. Configuração de CI/CD           →  (Eng. CI/CD)
-3. Provisionamento de Infraestrutura → (Eng. Infraestrutura)
-4. Configuração de Monitoramento   →  (Eng. Monitoramento)
-5. Revisão de Segurança            →  (Eng. Segurança Infra)
-6. Quality Gate                    →  (Todos — PASS/FAIL)
+1. Infra Requirements Analysis  →  (Infrastructure Eng.)
+2. CI/CD Configuration          →  (CI/CD Eng.)
+3. Infrastructure Provisioning  →  (Infrastructure Eng.)
+4. Monitoring Configuration    →  (Monitoring Eng.)
+5. Security Review             →  (Infra Security Eng.)
+6. Quality Gate                →  (All — PASS/FAIL)
 ```
 
-## Entrada
+## Input
 
-- Descrição do projeto + requisitos de infraestrutura
-- Pode ser texto direto ou arquivo via `--input`
+- Project description + infrastructure requirements
+- Can be direct text or a file via `--input`
 
-## Saída
+## Output
 
-- Pipeline CI/CD configurado
-- Infraestrutura provisionada (IaC)
-- Monitoramento ativo (métricas, logs, alertas)
-- Relatório de segurança
+- Configured CI/CD pipeline
+- Provisioned infrastructure (IaC)
+- Active monitoring (metrics, logs, alerts)
+- Security report
 - Quality Gate: PASS/FAIL
 
 ## Quality Gate
 
-O Quality Gate final verifica:
-1. Pipeline CI/CD configurado e funcional
-2. Health check da infraestrutura passando
-3. Monitoramento coletando métricas
-4. Sem vulnerabilidades críticas de segurança
+The final Quality Gate verifies:
+1. CI/CD pipeline configured and functional
+2. Infrastructure health check passing
+3. Monitoring collecting metrics
+4. No critical security vulnerabilities
 
-Veredito: **PASS** (tudo verde) ou **FAIL** (itens a corrigir).
+Verdict: **PASS** (all green) or **FAIL** (items to fix).
 
-## Modos
+## Modes
 
-| Modo | Escopo |
+| Mode | Scope |
 |------|--------|
-| `full` (default) | Pipeline completo: análise → CI/CD → infra → monitoramento → segurança → quality gate |
-| `ci-cd` | Apenas configuração de pipeline CI/CD |
-| `infra` | Apenas provisionamento de infraestrutura |
-| `monitoring` | Apenas configuração de monitoramento |
-| `security` | Apenas revisão de segurança |
+| `full` (default) | Complete pipeline: analysis → CI/CD → infra → monitoring → security → quality gate |
+| `ci-cd` | CI/CD pipeline configuration only |
+| `infra` | Infrastructure provisioning only |
+| `monitoring` | Monitoring configuration only |
+| `security` | Security review only |
 
-## Uso
+## Usage
 
 ```bash
-# Descrição direta
-python .hermes/skills/cp-devops/scripts/run.py "subir ambiente de staging com PostgreSQL e Redis"
+# Direct description
+python .hermes/skills/cp-devops/scripts/run.py "set up a staging environment with PostgreSQL and Redis"
 
-# Modo específico
-python .hermes/skills/cp-devops/scripts/run.py --mode ci-cd "configurar GitHub Actions para o repositório"
+# Specific mode
+python .hermes/skills/cp-devops/scripts/run.py --mode ci-cd "configure GitHub Actions for the repository"
 
-# Arquivo de entrada
-python .hermes/skills/cp-devops/scripts/run.py --input requisitos-infra.txt
+# Input file
+python .hermes/skills/cp-devops/scripts/run.py --input infra-requirements.txt
 
-# Salvar saída
-python .hermes/skills/cp-devops/scripts/run.py "deploy em produção" --output relatorio.md
+# Save output
+python .hermes/skills/cp-devops/scripts/run.py "deploy to production" --output report.md
 
-# Dry run (apenas monta a crew)
-python .hermes/skills/cp-devops/scripts/run.py "teste" --dry-run
+# Dry run (only builds the crew)
+python .hermes/skills/cp-devops/scripts/run.py "test" --dry-run
 ```
 
-## Exemplos
+## Examples
 
 ```bash
-# Exemplo 1: Deploy completo
+# Example 1: Complete deploy
 python .hermes/skills/cp-devops/scripts/run.py \
-  "subir ambiente de produção para o sistema de agendamento: \
-   AWS EC2 com Docker, PostgreSQL RDS, Redis ElastiCache, \
-   GitHub Actions para CI/CD, Grafana + Prometheus para monitoramento"
+  "set up a production environment for the scheduling system: \
+   AWS EC2 with Docker, PostgreSQL RDS, Redis ElastiCache, \
+   GitHub Actions for CI/CD, Grafana + Prometheus for monitoring"
 
-# Exemplo 2: Apenas CI/CD
+# Example 2: CI/CD only
 python .hermes/skills/cp-devops/scripts/run.py --mode ci-cd \
-  "configurar GitHub Actions com testes, lint, build Docker e deploy automático"
+  "configure GitHub Actions with tests, lint, Docker build and automatic deploy"
 
-# Exemplo 3: Apenas segurança
+# Example 3: Security only
 python .hermes/skills/cp-devops/scripts/run.py --mode security \
-  "revisar segurança da infraestrutura atual: AWS com ECS, RDS, S3, Lambda"
+  "review the security of the current infrastructure: AWS with ECS, RDS, S3, Lambda"
 ```
 
-## Infra Cleanup (remoção de dependências)
+## Infra Cleanup (removing dependencies)
 
-Quando uma migração de código (ex: Celery → asyncio) elimina a necessidade de um serviço de infraestrutura (ex: Redis/ElastiCache), o Terraform e scripts associados precisam ser atualizados. Checklist:
+When a code migration (e.g.: Celery → asyncio) eliminates the need for an infrastructure service (e.g.: Redis/ElastiCache), the Terraform and associated scripts need to be updated. Checklist:
 
-1. **Terraform**: remover o resource do serviço (ex: `aws_elasticache_replication_group`)
-2. **Security Groups**: remover SG do serviço removido
-3. **ECS Task Definitions**: remover containers que não são mais necessários (ex: `celery-worker`, `celery-beat`)
-4. **CloudWatch Log Groups**: remover log groups dos containers removidos
-5. **Secrets Manager**: remover secrets que não são mais necessários (ex: `REDIS_URL`)
-6. **Outputs**: remover outputs do serviço removido
-7. **Dockerfile / docker-compose**: remover referências ao serviço
-8. **Scripts de dev**: remover health checks e dependências do serviço
-9. **Código**: remover health checks e conexões ao serviço no código da aplicação
-10. **Testes**: atualizar mocks e patches que referenciam o serviço removido
+1. **Terraform**: remove the service resource (e.g.: `aws_elasticache_replication_group`)
+2. **Security Groups**: remove the SG of the removed service
+3. **ECS Task Definitions**: remove containers that are no longer needed (e.g.: `celery-worker`, `celery-beat`)
+4. **CloudWatch Log Groups**: remove log groups of the removed containers
+5. **Secrets Manager**: remove secrets that are no longer needed (e.g.: `REDIS_URL`)
+6. **Outputs**: remove outputs of the removed service
+7. **Dockerfile / docker-compose**: remove references to the service
+8. **Dev scripts**: remove health checks and dependencies of the service
+9. **Code**: remove health checks and connections to the service in the application code
+10. **Tests**: update mocks and patches that reference the removed service
 
-**Economia típica:** ElastiCache Redis `cache.t4g.small` = ~$20/mês + NAT Gateway = ~$32/mês + Fargate containers = ~$30/mês.
+**Typical savings:** ElastiCache Redis `cache.t4g.small` = ~$20/month + NAT Gateway = ~$32/month + Fargate containers = ~$30/month.
 
-## Code Migration (troca de worker/broker)
+## Code Migration (worker/broker swap)
 
-Quando uma migração substitui um sistema de filas (ex: Celery → asyncio nativo), além da infra, o código precisa de atenção nestes pontos:
+When a migration replaces a queue system (e.g.: Celery → native asyncio), besides the infra, the code needs attention on these points:
 
-### 1. Tasks — criar versões async
+### 1. Tasks — create async versions
 
-Criar `*_async.py` para cada app que tinha tasks Celery. A função `run_crew` (pipeline principal) é a mais crítica — precisa chamar `Crew.kickoff_async()` em vez de `Crew.kickoff()`.
+Create `*_async.py` for each app that had Celery tasks. The `run_crew` function (main pipeline) is the most critical — it needs to call `Crew.kickoff_async()` instead of `Crew.kickoff()`.
 
-### 2. Imports — varredura de stale imports
+### 2. Imports — stale import sweep
 
-Após deletar os `tasks.py` antigos, varrer TODOS os arquivos `.py` por imports quebrados:
+After deleting the old `tasks.py`, sweep ALL `.py` files for broken imports:
 
 ```python
 deleted_modules = ["agents.tasks", "chat.tasks", "crews.tasks", "crews.callbacks",
                    "knowledge.tasks", "integrations.tasks", "activity.tasks", "config.celery"]
 ```
 
-**Pitfall comum:** imports inseridos dentro de blocos multi-line existentes. Exemplo:
+**Common pitfall:** imports inserted inside existing multi-line blocks. Example:
 ```python
-# ERRADO — import dentro dos parênteses do from .models import (...)
+# WRONG — import inside the parentheses of from .models import (...)
 from .models import (
-from config.task_proxy import enqueue_task_sync  # ← quebra a sintaxe
+from config.task_proxy import enqueue_task_sync  # ← breaks syntax
     CrewInstance,
 )
 ```
 
-### 3. Chamadas `.delay()` → `enqueue_task_sync()`
+### 3. `.delay()` calls → `enqueue_task_sync()`
 
-Toda chamada `task.delay(args)` vira `enqueue_task_sync("task_name", task_async_fn, args)`. O proxy `config/task_proxy.py` fornece `enqueue_task_sync()` para chamadas síncronas (views/services) e `enqueue_task()` para async.
+Every `task.delay(args)` call becomes `enqueue_task_sync("task_name", task_async_fn, args)`. The `config/task_proxy.py` proxy provides `enqueue_task_sync()` for synchronous calls (views/services) and `enqueue_task()` for async.
 
-### 4. Funções async chamadas de contexto síncrono
+### 4. Async functions called from synchronous context
 
-Testes e código que chamavam funções Celery diretamente agora chamam `async def`. Precisam de `asyncio.run()`:
+Tests and code that called Celery functions directly now call `async def`. They need `asyncio.run()`:
 
 ```python
-# Antes
+# Before
 sweep_stalled_runs()
-# Depois
+# After
 import asyncio
 asyncio.run(sweep_stalled_runs())
 ```
 
-### 5. Settings removidos acidentalmente
+### 5. Accidentally removed settings
 
-A limpeza de settings `CELERY_*` pode remover settings não-Celery que estavam próximos. Verificar:
+Cleaning up `CELERY_*` settings can remove non-Celery settings that were nearby. Verify:
 - `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_TEMPERATURE`, `LLM_TIMEOUT`
 - `CREW_RUN_STALE_AFTER`, `CREW_RUN_TIME_LIMIT`, `CREW_LLM_TIMEOUT`
-- `CELERY_TASK_ALWAYS_EAGER` (adicionar como compat, sempre True)
+- `CELERY_TASK_ALWAYS_EAGER` (add as compat, always True)
 
-### 6. Testes — `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)`
+### 6. Tests — `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)`
 
-Remover ou comentar decorators que referenciam settings deletados. Substituir por `asyncio.run()` nas chamadas de funções async.
+Remove or comment out decorators that reference deleted settings. Replace with `asyncio.run()` in calls to async functions.
 
-### 7. Boot do Django — `crewai_tools_adapter` pode travar
+### 7. Django boot — `crewai_tools_adapter` can hang
 
-O módulo `chat/skills/crewai_tools_adapter.py` executa código no nível do módulo (não lazy). Algumas tools do CrewAI chamam `input()` ou fazem I/O de rede no `__init__`, travando o boot do `manage.py` para sempre.
+The `chat/skills/crewai_tools_adapter.py` module runs code at module level (not lazy). Some CrewAI tools call `input()` or do network I/O in `__init__`, hanging the `manage.py` boot forever.
 
-**Solução:** tornar a descoberta lazy — substituir o código no final do arquivo por uma função `get_discovery_summary()` que só roda na primeira chamada, não no import.
+**Solution:** make discovery lazy — replace the code at the end of the file with a `get_discovery_summary()` function that only runs on the first call, not on import.
 
-**Solução rápida:** setar `CREWAI_TOOLS_DISCOVERY=0` no ambiente ou no `manage.py` antes de qualquer import do Django.
+**Quick solution:** set `CREWAI_TOOLS_DISCOVERY=0` in the environment or in `manage.py` before any Django import.
 
-### 8. `manage.py` — conflito de `lxml` entre venvs
+### 8. `manage.py` — `lxml` conflict between venvs
 
-Se o Hermes Agent tiver um `lxml` quebrado no path, o `sys.path` do projeto pode carregá-lo antes do `lxml` do `.venv`. Corrigir no `manage.py`:
+If the Hermes Agent has a broken `lxml` on the path, the project's `sys.path` can load it before the `.venv`'s `lxml`. Fix in `manage.py`:
 
 ```python
 _project_site = os.path.join(os.path.dirname(__file__), ".venv", "Lib", "site-packages")
@@ -193,4 +193,4 @@ sys.path = [p for p in sys.path if _hermes_site not in p]
 
 ## Script
 
-O script `scripts/run.py` é self-contained — todos os agentes estão embutidos no próprio código Python. Não depende de diretório externo.
+The `scripts/run.py` script is self-contained — all agents are embedded in the Python code itself. It does not depend on an external directory.

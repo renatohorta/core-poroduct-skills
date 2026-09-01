@@ -1,71 +1,71 @@
 # Crewbotics Presentations Renderer — pitfalls & root-cause of "apresentações feias"
 
-Arquitetura atual (`presentations/services/`):
-- `agent_service.py::process_presentation_prompt` — LLM gera/edita o `state` JSON
-  (`{title, theme, slides}`). Theme = 4 cores soltas (`background_color`,
-  `text_color`, `accent_color`, `font_family`) + layout por slide.
-- `svg_renderer.py::render_slide_svg` — desenha o slide como SVG minimalista
-  (rect + text + bullets), posicionado por coordenadas x/y fixas. Este SVG é
-  achatado para DrawingML editável no PPTX.
-- `orchestrator.py` — monta html/pptx/svg.
+Current architecture (`presentations/services/`):
+- `agent_service.py::process_presentation_prompt` — LLM generates/edits the `state` JSON
+  (`{title, theme, slides}`). Theme = 4 loose colors (`background_color`,
+  `text_color`, `accent_color`, `font_family`) + layout per slide.
+- `svg_renderer.py::render_slide_svg` — draws the slide as a minimalist SVG
+  (rect + text + bullets), positioned by fixed x/y coordinates. This SVG is
+  flattened to editable DrawingML in the PPTX.
+- `orchestrator.py` — assembles html/pptx/svg.
 
-## Por que apresentações saem feias (arquitetural, não do LLM)
-O renderizador foi desenhado para conversão a PPTX (DrawingML só entende formas
-básicas), então não suporta o que deixa um carrossel bonito:
-- **Tipografia**: tudo `Arial`, caixa alta, um tamanho por tipo. Sem pares de
-  fontes Google (ex: Playfair Display + DM Sans), sem escala de tamanhos, sem
-  hierarquia. `_wrap()` quebra por contagem de chars, não mede fonte.
-- **Cor**: 4 cores soltas, sem sistema derivado de 1 cor de marca (BRAND_PRIMARY/
-  LIGHT/DARK + LIGHT_BG/DARK_BG). Sem alternância claro/escuro entre slides.
-- **Componentes**: só 5 layouts (title_hero, standard_bullets, two_column_*,
-  full_image_background), cada um = título + bullets + um `accent_bar` retângulo.
-  Sem progress bar, CTA button, feature list, numbered steps, pills, logo lockup.
-- **Imagem**: overlay scrim preto 55% sobre a imagem → perde o visual.
-- **Sequência**: layout livre por slide; sem arco narrativo (hook → problem →
-  solution → features → how-to → CTA), sem ritmo.
+## Why presentations come out ugly (architectural, not the LLM)
+The renderer was designed for PPTX conversion (DrawingML only understands basic
+shapes), so it does not support what makes a carousel beautiful:
+- **Typography**: everything `Arial`, uppercase, one size per type. No Google font
+  pairs (e.g. Playfair Display + DM Sans), no size scale, no
+  hierarchy. `_wrap()` breaks by char count, does not measure the font.
+- **Color**: 4 loose colors, no system derived from 1 brand color (BRAND_PRIMARY/
+  LIGHT/DARK + LIGHT_BG/DARK_BG). No light/dark alternation between slides.
+- **Components**: only 5 layouts (title_hero, standard_bullets, two_column_*,
+  full_image_background), each = title + bullets + one `accent_bar` rectangle.
+  No progress bar, CTA button, feature list, numbered steps, pills, logo lockup.
+- **Image**: black 55% scrim overlay over the image → loses the visual.
+- **Sequence**: free layout per slide; no narrative arc (hook → problem →
+  solution → features → how-to → CTA), no rhythm.
 
-**Caminho de correção (se pedirem para turbinar):** introduzir renderizador
-HTML/CSS rico (como a skill `instagram-carousel`) para `html`/`svg`/`carrossel`,
-mantendo o SVG simplificado só para o caminho PPTX. Concretamente: (1) derivar
-6 tokens de cor + par de fontes Google a partir da cor primária; (2) componentes
-ricos (progress bar, swipe arrow, feature list, numbered steps, CTA, pills, logo);
-(3) prompt do `agent_service` para estruturar 7 slides com arco e alternar fundos;
-(4) renderizador HTML para preview/export.
+**Fix path (if asked to turbocharge):** introduce a rich
+HTML/CSS renderer (like the `instagram-carousel` skill) for `html`/`svg`/`carrossel`,
+keeping the simplified SVG only for the PPTX path. Concretely: (1) derive
+6 color tokens + a Google font pair from the primary color; (2) rich
+components (progress bar, swipe arrow, feature list, numbered steps, CTA, pills, logo);
+(3) `agent_service` prompt to structure 7 slides with an arc and alternate backgrounds;
+(4) HTML renderer for preview/export.
 
-## Bug 1 — SVGs não renderizavam no chat/carrossel (imagem quebrada)
-`_local_image_path()` convertia a URL do MEDIA (`/media/...`) em caminho de
-arquivo LOCAL (`C:\...\slide.png`). Necessário para o conversor DrawingML embutir
-a imagem no PPTX, MAS o mesmo SVG servido ao browser no CarouselCard usa esse
-caminho → o browser não resolve → imagem quebrada.
+## Bug 1 — SVGs did not render in chat/carousel (broken image)
+`_local_image_path()` converted the MEDIA URL (`/media/...`) into a LOCAL file
+path (`C:\...\slide.png`). Necessary for the DrawingML converter to embed
+the image in the PPTX, BUT the same SVG served to the browser in the CarouselCard uses that
+path → the browser does not resolve → broken image.
 
-**Fix:** `_image_ref(url, *, browser)`. `browser=True` usa `/media/...`;
-`browser=False` mantém caminho local (para PPTX). Callers que geram SVG/HTML
-servido ao browser passam `browser=True`:
-- `chat/skills/presentation_skill.py` (SVGs do card no chat)
-- `presentations/services/orchestrator.py` (HTML servido ao browser)
-- `pptx_builder.py` mantém default False.
-Regenerar SVGs antigos (já arquivados na base de conhecimento) sobrescrevendo o
-arquivo no MEDIA_ROOT no caminho correto. **Pitfall:** `doc.file.save(name, ...)`
-com o mesmo `name` duplica o path (`rag/.../rag/...`); usar `open(real_path, "w")`
-diretamente e corrigir `doc.file.name` para `rag/YYYY/MM/<basename>`.
+**Fix:** `_image_ref(url, *, browser)`. `browser=True` uses `/media/...`;
+`browser=False` keeps the local path (for PPTX). Callers that generate SVG/HTML
+served to the browser pass `browser=True`:
+- `chat/skills/presentation_skill.py` (card SVGs in chat)
+- `presentations/services/orchestrator.py` (HTML served to the browser)
+- `pptx_builder.py` keeps the default False.
+Regenerate old SVGs (already archived in the knowledge base) by overwriting the
+file in MEDIA_ROOT at the correct path. **Pitfall:** `doc.file.save(name, ...)`
+with the same `name` duplicates the path (`rag/.../rag/...`); use `open(real_path, "w")`
+directly and fix `doc.file.name` to `rag/YYYY/MM/<basename>`.
 
-## Bug 2 — Download de arquivo gerado dava 401
-O CarouselCard usava `<a href={downloadUrl} download>`. O access token vive só em
-memória (auth híbrida) → link direto não envia header Authorization → 401.
+## Bug 2 — Download of the generated file returned 401
+The CarouselCard used `<a href={downloadUrl} download>`. The access token lives only in
+memory (hybrid auth) → a direct link does not send the Authorization header → 401.
 
-**Fix:** usar `api.downloadBlob(path)` (fetch autenticado Bearer + retry de
-refresh) → blob → `URL.createObjectURL` → `<a>.click()`. Normalizar prefixo:
-`downloadUrl` do backend já vem com `/api/v1/`; `downloadBlob` espera caminho
-relativo à base, então remover o prefixo antes (`startsWith("/api/v1") ? slice(5)`).
-O downloadUrl já absoluto quebrado era `/api/v1/api/v1/...`.
+**Fix:** use `api.downloadBlob(path)` (authenticated Bearer fetch + refresh
+retry) → blob → `URL.createObjectURL` → `<a>.click()`. Normalize the prefix:
+the backend `downloadUrl` already comes with `/api/v1/`; `downloadBlob` expects a path
+relative to the base, so remove the prefix before (`startsWith("/api/v1") ? slice(5)`).
+The broken already-absolute downloadUrl was `/api/v1/api/v1/...`.
 
-## Bug 3 — Export PNG do carrossel falha com `NotImplementedError` no Windows
+## Bug 3 — Carousel PNG export fails with `NotImplementedError` on Windows
 
-`playwright_export.py::export_carousel_pngs` roda `asyncio.run(_run())` para
-lançar o Chromium e capturar os slides. No Windows, se o event loop ativo for um
-**Selector** loop (não Proactor), `asyncio.subprocess_exec` levanta
-`NotImplementedError` em `_make_subprocess_transport` — o Playwright não consegue
-lançar o subprocess do Chromium. Sintoma no log:
+`playwright_export.py::export_carousel_pngs` runs `asyncio.run(_run())` to
+launch Chromium and capture the slides. On Windows, if the active event loop is a
+**Selector** loop (not Proactor), `asyncio.subprocess_exec` raises
+`NotImplementedError` in `_make_subprocess_transport` — Playwright cannot
+launch the Chromium subprocess. Symptom in the log:
 
 ```
 Task exception was never retrieved
@@ -74,22 +74,22 @@ Task exception was never retrieved
 ERROR Falha no export PNG do carrossel:
 ```
 
-**Causa raiz:** o Playwright async exige um event loop **Proactor** no Windows
-(que suporta subprocess). Se o loop atual for Selector (ou o `asyncio.run` herdar
-uma policy errada), o launch do browser quebra.
+**Root cause:** Playwright async requires a **Proactor** event loop on Windows
+(which supports subprocess). If the current loop is Selector (or the `asyncio.run` inherits
+a wrong policy), the browser launch breaks.
 
-**Fix:** garantir a policy Proactor antes de `asyncio.run` no export:
+**Fix:** ensure the Proactor policy before `asyncio.run` in the export:
 ```python
 import asyncio, sys
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 return asyncio.run(_run())
 ```
-**Pitfall adicional:** o export é **não-bloqueante** por design — `_build_carousel`
-em `orchestrator.py` envolve `export_carousel_pngs` em try/except e segue só com o
-HTML se o PNG falhar. Então um erro de Playwright não derruba a geração do
-carrossel, mas o usuário fica sem os PNGs 1080×1350. Verificar o log
-(`Falha no export PNG do carrossel`) ao reportar "carrossel sem download de PNG".
-Também confirmar que o Chromium está instalado (`playwright install chromium`) —
-`Executable doesn't exist at ...ms-playwright\chromium_headless_shell-...` é um
-erro separado de browser ausente, não o bug do event loop.
+**Additional pitfall:** the export is **non-blocking** by design — `_build_carousel`
+in `orchestrator.py` wraps `export_carousel_pngs` in try/except and continues with only the
+HTML if the PNG fails. So a Playwright error does not bring down the carousel
+generation, but the user is left without the 1080×1350 PNGs. Check the log
+(`Falha no export PNG do carrossel`) when reporting "carousel without PNG download".
+Also confirm that Chromium is installed (`playwright install chromium`) —
+`Executable doesn't exist at ...ms-playwright\chromium_headless_shell-...` is a
+separate missing-browser error, not the event loop bug.

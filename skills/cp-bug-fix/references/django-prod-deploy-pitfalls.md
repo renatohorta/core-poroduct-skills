@@ -1,25 +1,25 @@
-# Django em Produção (ECS/ALB) — Pitfalls de Deploy e Migração
+# Django in Production (ECS/ALB) — Deploy and Migration Pitfalls
 
-Pitfalls reais encontrados ao corrigir bugs de produção no Crewbotics (Django 5 + DRF,
-Postgres, ECS Fargate + ALB). Todos causaram 500/400 em produção e foram resolvidos.
+Real pitfalls found while fixing production bugs in Crewbotics (Django 5 + DRF,
+Postgres, ECS Fargate + ALB). All caused 500/400 in production and were resolved.
 
-## 1. DisallowedHost do health check do ALB/ECS (IP privado)
+## 1. DisallowedHost from the ALB/ECS health check (private IP)
 
-**Sintoma:** em produção, TODOS os endpoints retornam 400 (inclusive `/api/v1/health/`),
-com log:
+**Symptom:** in production, ALL endpoints return 400 (including `/api/v1/health/`),
+with log:
 ```
 django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '10.0.10.100:8000'.
 You may need to add '10.0.10.100' to ALLOWED_HOSTS.
 ```
-O ALB marca o target como unhealthy e o serviço cai.
+The ALB marks the target as unhealthy and the service goes down.
 
-**Causa raiz:** o ALB com `target_type = "ip"` bate no container usando o **IP privado**
-do container como Host header (ex: `10.0.x.x`). Esse IP não está em `DJANGO_ALLOWED_HOSTS`
-(que só tem o domínio público). `ALLOWED_HOSTS` só aceita o que vem da env var.
+**Root cause:** the ALB with `target_type = "ip"` hits the container using the **private IP**
+of the container as the Host header (e.g. `10.0.x.x`). This IP is not in `DJANGO_ALLOWED_HOSTS`
+(which only has the public domain). `ALLOWED_HOSTS` only accepts what comes from the env var.
 
-**Correção (segura, sem abrir para Hosts arbitrários):** um middleware que adiciona Hosts
-de IP privado RFC 1918 ao `ALLOWED_HOSTS` em runtime, ANTES do `CommonMiddleware` (que
-valida o host). `config/middleware.py`:
+**Fix (safe, without opening to arbitrary Hosts):** a middleware that adds RFC 1918
+private IP Hosts to `ALLOWED_HOSTS` at runtime, BEFORE the `CommonMiddleware` (which
+validates the host). `config/middleware.py`:
 
 ```python
 import ipaddress
@@ -49,40 +49,40 @@ class AllowPrivateIpHostMiddleware:
                 if ":" in host and host.rsplit(":", 1)[1].isdigit():
                     domain = host.rsplit(":", 1)[0]
                 if domain not in allowed:
-                    allowed.append(domain)  # mutação in-place respeitada pelo CommonMiddleware
+                    allowed.append(domain)  # in-place mutation respected by CommonMiddleware
         return self.get_response(request)
 ```
 
-Registrar no `MIDDLEWARE` logo após `SecurityMiddleware` (antes do `CommonMiddleware`).
+Register in `MIDDLEWARE` right after `SecurityMiddleware` (before the `CommonMiddleware`).
 
-**Pitfalls de implementação:**
-- NÃO chamar `request.get_host()` dentro do middleware — ele já valida contra
-  `ALLOWED_HOSTS` e levanta `DisallowedHost` antes do seu check. Ler `request.META["HTTP_HOST"]`.
-- Adicionar o **domínio sem porta** ao ALLOWED_HOSTS (o `validate_host` usa
-  `split_domain_port` e compara só o domínio). Adicionar `10.0.10.100:8000` (com porta)
-  não casa.
-- `ALLOWED_HOSTS` não aceita CIDR (`10.0.0.0/8`) — só `*` e nomes/IPs exatos.
-- Em DEBUG, `ALLOWED_HOSTS` já tem `*`; o middleware só precisa agir em produção.
+**Implementation pitfalls:**
+- Do NOT call `request.get_host()` inside the middleware — it already validates against
+  `ALLOWED_HOSTS` and raises `DisallowedHost` before your check. Read `request.META["HTTP_HOST"]`.
+- Add the **domain without the port** to ALLOWED_HOSTS (`validate_host` uses
+  `split_domain_port` and compares only the domain). Adding `10.0.10.100:8000` (with port)
+  does not match.
+- `ALLOWED_HOSTS` does not accept CIDR (`10.0.0.0/8`) — only `*` and exact names/IPs.
+- In DEBUG, `ALLOWED_HOSTS` already has `*`; the middleware only needs to act in production.
 
-**Teste de regressão:** rodar a cadeia real `AllowPrivateIpHostMiddleware → CommonMiddleware`
-com `RequestFactory` e `HTTP_HOST` de IP privado (deve passar), domínio público (passa),
-e `evil.com` (deve levantar `DisallowedHost`). Usar `HttpResponse` real como `get_response`
-(o `CommonMiddleware` espera uma HttpResponse; retornar string causa `AttributeError`).
+**Regression test:** run the real chain `AllowPrivateIpHostMiddleware → CommonMiddleware`
+with `RequestFactory` and `HTTP_HOST` of a private IP (must pass), public domain (passes),
+and `evil.com` (must raise `DisallowedHost`). Use a real `HttpResponse` as `get_response`
+(`CommonMiddleware` expects an HttpResponse; returning a string causes `AttributeError`).
 
-## 2. Migration com `'tabela'::regclass` falha quando a tabela não existe
+## 2. Migration with `'tabela'::regclass` fails when the table does not exist
 
-**Sintoma:** ao rodar `pytest --create-db`, a migration de um app falha com:
+**Symptom:** when running `pytest --create-db`, an app's migration fails with:
 ```
 django.db.utils.ProgrammingError: relation "activity_activitylog" does not exist
 LINE 2: WHERE conrelid = 'activity_activitylog'::regclass AND cont...
 ```
 
-**Causa raiz:** `'tabela'::regclass` lança erro se a tabela ainda não foi criada. Durante
-`migrate`/testes, as migrations de `accounts` rodam ANTES das de `activity`/`crews`/etc.
-Uma migration de `accounts` que referencia tabelas de outros apps quebra.
+**Root cause:** `'tabela'::regclass` throws an error if the table has not been created yet. During
+`migrate`/tests, the `accounts` migrations run BEFORE the `activity`/`crews`/etc. ones.
+A `accounts` migration that references tables from other apps breaks.
 
-**Correção:** usar `to_regclass('tabela')` (retorna NULL se não existe) e validar antes de
-agir:
+**Fix:** use `to_regclass('tabela')` (returns NULL if it does not exist) and validate before
+acting:
 ```sql
 DO $$
 DECLARE tbl_oid oid := to_regclass('activity_activitylog');
@@ -91,71 +91,71 @@ BEGIN
     RAISE NOTICE 'tabela ainda não existe — pulando';
     RETURN;
   END IF;
-  -- ... usa tbl_oid em vez de 'tabela'::regclass ...
+  -- ... uses tbl_oid instead of 'tabela'::regclass ...
 END $$;
 ```
 
-## 3. Retype de PK uuid→bigint: retipar TODAS as FKs para a PK
+## 3. PK retype uuid→bigint: retype ALL the FKs to the PK
 
-**Sintoma:** em produção, TODOS os endpoints filtrados por `organization` retornam 500:
+**Symptom:** in production, ALL endpoints filtered by `organization` return 500:
 ```
 psycopg.errors.UndefinedFunction: operator does not exist: uuid = integer
 HINT: No operator matches the given name and argument types.
 ```
-Afeta `/dashboard/kpis/`, `/crews/`, `/crew-runs/`, `/outputs/`, `/knowledge/docs/usage/`.
+Affects `/dashboard/kpis/`, `/crews/`, `/crew-runs/`, `/outputs/`, `/knowledge/docs/usage/`.
 
-**Causa raiz:** a migration que retipou as PKs para bigint (via `RESTART IDENTITY`) só
-retipou `organization_id` de ALGUMAS tabelas (ex: accounts_invite, accounts_user,
-pages_page, presentations_presentation). As demais tabelas de domínio (crews_crewrun,
+**Root cause:** the migration that retyped the PKs to bigint (via `RESTART IDENTITY`) only
+retyped `organization_id` of SOME tables (e.g. accounts_invite, accounts_user,
+pages_page, presentations_presentation). The remaining domain tables (crews_crewrun,
 agents_agentoutput, knowledge_productcontext, chat_conversation, billing_invoice,
-integrations_*, pages_pagefolder, etc.) ficaram com `organization_id` como **uuid**
-enquanto `Organization.id` virou **bigint**. A query `WHERE organization_id = 1`
-(inteiro) falha.
+integrations_*, pages_pagefolder, etc.) kept `organization_id` as **uuid**
+while `Organization.id` became **bigint**. The query `WHERE organization_id = 1`
+(integer) fails.
 
-**Correção:** criar uma migration que retipa `organization_id` de TODAS as tabelas
-restantes de uuid→bigint, idempotente (só age se a coluna ainda for uuid) e que recria
-a FK. Combinar com o pitfall #2 (`to_regclass`).
+**Fix:** create a migration that retypes `organization_id` of ALL the remaining
+tables from uuid→bigint, idempotent (only acts if the column is still uuid) and that recreates
+the FK. Combine with pitfall #2 (`to_regclass`).
 
-**Regra:** ao retipar uma PK de uuid→bigint, verifique TODAS as colunas FK que apontam
-para ela (via `information_schema.columns WHERE column_name='<pk>_id'`) e retipe todas.
-Uma omissão parcial derruba todos os endpoints que filtram por aquela FK.
+**Rule:** when retyping a PK from uuid→bigint, check ALL the FK columns that point
+to it (via `information_schema.columns WHERE column_name='<pk>_id'`) and retype them all.
+A partial omission brings down all the endpoints that filter by that FK.
 
-## 4. Deploy workflow referencia Dockerfile removido
+## 4. Deploy workflow references a removed Dockerfile
 
-**Sintoma:** o GitHub Action de deploy falha com:
+**Symptom:** the GitHub Action deploy fails with:
 ```
 ERROR: failed to build: failed to solve: failed to read dockerfile: open Dockerfile.celery: no such file or directory
 ```
 
-**Causa raiz:** o projeto migrou de Celery para asyncio/TaskQueue (roda dentro do Daphne
-ASGI), mas o workflow `.github/workflows/deploy.yml` ainda tinha um step que buildava
-`Dockerfile.celery` (worker separado) que não existe mais.
+**Root cause:** the project migrated from Celery to asyncio/TaskQueue (runs inside the Daphne
+ASGI), but the workflow `.github/workflows/deploy.yml` still had a step that built
+`Dockerfile.celery` (separate worker) which no longer exists.
 
-**Correção:** remover o step do worker Celery do workflow. O deploy builda apenas a imagem
-Django (Daphne ASGI), que já roda o TaskQueue/Scheduler em background. Validar o YAML com
+**Fix:** remove the Celery worker step from the workflow. The deploy only builds the Django
+(Daphne ASGI) image, which already runs the TaskQueue/Scheduler in the background. Validate the YAML with
 `python -c "import yaml; yaml.safe_load(open('...deploy.yml'))"`.
 
-**Regra:** ao remover um componente de infra (Celery, worker, beat), varrer o workflow de
-deploy e o `.env.example` por referências órfãs ao componente removido.
+**Rule:** when removing an infra component (Celery, worker, beat), scan the deploy
+workflow and the `.env.example` for orphan references to the removed component.
 
-## 5. LLM_MODEL aponta para modelo inexistente → 404 NOT_FOUND, Copilot mudo
+## 5. LLM_MODEL points to a nonexistent model → 404 NOT_FOUND, mute Copilot
 
-**Sintoma:** em produção, o Copilot não responde. Log:
+**Symptom:** in production, Copilot does not respond. Log:
 ```
 litellm.NotFoundError: Vertex_ai_betaException - models/gemini-3-flash is not found
 for API version v1alpha ... status: NOT_FOUND
 ```
-O `.env` local usa um modelo válido (ex: `gemini-2.5-flash`), mas produção quebra.
+The local `.env` uses a valid model (e.g. `gemini-2.5-flash`), but production breaks.
 
-**Causa raiz:** o `LLM_MODEL` de produção vem de um **secret AWS** (`valueFrom =
-"${local.secret_prefix}:LLM_MODEL::"` no terraform), NÃO do código. O secret foi
-configurado com um modelo que não existe no provedor (ex: `gemini-3-flash`). O código
-(`chat/llm_client.py` → `get_model()`) só retorna `settings.LLM_MODEL` ou o default —
-**sem fallback de modelo**.
+**Root cause:** the production `LLM_MODEL` comes from an **AWS secret** (`valueFrom =
+"${local.secret_prefix}:LLM_MODEL::"` in terraform), NOT from code. The secret was
+configured with a model that does not exist in the provider (e.g. `gemini-3-flash`). The code
+(`chat/llm_client.py` → `get_model()`) only returns `settings.LLM_MODEL` or the default —
+**without a model fallback**.
 
-**Correção (defensiva, no código):** adicionar fallback de modelo em `chat/llm_client.py`.
-Se o modelo configurado retornar 404/NotFoundError, tentar com um modelo conhecido-bom
-antes de desistir:
+**Fix (defensive, in code):** add a model fallback in `chat/llm_client.py`.
+If the configured model returns 404/NotFoundError, try with a known-good model
+before giving up:
 ```python
 _FALLBACK_MODEL = "gemini/gemini-2.5-flash"
 
@@ -166,14 +166,14 @@ def _is_not_found_error(exc: Exception) -> bool:
     msg = str(exc).lower()
     return "not found" in msg or "404" in msg or "does not exist" in msg
 ```
-Aplicar em `astream_with_tools`, `complete` e `complete_json`: no `except`, se
-`_is_not_found_error(exc)` e o modelo atual != `_FALLBACK_MODEL`, re-chamar com
-`model=_FALLBACK_MODEL` (e `force_tool` preservado no astream). Só cair no fallback para
-erro 404 — erros de rate-limit/chave não devem trocar de modelo.
+Apply in `astream_with_tools`, `complete` and `complete_json`: in the `except`, if
+`_is_not_found_error(exc)` and the current model != `_FALLBACK_MODEL`, re-call with
+`model=_FALLBACK_MODEL` (and `force_tool` preserved in astream). Only fall back for
+404 errors — rate-limit/key errors must not switch models.
 
-**Teste de regressão:** mockar `litellm.completion` com `side_effect=[_NotFound(...), _Ok(...)]`
-e verificar que a 2ª chamada usou `_FALLBACK_MODEL`; e que erro não-404 não dispara fallback
+**Regression test:** mock `litellm.completion` with `side_effect=[_NotFound(...), _Ok(...)]`
+and verify that the 2nd call used `_FALLBACK_MODEL`; and that a non-404 error does not trigger the fallback
 (`call_count == 1`).
 
-**Nota:** o fallback resolve o sintoma, mas o correto é corrigir o secret `LLM_MODEL` no
-AWS para um modelo válido. O fallback usa um modelo mais antigo como rede de segurança.
+**Note:** the fallback resolves the symptom, but the correct thing is to fix the `LLM_MODEL` secret in
+AWS to a valid model. The fallback uses an older model as a safety net.

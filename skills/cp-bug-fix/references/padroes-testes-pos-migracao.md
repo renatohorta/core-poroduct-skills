@@ -1,65 +1,65 @@
-# Padrões de Correção em Testes Pós-Migração
+# Test Fix Patterns Post-Migration
 
-Reproduzidos nesta sessão (2026-08-04). Checklist ao encontrar `AttributeError` / `django.db.utils.DataError` / `AssertionError` em testes após migração de infraestrutura.
+Reproduced in this session (2026-08-04). Checklist when you find `AttributeError` / `django.db.utils.DataError` / `AssertionError` in tests after an infrastructure migration.
 
 ## 1. `AttributeError: 'Settings' object has no attribute 'CELERY_TASK_ALWAYS_EAGER'`
 
-**Causa:** O setting `CELERY_TASK_ALWAYS_EAGER` foi removido junto com o Celery. Testes que usavam `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)` para forçar execução inline agora quebram.
+**Cause:** The `CELERY_TASK_ALWAYS_EAGER` setting was removed along with Celery. Tests that used `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)` to force inline execution now break.
 
-**Correção:** Remover o decorator `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)` — com asyncio, tasks rodam inline por padrão (não precisa de broker).
+**Fix:** Remove the `@override_settings(CELERY_TASK_ALWAYS_EAGER=True)` decorator — with asyncio, tasks run inline by default (no broker needed).
 
-**Ocorreu em:** `tests/chat/test_core.py`, `tests/chat/test_agui.py`
+**Occurred in:** `tests/chat/test_core.py`, `tests/chat/test_agui.py`
 
-## 2. Chamada de `async def` em teste síncrono sem `asyncio.run()`
+## 2. Calling an `async def` in a synchronous test without `asyncio.run()`
 
-**Sintoma:** `AssertionError` — a função async foi chamada mas nunca executou (retornou uma corrotina, não o resultado).
+**Symptom:** `AssertionError` — the async function was called but never executed (returned a coroutine, not the result).
 
-**Causa:** Funções que eram `@shared_task` (síncronas) viraram `async def`. Testes que as chamavam diretamente agora precisam de `asyncio.run()`.
+**Cause:** Functions that were `@shared_task` (synchronous) became `async def`. Tests that called them directly now need `asyncio.run()`.
 
-**Correção:**
+**Fix:**
 ```python
-# Antes:
+# Before:
 on_crew_run_approved_callback(crew_run_id=..., user_id=...)
 
-# Depois:
+# After:
 import asyncio
 asyncio.run(on_crew_run_approved_callback(crew_run_id=..., user_id=...))
 ```
 
-**Ocorreu em:** `tests/chat/test_agui_resume_done.py`
+**Occurred in:** `tests/chat/test_agui_resume_done.py`
 
 ## 3. `django.db.utils.DataError: expected 768 dimensions, not 3`
 
-**Sintoma:** Erro de dimensão de embedding ao criar DocumentChunk em teste.
+**Symptom:** Embedding dimension error when creating a DocumentChunk in a test.
 
-**Causa:** O pgvector espera vetores de 768 dimensões (configurado no schema), mas o teste mockava embeddings com `[0.1, 0.2, 0.3]` (3 dimensões).
+**Cause:** pgvector expects 768-dimension vectors (configured in the schema), but the test mocked embeddings with `[0.1, 0.2, 0.3]` (3 dimensions).
 
-**Correção:** Usar `[0.1] * 768` em vez de vetores pequenos nos testes que criam DocumentChunk diretamente.
+**Fix:** Use `[0.1] * 768` instead of small vectors in tests that create DocumentChunk directly.
 
-**Ocorreu em:** `tests/chat/test_knowledge_search.py`
+**Occurred in:** `tests/chat/test_knowledge_search.py`
 
-## 4. Settings de LLM deletadas acidentalmente
+## 4. LLM settings accidentally deleted
 
-**Sintoma:** `AttributeError: 'Settings' object has no attribute 'LLM_MODEL'`
+**Symptom:** `AttributeError: 'Settings' object has no attribute 'LLM_MODEL'`
 
-**Causa:** Durante a limpeza de settings do Celery, as settings de LLM (`LLM_MODEL`, `LLM_API_KEY`, etc.) foram removidas junto.
+**Cause:** During the cleanup of Celery settings, the LLM settings (`LLM_MODEL`, `LLM_API_KEY`, etc.) were removed along with them.
 
-**Correção:** Restaurar o bloco completo de settings LLM. Verificar no git diff o que foi removido.
+**Fix:** Restore the complete LLM settings block. Check the git diff for what was removed.
 
-## 5. Teste assume dados de catálogo seedado que NÃO existem no banco de teste
+## 5. Test assumes seeded catalog data that does NOT exist in the test database
 
-**Sintoma:** `django.db.utils.IntegrityError: null value in column "<col>" violates not-null constraint` ao criar um registro com FK.
+**Symptom:** `django.db.utils.IntegrityError: null value in column "<col>" violates not-null constraint` when creating a record with an FK.
 
-**Causa:** O teste faz um lookup de um registro de catálogo global que só existe via seed no dev (`Model.objects.filter(slug=...).first()` retorna `None`), depois cria um registro referenciando esse `None` por FK. O banco de teste **não roda o seed de catálogos grandes** (ex: 1000+ providers de integração, bots, etc.).
+**Cause:** The test looks up a global catalog record that only exists via seed in dev (`Model.objects.filter(slug=...).first()` returns `None`), then creates a record referencing that `None` by FK. The test database **does not run the seed of large catalogs** (e.g. 1000+ integration providers, bots, etc.).
 
-**Exemplo real (2026-08-10):** `tests/accounts/test_contract.py::test_integration_contract_hides_credentials` fazia:
+**Real example (2026-08-10):** `tests/accounts/test_contract.py::test_integration_contract_hides_credentials` did:
 ```python
 prov = IntegrationProvider.objects.filter(slug=Provider.META_ADS).first()  # → None
 UserIntegration.objects.create(organization=self.org, provider=prov)  # provider_id null → IntegrityError
 ```
-O provider `meta-ads` existe no dev (1010 providers seedados), mas não no banco de teste.
+The `meta-ads` provider exists in dev (1010 seeded providers), but not in the test database.
 
-**Correção:** o teste deve **criar** o registro de catálogo com `get_or_create` (não depender do seed), com os campos obrigatórios do modelo:
+**Fix:** the test must **create** the catalog record with `get_or_create` (not depend on the seed), with the model's required fields:
 ```python
 from integrations.enums import AuthType, ProviderStatus
 prov, _ = IntegrationProvider.objects.get_or_create(
@@ -73,14 +73,14 @@ prov, _ = IntegrationProvider.objects.get_or_create(
 UserIntegration.objects.create(organization=self.org, provider=prov)
 ```
 
-**Regra:** em testes de contrato/CRUD que referenciam catálogos globais, SEMPRE criar a entidade de catálogo com `get_or_create` (preencher campos obrigatórios) em vez de `filter(...).first()`. Não assumir que seed de dev existe no banco de teste.
+**Rule:** in contract/CRUD tests that reference global catalogs, ALWAYS create the catalog entity with `get_or_create` (fill the required fields) instead of `filter(...).first()`. Do not assume the dev seed exists in the test database.
 
-**Ocorreu em:** `tests/accounts/test_contract.py` (após a adição do campo NOT NULL `provider_id`).
+**Occurred in:** `tests/accounts/test_contract.py` (after adding the NOT NULL `provider_id` field).
 
-## Varredura Completa (obrigatória após migração de settings)
+## Complete Scan (mandatory after a settings migration)
 
 ```python
-# Verificar settings essenciais que podem ter sido removidos acidentalmente
+# Check essential settings that may have been accidentally removed
 essential_settings = ["LLM_MODEL", "LLM_API_KEY", "LLM_API_BASE", "LLM_TEMPERATURE", "LLM_TIMEOUT"]
 with open("config/settings.py") as f:
     content = f.read()

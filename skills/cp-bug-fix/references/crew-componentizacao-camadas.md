@@ -1,80 +1,80 @@
-# Componentização de Crews/Skills — Camadas 2/3/4 (Crewbotics)
+# Crews/Skills Componentization — Layers 2/3/4 (Crewbotics)
 
-Padrão de arquitetura usado para migrar crews de JSON hardcoded para **código
-Python em camadas reutilizáveis**, com skills do Copilot conectadas às crews como
-motor interno (marketplace público removido). Descoberto 2026-08-08.
+Architecture pattern used to migrate crews from hardcoded JSON to **layered, reusable
+Python code**, with Copilot skills connected to the crews as the
+internal engine (public marketplace removed). Discovered 2026-08-08.
 
-## Visão das camadas
+## Layer overview
 
-- **Camada 1 — Skill**: o que o usuário invoca (atômica = executa direto; composta = dispara uma Crew).
-- **Camada 2 — Crew**: definição declarativa em Python (`crews/crew_templates/*.py`), composição de agentes+tasks.
-- **Camada 3 — Agente**: reutilizável, 1x em `crews/components/agents.py` (role/goal/backstory/icon/tools por slug).
-- **Camada 4 — Task**: reutilizável, 1x em `crews/components/tasks.py` (description, quality_gate, is_output, handoff, context).
-- **Camada 5 — CrewInstance**: crew do usuário, copia o template e customiza.
+- **Layer 1 — Skill**: what the user invokes (atomic = executes directly; composite = fires a Crew).
+- **Layer 2 — Crew**: declarative definition in Python (`crews/crew_templates/*.py`), composition of agents+tasks.
+- **Layer 3 — Agent**: reusable, 1x in `crews/components/agents.py` (role/goal/backstory/icon/tools per slug).
+- **Layer 4 — Task**: reusable, 1x in `crews/components/tasks.py` (description, quality_gate, is_output, handoff, context).
+- **Layer 5 — CrewInstance**: the user's crew, copies the template and customizes.
 
-## Estrutura de arquivos
+## File structure
 
 ```
-crews/components/agents.py          # 20 agentes reutilizáveis
-crews/components/tasks.py           # tasks reutilizáveis + QUALITY_GATE_BLOCK
+crews/components/agents.py          # 20 reusable agents
+crews/components/tasks.py           # reusable tasks + QUALITY_GATE_BLOCK
 crews/components/registry.py
-crews/crew_templates/base.py        # materialize_crew() → monta CrewTemplate
-crews/crew_templates/*.py           # 1 arquivo por crew (ou cp_fabrica.py com 46)
+crews/crew_templates/base.py        # materialize_crew() → builds CrewTemplate
+crews/crew_templates/*.py           # 1 file per crew (or cp_fabrica.py with 46)
 crews/management/commands/seed_component_crews.py
 ```
 
-`manage.py seed_component_crews [--slug X]` materializa a partir do Python
-(substitui `agency_crew_templates.json` como fonte da verdade). O JSON fica só para
-testes legados de seed.
+`manage.py seed_component_crews [--slug X]` materializes from Python
+(replaces `agency_crew_templates.json` as the source of truth). The JSON stays only for
+legacy seed tests.
 
-## materialize_crew() — dois modos de task
+## materialize_crew() — two task modes
 
-O builder aceita **dois tipos de definição** por task:
+The builder accepts **two types of definition** per task:
 
-1. **Composição de componente**: `{"key": "...", "task_slug": "research_market"}` —
-   busca em `get_task(task_slug)`, mapeia `context` de slugs globais → keys locais.
-2. **Inline completa**: `{"key": "...", "agent": "...", "description": "...", "context": [...]}` —
-   sem `task_slug`; usa os campos direto.
+1. **Component composition**: `{"key": "...", "task_slug": "research_market"}` —
+   looks up `get_task(task_slug)`, maps `context` from global slugs → local keys.
+2. **Full inline**: `{"key": "...", "agent": "...", "description": "...", "context": [...]}` —
+   without `task_slug`; uses the fields directly.
 
-O mapeamento `task_slug_to_local_key` e `agent_slug_to_local_key` resolve as keys
-locais da crew. Tasks inline não entram no mapa de slugs.
+The `task_slug_to_local_key` and `agent_slug_to_local_key` mappings resolve the crew's local
+keys. Inline tasks do not enter the slug map.
 
-## Pitfalls (cada um custou iteração)
+## Pitfalls (each cost an iteration)
 
-1. **`json.dumps` NÃO gera literais Python** — produz `false`/`true` (JSON), que
-   viram `NameError: name 'false' is not defined` ao importar o `.py` gerado.
-   Use **`pprint.pformat(d, width=100, sort_dicts=False)`** ao gerar arquivos Python
-   programaticamente.
-2. **`agent` de task deve ser o member_key LOCAL, não o slug global do componente.**
-   Se uma task usa um quality gate genérico (`quality_gate_geral` → `reality-checker`)
-   mas a crew espera outro agente, declare `"agent": "<member_key>"` explicitamente
-   na task, senão o runner cria task com agent inexistente.
-3. **Remoção do marketplace quebra `CpCrewSkill`.** Ele buscava
-   `CrewTemplate.objects.filter(metadata__crew_slug=..., is_public=True)` — com as
-   crews internas (`is_public=False`) retornava erro. Remover o filtro `is_public`
-   (buscar só pelo slug). O teste `test_template_slugs_match_crew_templates`
-   também filtrava por `is_public=True`; atualizar para `all()` + materializar crews
-   na `setUpTestData`.
-4. **Divergência de nomenclatura de BotTemplate**: crews do catálogo INI-65 usam
-   `member_slug` com prefixo `agency-`; os `BotTemplate.metadata.source_slug` no DB
-   NÃO têm o prefixo. Normalizar com `resolve_agent_slug()` (strip `agency-`). Muitos
-   agentes especializados não têm BotTemplate vinculado — a crew roda mesmo assim
-   (usa definição inline de role/goal/backstory), só não herda metadados extras.
-5. **Crews geradas programaticamente com agentes inline** (ex: 46 crews `cp_*` com
-   189 agentes) — o `materialize_crew` precisa aceitar agentes com definição inline
-   completa OU referência a componente via `agent_slug`; usar
-   `comp = get_agent(agent_slug) or {}` como fallback.
-6. **Teste de componentes assumia que toda task tem `task_slug`** — quebrar com crews
-   inline. Tornar tolerante: `if "task_slug" in task_item`.
+1. **`json.dumps` does NOT generate Python literals** — it produces `false`/`true` (JSON), which
+   become `NameError: name 'false' is not defined` when importing the generated `.py`.
+   Use **`pprint.pformat(d, width=100, sort_dicts=False)`** when generating Python files
+   programmatically.
+2. **A task's `agent` must be the LOCAL member_key, not the component's global slug.**
+   If a task uses a generic quality gate (`quality_gate_geral` → `reality-checker`)
+   but the crew expects another agent, declare `"agent": "<member_key>"` explicitly
+   in the task, otherwise the runner creates a task with a nonexistent agent.
+3. **Removing the marketplace breaks `CpCrewSkill`.** It looked up
+   `CrewTemplate.objects.filter(metadata__crew_slug=..., is_public=True)` — with the
+   internal crews (`is_public=False`) it returned an error. Remove the `is_public` filter
+   (look up only by slug). The `test_template_slugs_match_crew_templates` test
+   also filtered by `is_public=True`; update it to `all()` + materialize the crews
+   in `setUpTestData`.
+4. **BotTemplate naming divergence**: crews from the INI-65 catalog use
+   `member_slug` with the `agency-` prefix; the `BotTemplate.metadata.source_slug` in the DB
+   do NOT have the prefix. Normalize with `resolve_agent_slug()` (strip `agency-`). Many
+   specialized agents have no linked BotTemplate — the crew still runs
+   (uses the inline role/goal/backstory definition), it just does not inherit extra metadata.
+5. **Programmatically generated crews with inline agents** (e.g. 46 `cp_*` crews with
+   189 agents) — `materialize_crew` must accept agents with a full inline
+   definition OR a component reference via `agent_slug`; use
+   `comp = get_agent(agent_slug) or {}` as a fallback.
+6. **The component test assumed every task has `task_slug`** — breaks with inline
+   crews. Make it tolerant: `if "task_slug" in task_item`.
 
-## Fluxo validado de ponta a ponta
+## End-to-end validated flow
 
 ```
 skill.execute(briefing) 
-  → busca CrewTemplate por template_slug (sem is_public)
-  → cria CrewInstance (copia membros+tasks, input_schema)
+  → looks up CrewTemplate by template_slug (without is_public)
+  → creates CrewInstance (copies members+tasks, input_schema)
   → dispatch_run → {status: "dispatched", run_id}
 ```
 
-Testar com mock de `dispatch_run` num shell (PYTHONPATH limpo p/ o venv do projeto)
-e verificar que a CrewInstance foi criada com members/tasks copiados.
+Test with a mock of `dispatch_run` in a shell (clean PYTHONPATH for the project venv)
+and verify that the CrewInstance was created with the members/tasks copied.

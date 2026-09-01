@@ -1,31 +1,31 @@
-# DOC-01 — Porta do claude_proxy divergente entre README e código [Concluido]
+# DOC-01 — claude_proxy port diverges between README and code [Done]
 
-**Tipo**: Bug de documentação · **Severidade**: Baixa · **Aberto em**: 2026-08-18
+**Type**: Documentation bug · **Severity**: Low · **Opened on**: 2026-08-18
 
-## Sintoma
+## Symptom
 
-- `README.md` instrui `python scripts/claude_proxy.py --port 8090` e justifica:
-  "evita conflito com frontends na 8080".
-- `scripts/claude_proxy.py` define `DEFAULT_PORT = 8080`, e o docstring do módulo
-  também exemplifica 8080 e `LLM_API_BASE=http://localhost:8080/v1`.
+- `README.md` instructs `python scripts/claude_proxy.py --port 8090` and justifies:
+  "avoids conflict with frontends on 8080".
+- `scripts/claude_proxy.py` defines `DEFAULT_PORT = 8080`, and the module docstring
+  also exemplifies 8080 and `LLM_API_BASE=http://localhost:8080/v1`.
 
-Quem rodar sem `--port` sobe na 8080 e configurar o `.env` conforme o README
-(8090) resulta em conexão recusada.
+Anyone running without `--port` starts on 8080 and configuring the `.env` per the
+README (8090) results in a refused connection.
 
-## Correção proposta
+## Proposed fix
 
-Alinhar em **8090**: mudar `DEFAULT_PORT = 8090` e atualizar o docstring do módulo
-(linhas de exemplo `--port` e `LLM_API_BASE`).
+Align on **8090**: change `DEFAULT_PORT = 8090` and update the module docstring
+(example `--port` and `LLM_API_BASE` lines).
 
-## Critério de aceite
+## Acceptance criterion
 
-- `python scripts/claude_proxy.py` sobe na 8090.
-- README, docstring e código citam a mesma porta.
+- `python scripts/claude_proxy.py` starts on 8090.
+- README, docstring and code cite the same port.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
-credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.
+**Done on 2026-08-18.** Verified with the suite (`pytest`, 158 tests, no
+LLM credential). See `.context/docs/04-quality-qa.md`.

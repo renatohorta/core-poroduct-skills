@@ -1,13 +1,13 @@
-# Traceback de código DESATUALIZADO em memória (vs. código no disco)
+# Traceback of OUTDATED code in memory (vs. code on disk)
 
-Quando o usuário cola um traceback que referencia uma biblioteca/módulo que **já foi
-removido ou trocado no código do disco**, a causa raiz provavelmente NÃO é o código —
-é o processo do servidor (Daphne/runserver) rodando com os **módulos antigos carregados
-em memória** desde antes do merge do fix.
+When the user pastes a traceback that references a library/module that **has already been
+removed or changed in the on-disk code**, the root cause is probably NOT the code —
+it is the server process (Daphne/runserver) running with the **old modules loaded
+in memory** since before the fix was merged.
 
-## Caso real (10/08/2026)
+## Real case (10/08/2026)
 
-Usuário reportou "ao clicar em download das PNGs do carrossel, o sistema dá erro":
+User reported "when clicking download of the carousel PNGs, the system gives an error":
 
 ```
 NotImplementedError
@@ -18,37 +18,37 @@ NotImplementedError
 ERROR  Falha no export PNG do carrossel
 ```
 
-O traceback aponta para Playwright (`playwright/_impl/_connection.py`). Mas o
-`png_export.py` **no disco já usava `resvg-py`** (o fix Playwright→resvg tinha sido
-mergeado dias antes). O Daphne em execução ainda tinha o módulo antigo com Playwright
-na memória.
+The traceback points to Playwright (`playwright/_impl/_connection.py`). But the
+`png_export.py` **on disk already used `resvg-py`** (the Playwright→resvg fix had been
+merged days before). The running Daphne still had the old module with Playwright
+in memory.
 
-## Diagnóstico (NÃO re-fixar o código primeiro)
+## Diagnosis (do NOT re-fix the code first)
 
-1. **Verificar o código real no disco** — `grep` por import real (`from playwright`,
-   `async_playwright`, `p.chromium`, `sync_playwright`) no fluxo do bug. Se só aparecer
-   em comentários/docstrings, o código já está correto.
-   - Falso-positivo: o nome da lib em comentários (`# via Playwright`) NÃO é uso real.
-2. **Testar o artefato diretamente no backend** — ex: `export_carousel_pngs(state, dir, n)`
-   com o state real. Se gera PNGs sem erro, o fix já está válido e no disco.
-3. **Verificar servidor ativo** — `netstat -ano | findstr :8000`. Se está rodando desde
-   antes do merge do fix, **reinicie o Daphne** (matar PID da porta + relançar).
-   Não toque no código.
-4. **Registrar** o bug como `[Corrigido]` com a nota "o código já estava correto; o
-   processo precisava ser reiniciado".
+1. **Check the real code on disk** — `grep` for a real import (`from playwright`,
+   `async_playwright`, `p.chromium`, `sync_playwright`) in the bug flow. If it only appears
+   in comments/docstrings, the code is already correct.
+   - False positive: the lib name in comments (`# via Playwright`) is NOT real usage.
+2. **Test the artifact directly in the backend** — e.g. `export_carousel_pngs(state, dir, n)`
+   with the real state. If it generates PNGs without error, the fix is already valid and on disk.
+3. **Check the active server** — `netstat -ano | findstr :8000`. If it has been running since
+   before the fix was merged, **restart Daphne** (kill the PID on the port + relaunch).
+   Do not touch the code.
+4. **Record** the bug as `[Corrigido]` with the note "the code was already correct; the
+   process needed to be restarted".
 
-## Generalização para reidratação/persistência no frontend
+## Generalization to frontend rehydration/persistence
 
-O mesmo vale para bugs de persistência que "voltaram": se os fixes de reidratação
-(`bootReady` + `runtimeRef` no `ChatReady`, `pendingThreadIdRef` no interceptor
-`runAgent`, auto-título) JÁ estão no código, valide no browser antes de alterar qualquer
-coisa:
+The same applies to persistence bugs that "came back": if the rehydration fixes
+(`bootReady` + `runtimeRef` in `ChatReady`, `pendingThreadIdRef` in the `runAgent`
+interceptor, auto-title) are ALREADY in the code, validate in the browser before changing
+anything:
 
-1. Subir backend (Daphne :8000) + frontend (Vite :8080).
-2. Login (criar usuário de teste se preciso — AGENTS.md §13).
-3. Enviar mensagem → confirmar persistência no backend (`ChatMessage.objects.filter`).
-4. Reload (F5) → verificar que a conversa é reidratada na sidebar + histórico no chat,
-   sem duplicata (via `window.__chatDebug`: `convCount` deve ser 1).
+1. Start the backend (Daphne :8000) + frontend (Vite :8080).
+2. Log in (create a test user if needed — AGENTS.md §13).
+3. Send a message → confirm persistence in the backend (`ChatMessage.objects.filter`).
+4. Reload (F5) → verify that the conversation is rehydrated in the sidebar + history in the chat,
+   without a duplicate (via `window.__chatDebug`: `convCount` must be 1).
 
-Nesse caso (BUG-20260731 chat-conversa-nao-salva), o bug já estava corrigido pelos fixes
-de reidratação; a validação no browser confirmou, sem editar código.
+In that case (BUG-20260731 chat-conversa-nao-salva), the bug was already fixed by the
+rehydration fixes; the browser validation confirmed it, without editing code.

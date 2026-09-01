@@ -53,7 +53,7 @@ Copilot:     "Página 'Minha LP' criada com sucesso."
 Validation:  Navigate to Páginas → card appears with title "Minha LP"
 ```
 
-## Phase 1: Base de Conhecimento via Chat
+## Phase 1: Knowledge Base via Chat
 
 | # | User Command | Expected Copilot Response | Validation |
 |---|-------------|--------------------------|------------|
@@ -61,10 +61,10 @@ Validation:  Navigate to Páginas → card appears with title "Minha LP"
 | 2 | "Crie um arquivo chamado 'briefing-produto.txt' dentro da pasta 'Documentos de Marketing' com o conteúdo: [briefing text]" | Confirms file creation | Navigate → file visible in folder |
 | 3 | "Liste os arquivos da pasta 'Documentos de Marketing'" | Lists files in chat | Files match what's in the UI |
 | 4 | "Edite o arquivo 'briefing-produto.txt' mudando o título para 'Novo Briefing'" | Confirms edit | Navigate → title updated |
-| 5 | "Exclua o arquivo 'Novo Briefing.txt' da pasta 'Documentos de Marketing'" | Confirms deletion (soft delete) | Navigate → file in lixeira |
+| 5 | "Exclua o arquivo 'Novo Briefing.txt' da pasta 'Documentos de Marketing'" | Confirms deletion (soft delete) | Navigate → file in trash |
 | 6 | "Restaure o arquivo 'Novo Briefing.txt' da lixeira" | Confirms restore | Navigate → file back in folder |
 
-## Phase 2: Páginas via Chat
+## Phase 2: Pages via Chat
 
 | # | User Command | Expected Copilot Response | Validation |
 |---|-------------|--------------------------|------------|
@@ -80,7 +80,7 @@ Validation:  Navigate to Páginas → card appears with title "Minha LP"
 
 The following skills are registered and available to the Copilot for CRUD operations:
 
-### Base de Conhecimento
+### Knowledge Base
 | Skill Name | File | Operations |
 |-----------|------|------------|
 | `manage_knowledge_folders` | `write_knowledge_skill.py` | Create/rename folders, rename/move documents |
@@ -90,7 +90,7 @@ The following skills are registered and available to the Copilot for CRUD operat
 | `restore_knowledge_item` | `manage_knowledge_skill.py` | Restore documents/folders from trash |
 | `search_knowledge_base` | `rag_skill.py` | Semantic search across knowledge base |
 
-### Páginas
+### Pages
 | Skill Name | File | Operations |
 |-----------|------|------------|
 | `list_page_templates` | `list_page_templates_skill.py` | List available page templates |
@@ -98,7 +98,7 @@ The following skills are registered and available to the Copilot for CRUD operat
 | `edit_page` | `edit_page_skill.py` | Edit HTML/CSS of existing page |
 | `manage_page` | `manage_page_skill.py` | Publish, unpublish, delete page |
 
-### Base de Conhecimento — Restore
+### Knowledge Base — Restore
 | Skill Name | File | Operations |
 |-----------|------|------------|
 | `restore_knowledge_item` | `manage_knowledge_skill.py` | Restore documents/folders from trash (soft-delete reversal) |
@@ -108,54 +108,54 @@ The following skills are registered and available to the Copilot for CRUD operat
 Create `.hermes/docs/testes-de-loop/LOOP-NNN-<slug>.md` with:
 
 ```markdown
-# Teste de Loop: <title>
+# Loop Test: <title>
 
 **ID:** LOOP-NNN
-**Data de Criação:** YYYY-MM-DD
-**Status:** ⏳ Pendente
+**Creation Date:** YYYY-MM-DD
+**Status:** ⏳ Pending
 
-## Objetivo
+## Objective
 
 <description — emphasize chat-first, user-commands-Copilot pattern>
 
-## Pré-condições
+## Pre-conditions
 
-1. Ambiente dev rodando (Django + Celery worker + Redis + frontend)
-2. Seed de templates executado
-3. Usuário <email> / <senha> existe com papel PRODUCER
+1. Dev environment running (Django + Celery worker + Redis + frontend)
+2. Template seed executed
+3. User <email> / <password> exists with PRODUCER role
 
-## Critérios de Aprovação
+## Approval Criteria
 
-### Fase 1: Base de Conhecimento via Chat
-1. ✅ Criar pasta via chat
-2. ✅ Criar arquivo via chat
-3. ✅ Listar arquivos via chat
-4. ✅ Editar arquivo via chat
-5. ✅ Excluir arquivo via chat
-6. ✅ Restaurar arquivo via chat
+### Phase 1: Knowledge Base via Chat
+1. ✅ Create folder via chat
+2. ✅ Create file via chat
+3. ✅ List files via chat
+4. ✅ Edit file via chat
+5. ✅ Delete file via chat
+6. ✅ Restore file via chat
 
-### Fase 2: Páginas via Chat
-7. ✅ Listar templates via chat
-8. ✅ Criar página via chat
-9. ✅ Editar HTML via chat
-10. ✅ Publicar via chat
-11. ✅ Servir página publicada
-12. ✅ Despublicar via chat
-13. ✅ Excluir via chat
+### Phase 2: Pages via Chat
+7. ✅ List templates via chat
+8. ✅ Create page via chat
+9. ✅ Edit HTML via chat
+10. ✅ Publish via chat
+11. ✅ Serve published page
+12. ✅ Unpublish via chat
+13. ✅ Delete via chat
 
-## Tabela de Resultados
+## Results Table
 
-| # | Tentativa | Data | Status | Observações |
+| # | Attempt | Date | Status | Notes |
 |---|-----------|------|--------|-------------|
 |   |           |      |        |             |
 
-## Bloco de Tratamento de Bugs
+## Bug Handling Block
 
-1. Diagnosticar a causa raiz
-2. Criar arquivo em `.hermes/inbox/bugs/BUG-YYYYMMDD-<slug>.md`
-3. Corrigir o código
-4. Atualizar a tabela com o resultado
-5. Reiniciar o teste da fase que falhou
+1. Diagnose the root cause
+2. Create a file in `.hermes/inbox/bugs/BUG-YYYYMMDD-<slug>.md`
+3. Fix the code
+4. Update the table with the result
+5. Restart the test from the phase that failed
 ```
 
 ## Pitfalls

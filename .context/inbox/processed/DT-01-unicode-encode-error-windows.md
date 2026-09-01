@@ -1,39 +1,39 @@
-# DT-01 — UnicodeEncodeError no console Windows (cp1252) [Corrigido]
+# DT-01 — UnicodeEncodeError on Windows console (cp1252) [Fixed]
 
-**Tipo**: Bug · **Severidade**: Média · **Aberto em**: 2026-08-18
+**Type**: Bug · **Severity**: Medium · **Opened on**: 2026-08-18
 
-## Sintoma
+## Symptom
 
-`skills/cp-orquestrador/scripts/run.py` aborta ao imprimir o banner:
+`skills/cp-orchestrator/scripts/run.py` aborts when printing the banner:
 
 ```
 UnicodeEncodeError: 'charmap' codec can't encode characters in position 2-65
   File ".../encodings/cp1252.py", line 19, in encode
 ```
 
-## Reprodução
+## Reproduction
 
 ```bash
-python skills/cp-orquestrador/scripts/run.py "x" --mode full --dry-run
+python skills/cp-orchestrator/scripts/run.py "x" --mode full --dry-run
 ```
 
-(sem `PYTHONUTF8=1`, em console Windows com codepage cp1252)
+(without `PYTHONUTF8=1`, on a Windows console with cp1252 codepage)
 
-## Causa
+## Cause
 
-O banner e os emojis de status usam caracteres fora do cp1252; o `stdout` padrão do
-Python no Windows não está em UTF-8. Afeta qualquer skill que imprima box-drawing
-ou emoji — não só o orquestrador.
+The banner and status emojis use characters outside cp1252; Python's default
+`stdout` on Windows is not UTF-8. Affects any skill that prints box-drawing
+or emoji — not just the orchestrator.
 
-## Workaround atual
+## Current workaround
 
 ```bash
 PYTHONUTF8=1 PYTHONIOENCODING=utf-8 python .../run.py ...
 ```
 
-## Correção proposta
+## Proposed fix
 
-No topo de cada `run.py` (ou em `_shared`), reconfigurar o stdout antes de imprimir:
+At the top of each `run.py` (or in `_shared`), reconfigure stdout before printing:
 
 ```python
 import sys
@@ -42,18 +42,18 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 ```
 
-`errors="replace"` garante que nenhum ambiente exótico derrube a execução.
+`errors="replace"` ensures no exotic environment breaks execution.
 
-## Critério de aceite
+## Acceptance criterion
 
-- `python skills/cp-orquestrador/scripts/run.py "x" --mode full --dry-run` retorna 0
-  em console Windows **sem** env vars de encoding.
+- `python skills/cp-orchestrator/scripts/run.py "x" --mode full --dry-run` returns 0
+  on a Windows console **without** encoding env vars.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Corrigido em 2026-08-18**, propagado aos agentes via `./scripts/install.sh`.
-Verificado empiricamente com o harness de duas camadas (sem `crewai` / com
-`crewai` stub e sem chave). Ver `.context/docs/04-qualidade-qa.md`.
+**Fixed on 2026-08-18**, propagated to the agents via `./scripts/install.sh`.
+Verified empirically with the two-layer harness (without `crewai` / with
+`crewai` stub and no key). See `.context/docs/04-quality-qa.md`.

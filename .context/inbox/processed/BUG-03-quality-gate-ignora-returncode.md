@@ -1,68 +1,69 @@
-# BUG-03 — Quality gate ignora o exit code: skill que crasha vira "sucesso" [Corrigido]
+# BUG-03 — Quality gate ignores the exit code: a crashing skill becomes "success" [Fixed]
 
-**Tipo**: Bug · **Severidade**: **Alta** · **Aberto em**: 2026-08-18
-**Verificado empiricamente**: sim
+**Type**: Bug · **Severity**: **High** · **Opened on**: 2026-08-18
+**Verified empirically**: yes
 
-## Sintoma
+## Symptom
 
-Uma skill que morre com traceback e exit code 1 é aprovada com WARN, e o pipeline
-reporta sucesso ao final:
+A skill that dies with a traceback and exit code 1 is approved with WARN, and the
+pipeline reports success at the end:
 
 ```
-$ python cp-orquestrador/scripts/run.py "teste sem llm" --mode bugfix --auto
+$ python cp-orchestrator/scripts/run.py "test without llm" --mode bugfix --auto
 
   ⏱️  0.1s | Quality Gate: WARN
-  ⚠️  Fase aprovada com ressalvas: Não foi possível determinar o resultado
+  ⚠️  Phase approved with caveats: Could not determine the result
   📄 Preview:
   Traceback (most recent call last):
     File "...cp-bug-fix/scripts/run.py", line 17, in <module>
       from crewai import Agent, Task, Crew, Process
   ModuleNotFoundError: No module named 'crewai'
 
-  ✅ Pipeline concluído com sucesso!          ← reporta SUCESSO
-     Fases: 1 | ✅ 0 | ⚠️  1 | ❌ 0 | ⏭️  0
+  ✅ Pipeline completed successfully!          ← reports SUCCESS
+     Phases: 1 | ✅ 0 | ⚠️  1 | ❌ 0 | ⏭️  0
 ```
 
-## Causa
+## Cause
 
-`_check_quality_gate(self, crew_key, output_text)` recebe **apenas o texto** da
-saída e conta palavras-chave. O `returncode` do `subprocess.run` nunca é lido —
-`grep -n "returncode" run.py` retorna zero ocorrências no orquestrador.
+`_check_quality_gate(self, crew_key, output_text)` receives **only the text** of
+the output and counts keywords. The `returncode` of `subprocess.run` is never
+read — `grep -n "returncode" run.py` returns zero occurrences in the orchestrator.
 
-Um crash não contém nenhuma das `fail_keywords` (`FAIL`, `FALHOU`, `REPROVADO`,
-`BLOQUEADO`, `CRÍTICO`…), então cai no ramo default → WARN → pipeline continua.
+A crash contains none of the `fail_keywords` (`FAIL`, `FAILED`, `REJECTED`,
+`BLOCKED`, `CRITICAL`…), so it falls into the default branch → WARN → pipeline
+continues.
 
-## Impacto
+## Impact
 
-Num pipeline `full` (8 fases), a fase 1 pode crashar, todas as seguintes rodarem
-sobre um artefato vazio, e o relatório final dizer "concluído com sucesso". O
-quality gate — a principal garantia do orquestrador — não protege contra o modo
-de falha mais comum.
+In a `full` pipeline (8 phases), phase 1 can crash, all the following ones run
+over an empty artifact, and the final report says "completed successfully". The
+quality gate — the orchestrator's main guarantee — does not protect against the
+most common failure mode.
 
-## Correção proposta
+## Proposed fix
 
-`returncode != 0` é FAIL incondicional, antes de qualquer análise de texto:
+`returncode != 0` is an unconditional FAIL, before any text analysis:
 
 ```python
 def _check_quality_gate(self, crew_key, output_text, returncode=0):
     if returncode != 0:
         return {"status": "FAIL",
-                "detail": f"Skill terminou com exit code {returncode}"}
+                "detail": f"Skill ended with exit code {returncode}"}
     ...
 ```
 
-E na chamada (linha ~1193): `gate = self._check_quality_gate(ck, output, result.returncode)`.
+And at the call site (line ~1193): `gate = self._check_quality_gate(ck, output, result.returncode)`.
 
-## Critério de aceite
+## Acceptance criterion
 
-- Fase cuja skill sai com código ≠ 0 recebe FAIL e interrompe o pipeline.
-- O relatório final não reporta sucesso quando alguma fase falhou.
+- A phase whose skill exits with code ≠ 0 receives FAIL and stops the pipeline.
+- The final report does not report success when any phase failed.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Corrigido em 2026-08-18**, propagado aos agentes via `./scripts/install.sh`.
-Verificado empiricamente com o harness de duas camadas (sem `crewai` / com
-`crewai` stub e sem chave). Ver `.context/docs/04-qualidade-qa.md`.
+**Fixed on 2026-08-18**, propagated to the agents via `./scripts/install.sh`.
+Verified empirically with the two-layer harness (without `crewai` / with
+`crewai` stub and no key). See `.context/docs/04-quality-qa.md`.

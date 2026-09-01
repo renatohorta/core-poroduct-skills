@@ -1,39 +1,39 @@
-# DT-03 — Contrato `invoke` não é validado contra o argparse real [Concluido]
+# DT-03 — `invoke` contract is not validated against the real argparse [Done]
 
-**Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
+**Type**: Technical debt · **Priority**: High · **Opened on**: 2026-08-18
 
-## Contexto
+## Context
 
-O orquestrador declara, no dict `CREWS`, como cada skill é acionada
-(`invoke.briefing_arg` e `invoke.output`). Esse metadado é mantido **à mão**. Se a
-skill mudar seu `argparse` e o metadado não for atualizado, a fase quebra em
-execução — o argparse da skill rejeita o flag.
+The orchestrator declares, in the `CREWS` dict, how each skill is triggered
+(`invoke.briefing_arg` and `invoke.output`). This metadata is maintained **by
+hand**. If the skill changes its `argparse` and the metadata is not updated, the
+phase breaks at runtime — the skill's argparse rejects the flag.
 
-Casos já conhecidos: `cp-bug-fix`, `cp-goal-loop` e `cp-agilista` **não** aceitam
-`--output`; `cp-goal-loop` só recebe briefing via `--goal`; `cp-agilista` e
-`cp-inicializador-doc` não têm argumento posicional.
+Known cases: `cp-bug-fix`, `cp-goal-loop` and `cp-agile` do **not** accept
+`--output`; `cp-goal-loop` only receives the briefing via `--goal`; `cp-agile`
+and `cp-doc-initializer` have no positional argument.
 
-## Proposta
+## Proposal
 
-Teste que, para cada skill:
+A test that, for each skill:
 
-1. Extrai os `add_argument` reais de `skills/cp-*/scripts/run.py`.
-2. Compara com `CREWS[<chave>]['invoke']` do orquestrador.
-3. Falha se `output=True` mas a skill não declara `--output`, ou se o
-   `briefing_arg` declarado não existe na skill.
+1. Extracts the real `add_argument` from `skills/cp-*/scripts/run.py`.
+2. Compares with `CREWS[<key>]['invoke']` of the orchestrator.
+3. Fails if `output=True` but the skill does not declare `--output`, or if the
+   declared `briefing_arg` does not exist in the skill.
 
-Manter `skills/cp-orquestrador/references/skills-cli-inventory.md` como
-documentação derivada desse teste.
+Keep `skills/cp-orchestrator/references/skills-cli-inventory.md` as
+documentation derived from this test.
 
-## Critério de aceite
+## Acceptance criterion
 
-- Adicionar uma skill nova sem atualizar `CREWS` faz o teste falhar com mensagem
-  apontando o campo divergente.
+- Adding a new skill without updating `CREWS` makes the test fail with a message
+  pointing to the divergent field.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
-credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.
+**Done on 2026-08-18.** Verified with the suite (`pytest`, 158 tests, no
+LLM credential). See `.context/docs/04-quality-qa.md`.

@@ -1,63 +1,62 @@
-# kanban/ — Esteira de Execução
+# kanban/ — Execution Pipeline
 
-Fonte de verdade do fluxo de tarefas, gerida pela skill `cp-agilista`. Quando o
-Trello está configurado, ele é apenas uma **visão espelhada** — o que vale é o
-que está aqui.
+Source of truth for the task flow, managed by the `cp-agile` skill. When Trello
+is configured, it is only a **mirrored view** — what matters is what is here.
 
-## Relação com `../inbox/`
+## Relationship with `../inbox/`
 
-`inbox/` é entrada bruta: rascunho de iniciativa, task, bug ou débito técnico.
-Depois de triado, o item vira uma task aqui, em `1-backlog/`, com `status:`
-preenchido — mova com `git mv` para preservar o histórico.
+`inbox/` is raw intake: a draft of an initiative, task, bug or technical debt.
+After triage, the item becomes a task here, in `1-backlog/`, with `status:`
+filled in — move it with `git mv` to preserve history.
 
-## Colunas
+## Columns
 
-| Pasta | Significado |
-|-------|-------------|
-| `1-backlog/` | Entrada. O daemon varre aqui por tasks com `status: ready` |
-| `2-todo/` | Priorizada, aguardando execução |
-| `3-doing/` | Em execução (despachada para a `cp-orquestrador`) |
-| `4-review/` | Aguardando revisão |
-| `5-testing/` | Em teste |
-| `6-staging/` | Homologação |
-| `7-done/` | Concluída |
-| `blocked/` | Dúvida ou impedimento aguardando resposta humana |
+| Folder | Meaning |
+|--------|---------|
+| `1-backlog/` | Intake. The daemon scans here for tasks with `status: ready` |
+| `2-todo/` | Prioritized, waiting for execution |
+| `3-doing/` | In execution (dispatched to the `cp-orchestrator`) |
+| `4-review/` | Waiting for review |
+| `5-testing/` | In testing |
+| `6-staging/` | Staging |
+| `7-done/` | Done |
+| `blocked/` | Question or blocker waiting for a human answer |
 
-## Formato de uma task
+## Task format
 
-Um arquivo `.md` por task, com frontmatter YAML. O campo `status:` deve
-acompanhar a pasta em que o arquivo está.
+One `.md` file per task, with YAML frontmatter. The `status:` field must
+match the folder the file is in.
 
 ```markdown
 ---
 id: TASK-001
-title: Título da task
+title: Task title
 status: ready
-priority: media
+priority: medium
 assignee:
 created_at: 2026-01-01T00:00:00
 updated_at: 2026-01-01T00:00:00
 tags: []
 ---
 
-# Título da task
+# Task title
 
-## Descrição
+## Description
 
-## Critérios de Aceitação
+## Acceptance Criteria
 
 - [ ] ...
 ```
 
-`status:` válidos: `backlog`, `ready`, `todo`, `doing`, `review`, `testing`,
-`staging`, `done`, `blocked`. Só `ready` no `1-backlog/` é despachado.
+Valid `status:` values: `backlog`, `ready`, `todo`, `doing`, `review`, `testing`,
+`staging`, `done`, `blocked`. Only `ready` in `1-backlog/` is dispatched.
 
-## Comandos
+## Commands
 
 ```bash
-# Monitorar o backlog e despachar tasks
-python <skills>/cp-agilista/scripts/run.py --daemon
+# Monitor the backlog and dispatch tasks
+python <skills>/cp-agile/scripts/run.py --daemon
 
-# Documentar o estado atual do kanban em ../docs/06-kanban.md
-python <skills>/cp-agilista/scripts/run.py --doc
+# Document the current kanban state in ../docs/06-kanban.md
+python <skills>/cp-agile/scripts/run.py --doc
 ```

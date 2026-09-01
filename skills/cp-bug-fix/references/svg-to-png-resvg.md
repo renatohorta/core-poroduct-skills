@@ -1,57 +1,57 @@
-# SVG → PNG sem browser: `resvg-py` (substitui Playwright/Chromium)
+# SVG → PNG without a browser: `resvg-py` (replaces Playwright/Chromium)
 
-## Quando usar
+## When to use
 
-Precisa converter SVG em PNG (ex: exportar slides de carrossel 1080x1350) e o
-Playwright/Chromium não é viável:
+You need to convert SVG to PNG (e.g. export 1080x1350 carousel slides) and
+Playwright/Chromium is not viable:
 
-- Download do Chromium (~150MB) falha no ambiente (rede lenta, proxy, sandbox).
-- Produção roda em **ECS Fargate Linux** — não há Chrome/Edge instalado, e instalar
-  browser no container é pesado/frágil.
-- `channel="chrome"`/`"msedge"` (usar o Chrome do sistema) NÃO funciona em produção
-  (container Linux sem browser).
+- The Chromium download (~150MB) fails in the environment (slow network, proxy, sandbox).
+- Production runs on **ECS Fargate Linux** — there is no Chrome/Edge installed, and installing
+  a browser in the container is heavy/fragile.
+- `channel="chrome"`/`"msedge"` (use the system Chrome) does NOT work in production
+  (Linux container without a browser).
 
-## Por que `resvg-py`
+## Why `resvg-py`
 
-- **Wheel binário Rust** — sem lib nativa externa (diferente de `cairosvg`/`svglib`
-  que exigem libcairo C, que falha no Windows com `OSError: no library called "cairo-2"`).
-- **Sem browser** — não precisa baixar Chromium nem instalar Chrome/Edge.
-- **Funciona igual no Windows (dev) e ECS Linux (prod)**.
-- Reusa o SVG que o projeto já gera (`svg_renderer.render_slide_svg`), então o PNG
-  reflete o mesmo design (gradiente, acentos, tipografia).
+- **Rust binary wheel** — no external native lib (unlike `cairosvg`/`svglib`
+  which require C libcairo, which fails on Windows with `OSError: no library called "cairo-2"`).
+- **No browser** — no need to download Chromium or install Chrome/Edge.
+- **Works the same on Windows (dev) and ECS Linux (prod)**.
+- Reuses the SVG the project already generates (`svg_renderer.render_slide_svg`), so the PNG
+  reflects the same design (gradient, accents, typography).
 
-## Instalação
+## Installation
 
-O venv usa `uv` (não tem pip). Instalar com:
+The venv uses `uv` (no pip). Install with:
 
 ```bash
 uv pip install resvg-py
 ```
 
-Adicionar ao `pyproject.toml`: `"resvg-py>=0.3"`.
+Add to `pyproject.toml`: `"resvg-py>=0.3"`.
 
-## API (import e assinatura)
+## API (import and signature)
 
-O módulo importa como **`resvg_py`** (não `resvg`), e a função é **`svg_to_bytes`**
-(não `render`):
+The module imports as **`resvg_py`** (not `resvg`), and the function is **`svg_to_bytes`**
+(not `render`):
 
 ```python
 import resvg_py
 
-# svg_string espera str (NÃO bytes) — passar bytes dá TypeError
+# svg_string expects str (NOT bytes) — passing bytes gives a TypeError
 png_bytes = resvg_py.svg_to_bytes(
-    svg_string=svg,          # str, não bytes
+    svg_string=svg,          # str, not bytes
     width=1080,
     height=1350,
 )
 ```
 
-Assinatura completa: `svg_to_bytes(svg_string=None, svg_path=None, background=None,
+Full signature: `svg_to_bytes(svg_string=None, svg_path=None, background=None,
 skip_system_fonts=False, log_information=False, width=None, height=None, zoom=None,
 dpi=0.0, style_sheet=None, resources_dir=None, languages=..., font_size=16.0,
 font_family=None, serif_family=None, sans_serif_family=None, ...)`.
 
-## Padrão de uso (export de slides)
+## Usage pattern (slide export)
 
 ```python
 import resvg_py
@@ -71,20 +71,20 @@ def export_carousel_pngs(state, output_dir, total_slides):
 
 ## Pitfalls
 
-- **`svg_string` aceita `str`, não `bytes`** — `TypeError: 'bytes' object is not an
+- **`svg_string` accepts `str`, not `bytes`** — `TypeError: 'bytes' object is not an
   instance of 'str'`.
-- **Import é `resvg_py`**, não `resvg` (`ModuleNotFoundError: No module named 'resvg'`).
-- **Função é `svg_to_bytes`**, não `render` (`AttributeError: module 'resvg_py' has no
+- **Import is `resvg_py`**, not `resvg` (`ModuleNotFoundError: No module named 'resvg'`).
+- **Function is `svg_to_bytes`**, not `render` (`AttributeError: module 'resvg_py' has no
   attribute 'render'`).
-- **Pillow NÃO renderiza SVG** (`UnidentifiedImageError`) — não tente `Image.open` num
+- **Pillow does NOT render SVG** (`UnidentifiedImageError`) — do not try `Image.open` on an
   SVG; use resvg-py.
-- **`cairosvg`/`svglib`+`reportlab` exigem libcairo nativa** — falham no Windows
+- **`cairosvg`/`svglib`+`reportlab` require native libcairo** — they fail on Windows
   (`OSError: no library called "cairo-2"` / `RenderPMError: cannot import ... rlPyCairo`).
-  `resvg-py` é a opção pura (Rust wheel) que funciona sem lib de sistema.
-- **Teste com `TemporaryDirectory`**: feche a imagem Pillow (`with Image.open(p) as img`)
-  antes do cleanup, senão `PermissionError: [WinError 32]` no Windows.
+  `resvg-py` is the pure option (Rust wheel) that works without a system lib.
+- **Test with `TemporaryDirectory`**: close the Pillow image (`with Image.open(p) as img`)
+  before the cleanup, otherwise `PermissionError: [WinError 32]` on Windows.
 
-## Verificação
+## Verification
 
 ```python
 import resvg_py

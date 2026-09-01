@@ -1,28 +1,28 @@
-# GrapesJS RTE Debugging — RTE Ativa e Desativa Imediatamente
+# GrapesJS RTE Debugging — RTE Activates and Immediately Deactivates
 
-## Sintoma
+## Symptom
 
-Duplo-clique em componente de texto não selecionado → RTE aparece e desaparece imediatamente. Se o componente já está selecionado (1 clique), o duplo-clique funciona.
+Double-click on an unselected text component → RTE appears and disappears immediately. If the component is already selected (1 click), the double-click works.
 
-## Causas Raiz (múltiplas, qualquer uma pode causar)
+## Root Causes (multiple, any one can cause it)
 
-### 1. `demoteTextContainers` — muda tipo de componente pai
+### 1. `demoteTextContainers` — changes the parent component type
 
-Quando o parser do `grapesjs-preset-webpage` marca containers (section, div, header) como `type: "text"`, o código que rebaixa esses containers para `type: "default"` força uma re-renderização da view do pai. Se o RTE está ativo no filho, a re-renderização do pai destrói o RTE.
+When the `grapesjs-preset-webpage` parser marks containers (section, div, header) as `type: "text"`, the code that demotes these containers to `type: "default"` forces a re-render of the parent's view. If the RTE is active in the child, the parent re-render destroys the RTE.
 
-**Correção:** Remover `demoteTextContainers` completamente. O benefício (editar texto em containers) é menor que o dano (RTE quebrado).
+**Fix:** Remove `demoteTextContainers` completely. The benefit (editing text in containers) is less than the damage (broken RTE).
 
-### 2. `redelegateTextViews` — re-liga handlers de dblclick
+### 2. `redelegateTextViews` — re-binds dblclick handlers
 
-`delegateEvents()` re-liga o handler `dblclick` nas views de texto. Se registrado em `canvas:frame:load`, o RTE ativa recarregando o frame, o que dispara `canvas:frame:load`, que re-delega eventos, que faz o RTE interpretar um segundo duplo-clique e se desativar.
+`delegateEvents()` re-binds the `dblclick` handler on text views. If registered on `canvas:frame:load`, the RTE activates by reloading the frame, which fires `canvas:frame:load`, which re-delegates events, which makes the RTE interpret a second double-click and deactivate itself.
 
-**Correção:** Remover `redelegateTextViews` completamente. O GrapesJS gerencia a delegação de eventos internamente após re-renderização.
+**Fix:** Remove `redelegateTextViews` completely. GrapesJS manages event delegation internally after re-render.
 
-### 3. Keymap removal em `rte:enable` — `ed.Keymaps.removeAll()`
+### 3. Keymap removal in `rte:enable` — `ed.Keymaps.removeAll()`
 
-Remover TODOS os keymaps remove a proteção interna do GrapesJS que impede o RTE de perder foco. O RTE ativa, perde a proteção, e o próximo evento de canvas desativa o RTE.
+Removing ALL keymaps removes GrapesJS's internal protection that prevents the RTE from losing focus. The RTE activates, loses the protection, and the next canvas event deactivates the RTE.
 
-**Correção:** Remover APENAS keymaps específicos que interferem com edição de texto:
+**Fix:** Remove ONLY the specific keymaps that interfere with text editing:
 ```tsx
 const toRemove = [
   "core:copy", "core:paste", "core:cut",
@@ -32,48 +32,48 @@ for (const id of toRemove) {
   try { ed.Keymaps.remove(id); } catch { /* noop */ }
 }
 ```
-Ou, melhor ainda, **remover todo o handler** — o GrapesJS vanilla já funciona.
+Or, even better, **remove the whole handler** — vanilla GrapesJS already works.
 
-### 4. Focus handler em `rte:enable` — `double rAF focusEditing`
+### 4. Focus handler in `rte:enable` — `double rAF focusEditing`
 
-O handler que foca o elemento em edição com `requestAnimationFrame(() => requestAnimationFrame(focusEditing))` compete com o próprio gerenciamento de foco do RTE. O double rAF atrasa o foco o suficiente para o RTE já ter se estabelecido, e o foco extra causa desativação.
+The handler that focuses the element being edited with `requestAnimationFrame(() => requestAnimationFrame(focusEditing))` competes with the RTE's own focus management. The double rAF delays the focus long enough for the RTE to have already established itself, and the extra focus causes deactivation.
 
-**Correção:** Remover o focus handler. O GrapesJS já foca o elemento quando o RTE ativa.
+**Fix:** Remove the focus handler. GrapesJS already focuses the element when the RTE activates.
 
-### 5. Handler `component:selected` — re-seleciona componente em edição
+### 5. `component:selected` handler — re-selects the component being edited
 
-Quando o RTE está ativo e o usuário clica no texto para selecionar/posicionar o cursor, o clique propaga para o canvas e o GrapesJS seleciona o componente sob o cursor. Um handler que re-seleciona o componente em edição interrompe o RTE.
+When the RTE is active and the user clicks the text to select/position the cursor, the click propagates to the canvas and GrapesJS selects the component under the cursor. A handler that re-selects the component being edited interrupts the RTE.
 
-**Correção:** Remover o handler `component:selected`. O GrapesJS já gerencia internamente que o RTE não perde foco.
+**Fix:** Remove the `component:selected` handler. GrapesJS already manages internally that the RTE does not lose focus.
 
-### 6. `selectNodeContents` + `collapse` no `rte:enable`
+### 6. `selectNodeContents` + `collapse` in `rte:enable`
 
-O handler que foca o elemento não deve chamar `range.selectNodeContents(el)` + `range.collapse(false)` — isso sobrescreve a seleção de texto que o usuário acabou de fazer com duplo-clique.
+The handler that focuses the element must not call `range.selectNodeContents(el)` + `range.collapse(false)` — this overwrites the text selection the user just made with the double-click.
 
-**Correção:** Apenas focar o elemento se ele não está ativo, sem mexer na seleção:
+**Fix:** Only focus the element if it is not already active, without touching the selection:
 ```tsx
 if (doc.activeElement === el) return;
 el.focus();
 ```
 
-## Regra de Ouro
+## Golden Rule
 
-**NÃO adicionar customizações ao RTE do GrapesJS.** O RTE vanilla do GrapesJS funciona. Toda customização (demoteTextContainers, redelegateTextViews, keymap removal, focus handler, component:selected handler) introduz race conditions que quebram o RTE. Se o problema é que containers estão marcados como `type: "text"`, aceite — o usuário pode editar o container como texto, o que é melhor que o RTE não funcionar.
+**Do NOT add customizations to the GrapesJS RTE.** The vanilla GrapesJS RTE works. Every customization (demoteTextContainers, redelegateTextViews, keymap removal, focus handler, component:selected handler) introduces race conditions that break the RTE. If the problem is that containers are marked as `type: "text"`, accept it — the user can edit the container as text, which is better than the RTE not working.
 
-## Proteção para `ed.getWrapper()`
+## Protection for `ed.getWrapper()`
 
-O método `Editor.getWrapper()` do GrapesJS lança `TypeError: Cannot read properties of undefined (reading 'getWrapper')` quando chamado antes do editor completar a inicialização interna. Proteja com:
+GrapesJS's `Editor.getWrapper()` method throws `TypeError: Cannot read properties of undefined (reading 'getWrapper')` when called before the editor completes internal initialization. Protect with:
 
 ```tsx
-// Opção 1 — null check:
+// Option 1 — null check:
 const wrapper = ed.getWrapper();
 if (!wrapper) return;
 
-// Opção 2 — try/catch com retry:
+// Option 2 — try/catch with retry:
 try {
   const wrapper = ed.getWrapper();
   if (!wrapper) return;
-  // ... usa wrapper ...
+  // ... uses wrapper ...
 } catch {
   requestAnimationFrame(() => requestAnimationFrame(fn));
 }

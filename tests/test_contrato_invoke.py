@@ -1,16 +1,17 @@
-"""DT-03 — Valida o contrato `invoke` do orquestrador contra o argparse real.
+"""DT-03 — Validates the orchestrator's `invoke` contract against the real argparse.
 
-O orquestrador declara, no dict `CREWS`, como cada skill é acionada
-(`invoke.briefing_arg` e `invoke.output`). Esse metadado é mantido à mão: se uma
-skill mudar seu argparse e o metadado não acompanhar, a fase quebra só em
-execução — e, por causa do quality gate, podia até passar despercebida.
+The orchestrator declares, in the `CREWS` dict, how each skill is triggered
+(`invoke.briefing_arg` and `invoke.output`). This metadata is maintained by hand:
+if a skill changes its argparse and the metadata does not follow, the phase
+breaks only at runtime — and, because of the quality gate, it could even go
+unnoticed.
 
-A verificação não faz regex sobre o código-fonte: usa o `--help` real de cada
-skill (que o DT-07 garantiu funcionar sempre) e, no teste mais forte, executa a
-linha de comando que o próprio orquestrador montaria.
+The check does not regex the source code: it uses each skill's real `--help`
+(which DT-07 guaranteed always works) and, in the strongest test, runs the
+command line the orchestrator itself would build.
 
-Este arquivo teria pego o BUG-05 (modo goal-loop enviava só `--goal`, mas a
-skill exigia `--steps`).
+This file would have caught BUG-05 (the goal-loop mode sent only `--goal`, but
+the skill required `--steps`).
 """
 import importlib.util
 import subprocess
@@ -19,161 +20,161 @@ import pytest
 
 from conftest import EXIT_OK, REPO_ROOT, SKILLS_DIR
 
-ORQ_RUN = SKILLS_DIR / "cp-orquestrador" / "scripts" / "run.py"
+ORQ_RUN = SKILLS_DIR / "cp-orchestrator" / "scripts" / "run.py"
 
 
-def _carrega_orquestrador():
-    """Importa o run.py do orquestrador como módulo, para ler CREWS/MODOS."""
+def _load_orchestrator():
+    """Imports the orchestrator's run.py as a module, to read CREWS/MODOS."""
     spec = importlib.util.spec_from_file_location("orq_run", ORQ_RUN)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
-ORQ = _carrega_orquestrador()
+ORQ = _load_orchestrator()
 
-# Crews que apontam para uma skill externa (o NEXUS roda nativo, sem subprocess).
-CREWS_COM_SKILL = sorted(
+# Crews that point to an external skill (NEXUS runs natively, without subprocess).
+CREWS_WITH_SKILL = sorted(
     k for k, v in ORQ.CREWS.items()
     if k in ORQ.SKILL_PATHS and ORQ.SKILL_PATHS[k].exists()
 )
 
-# Crews executadas nativamente pelo orquestrador (NexusExecutor), sem subprocess.
-CREWS_NATIVAS = {"full-dev"}
+# Crews executed natively by the orchestrator (NexusExecutor), without subprocess.
+NATIVE_CREWS = {"full-dev"}
 
-# Default aplicado por `_build_cli_args` quando a crew nao declara `invoke`.
-# As 8 crews do pipeline dependem dele — e isso e intencional, nao um esquecimento.
+# Default applied by `_build_cli_args` when the crew does not declare `invoke`.
+# The 8 pipeline crews depend on it — and that is intentional, not an oversight.
 INVOKE_DEFAULT = {"briefing_arg": "input", "output": True}
 
 
-def invoke_efetivo(crew_key: str) -> dict:
-    """Metadado `invoke` como o codigo de producao o enxerga."""
+def effective_invoke(crew_key: str) -> dict:
+    """The `invoke` metadata as the production code sees it."""
     return ORQ.CREWS[crew_key].get("invoke", INVOKE_DEFAULT)
 
 
-# Qual flag cada briefing_arg exige que exista no argparse da skill.
-FLAG_POR_BRIEFING_ARG = {
+# Which flag each briefing_arg requires to exist in the skill's argparse.
+FLAG_PER_BRIEFING_ARG = {
     "goal": "--goal",
     "daemon": "--daemon",
     "dir": "--dir",
     "input": "--input",
-    "positional": None,  # posicional não aparece como flag
+    "positional": None,  # positional does not appear as a flag
 }
 
 
 @pytest.fixture(scope="module")
-def help_por_crew(clean_env, python_cmd):
-    """Saída de `--help` de cada skill referenciada pelo orquestrador."""
-    saidas = {}
-    for ck in CREWS_COM_SKILL:
+def help_per_crew(clean_env, python_cmd):
+    """`--help` output of each skill referenced by the orchestrator."""
+    outputs = {}
+    for ck in CREWS_WITH_SKILL:
         path = ORQ.SKILL_PATHS[ck]
         r = subprocess.run(
             [python_cmd, str(path), "--help"],
             capture_output=True, text=True, timeout=120,
             cwd=str(REPO_ROOT), env=clean_env, encoding="utf-8", errors="replace",
         )
-        assert r.returncode == EXIT_OK, f"{ck}: --help falhou\n{r.stdout}{r.stderr}"
-        saidas[ck] = r.stdout
-    return saidas
+        assert r.returncode == EXIT_OK, f"{ck}: --help failed\n{r.stdout}{r.stderr}"
+        outputs[ck] = r.stdout
+    return outputs
 
 
-@pytest.mark.parametrize("crew_key", CREWS_COM_SKILL)
-def test_briefing_arg_e_valor_conhecido(crew_key):
-    """O `briefing_arg` efetivo precisa ser um dos modos que `_build_cli_args` trata.
+@pytest.mark.parametrize("crew_key", CREWS_WITH_SKILL)
+def test_briefing_arg_is_known_value(crew_key):
+    """The effective `briefing_arg` must be one of the modes `_build_cli_args` handles.
 
-    Um valor novo (ex.: "daemon" quando foi introduzido) sem o branch
-    correspondente cai silenciosamente no ramo `else`, que passa o briefing como
-    posicional — e a skill rejeita.
+    A new value (e.g. "daemon" when it was introduced) without the corresponding
+    branch silently falls into the `else` branch, which passes the briefing as
+    positional — and the skill rejects it.
     """
-    briefing_arg = invoke_efetivo(crew_key).get("briefing_arg")
-    assert briefing_arg in FLAG_POR_BRIEFING_ARG, (
-        f"{crew_key}: briefing_arg desconhecido: {briefing_arg!r}. "
-        f"Adicione o branch em _build_cli_args antes de usar.")
+    briefing_arg = effective_invoke(crew_key).get("briefing_arg")
+    assert briefing_arg in FLAG_PER_BRIEFING_ARG, (
+        f"{crew_key}: unknown briefing_arg: {briefing_arg!r}. "
+        f"Add the branch in _build_cli_args before using it.")
 
 
-@pytest.mark.parametrize("crew_key", CREWS_COM_SKILL)
-def test_output_declarado_bate_com_argparse(crew_key, help_por_crew):
-    """`invoke.output` precisa refletir se a skill aceita mesmo `--output`.
+@pytest.mark.parametrize("crew_key", CREWS_WITH_SKILL)
+def test_declared_output_matches_argparse(crew_key, help_per_crew):
+    """`invoke.output` must reflect whether the skill really accepts `--output`.
 
-    Declarar `output=True` numa skill que não aceita faz o argparse dela
-    rejeitar o flag e a fase morrer.
+    Declaring `output=True` on a skill that does not accept it makes its argparse
+    reject the flag and the phase dies.
     """
-    declarado = invoke_efetivo(crew_key).get("output", True)
-    aceita = "--output" in help_por_crew[crew_key]
-    assert declarado == aceita, (
-        f"{crew_key}: invoke.output={declarado} mas a skill "
-        f"{'aceita' if aceita else 'NAO aceita'} --output")
+    declared = effective_invoke(crew_key).get("output", True)
+    accepts = "--output" in help_per_crew[crew_key]
+    assert declared == accepts, (
+        f"{crew_key}: invoke.output={declared} but the skill "
+        f"{'accepts' if accepts else 'does NOT accept'} --output")
 
 
-@pytest.mark.parametrize("crew_key", CREWS_COM_SKILL)
-def test_briefing_arg_existe_na_skill(crew_key, help_por_crew):
-    """A flag exigida pelo `briefing_arg` precisa existir no argparse da skill."""
-    briefing_arg = invoke_efetivo(crew_key)["briefing_arg"]
-    flag = FLAG_POR_BRIEFING_ARG[briefing_arg]
+@pytest.mark.parametrize("crew_key", CREWS_WITH_SKILL)
+def test_briefing_arg_exists_in_skill(crew_key, help_per_crew):
+    """The flag required by `briefing_arg` must exist in the skill's argparse."""
+    briefing_arg = effective_invoke(crew_key)["briefing_arg"]
+    flag = FLAG_PER_BRIEFING_ARG[briefing_arg]
     if flag is None:
         return
-    assert flag in help_por_crew[crew_key], (
-        f"{crew_key}: invoke.briefing_arg={briefing_arg!r} exige {flag}, "
-        f"ausente no --help da skill")
+    assert flag in help_per_crew[crew_key], (
+        f"{crew_key}: invoke.briefing_arg={briefing_arg!r} requires {flag}, "
+        f"absent from the skill's --help")
 
 
-@pytest.mark.parametrize("crew_key", CREWS_COM_SKILL)
-def test_comando_montado_pelo_orquestrador_e_aceito(crew_key, clean_env, python_cmd,
-                                                    tmp_path):
-    """O teste forte: roda a linha que o orquestrador montaria, com --dry-run.
+@pytest.mark.parametrize("crew_key", CREWS_WITH_SKILL)
+def test_command_built_by_orchestrator_is_accepted(crew_key, clean_env, python_cmd,
+                                                   tmp_path):
+    """The strong test: runs the line the orchestrator would build, with --dry-run.
 
-    Constrói os argumentos pelo mesmo `_build_cli_args` usado em produção e
-    verifica que a skill os aceita. Um erro de argparse (exit 2 do argparse,
-    "unrecognized arguments", "required") reprova.
+    Builds the arguments with the same `_build_cli_args` used in production and
+    verifies the skill accepts them. An argparse error (argparse exit 2,
+    "unrecognized arguments", "required") fails.
 
-    Este é o teste que teria pego o BUG-05.
+    This is the test that would have caught BUG-05.
     """
-    # Construtor real: montar o executor a mao esconde atributos novos.
+    # Real constructor: building the executor by hand hides new attributes.
     executor = ORQ.PipelineExecutor(
-        briefing="briefing de teste", mode="full",
+        briefing="test briefing", mode="full",
         output_dir=str(tmp_path), python_cmd=python_cmd,
     )
 
     args = executor._build_cli_args(crew_key)
-    assert args is not None, f"{crew_key}: _build_cli_args devolveu None"
+    assert args is not None, f"{crew_key}: _build_cli_args returned None"
 
-    # cp-agilista sem --dry-run sobe um daemon de polling: não roda aqui.
+    # cp-agile without --dry-run starts a polling daemon: does not run here.
     if "--daemon" in args:
-        pytest.skip("cp-agilista em modo daemon nao termina sozinho")
+        pytest.skip("cp-agile in daemon mode does not terminate on its own")
 
     r = subprocess.run(
         args + ["--dry-run"], capture_output=True, text=True, timeout=120,
         cwd=str(REPO_ROOT), env=clean_env, encoding="utf-8", errors="replace",
     )
-    saida = r.stdout + r.stderr
+    output = r.stdout + r.stderr
 
-    assert "unrecognized arguments" not in saida, (
-        f"{crew_key}: o orquestrador passa flag que a skill rejeita.\n"
-        f"  comando: {' '.join(str(a) for a in args)}\n{saida}")
-    assert "the following arguments are required" not in saida, (
-        f"{crew_key}: a skill exige argumento que o orquestrador nao envia "
-        f"(caso do BUG-05).\n  comando: {' '.join(str(a) for a in args)}\n{saida}")
+    assert "unrecognized arguments" not in output, (
+        f"{crew_key}: the orchestrator passes a flag the skill rejects.\n"
+        f"  command: {' '.join(str(a) for a in args)}\n{output}")
+    assert "the following arguments are required" not in output, (
+        f"{crew_key}: the skill requires an argument the orchestrator does not send "
+        f"(the BUG-05 case).\n  command: {' '.join(str(a) for a in args)}\n{output}")
     assert r.returncode == EXIT_OK, (
-        f"{crew_key}: comando montado pelo orquestrador falhou (exit "
-        f"{r.returncode}).\n  comando: {' '.join(str(a) for a in args)}\n{saida}")
+        f"{crew_key}: command built by the orchestrator failed (exit "
+        f"{r.returncode}).\n  command: {' '.join(str(a) for a in args)}\n{output}")
 
 
-def test_todo_modo_referencia_crew_existente():
-    """Nenhum modo pode apontar para crew inexistente.
+def test_every_mode_references_existing_crew():
+    """No mode can point to a nonexistent crew.
 
-    `full-dev` e a excecao legitima: roda nativamente pelo NexusExecutor, sem
-    entrada em CREWS.
+    `full-dev` is the legitimate exception: it runs natively via NexusExecutor,
+    without an entry in CREWS.
     """
-    for modo, info in ORQ.MODOS.items():
+    for mode, info in ORQ.MODOS.items():
         for ck in info["crews"]:
-            assert ck in ORQ.CREWS or ck in CREWS_NATIVAS, (
-                f"modo {modo!r} referencia crew inexistente: {ck!r}")
+            assert ck in ORQ.CREWS or ck in NATIVE_CREWS, (
+                f"mode {mode!r} references nonexistent crew: {ck!r}")
 
 
-def test_toda_crew_com_skill_tem_caminho_valido():
-    """Toda crew que aponta para skill externa precisa que o run.py exista."""
-    faltando = [
+def test_every_crew_with_skill_has_valid_path():
+    """Every crew that points to an external skill needs the run.py to exist."""
+    missing = [
         ck for ck, path in ORQ.SKILL_PATHS.items()
         if ck in ORQ.CREWS and not path.exists()
     ]
-    assert not faltando, f"skills declaradas mas ausentes no disco: {faltando}"
+    assert not missing, f"skills declared but absent on disk: {missing}"

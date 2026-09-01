@@ -1,8 +1,8 @@
 # Playwright async on Windows — NotImplementedError in `_make_subprocess_transport`
 
-## Sintoma
+## Symptom
 
-Export PNG de slides de carrossel via Playwright (`playwright_export.py`) falha com:
+Exporting PNG of carousel slides via Playwright (`playwright_export.py`) fails with:
 
 ```
 ERROR    Task exception was never retrieved
@@ -13,27 +13,27 @@ File "...\asyncio\base_events.py", line 528, in _make_subprocess_transport
 NotImplementedError
 ```
 
-O HTML do carrossel é gerado OK ("Carrossel HTML gerado: ..."), mas o export dos
-PNGs falha silenciosamente (a exceção é engolida no `except` do `_build_carousel`).
+The carousel HTML is generated OK ("Carrossel HTML gerado: ..."), but the PNG
+export fails silently (the exception is swallowed in the `except` of `_build_carousel`).
 
-## Causa raiz
+## Root cause
 
-`asyncio.create_subprocess_exec` só funciona em loops que suportam subprocess. No
+`asyncio.create_subprocess_exec` only works on loops that support subprocess. On
 Windows:
 
-- **ProactorEventLoop** → suporta subprocess (usado pelo `WindowsProactorEventLoopPolicy`,
-  que é o default do Python 3.8+)
-- **SelectorEventLoop** → NÃO suporta subprocess → `NotImplementedError` em
+- **ProactorEventLoop** → supports subprocess (used by `WindowsProactorEventLoopPolicy`,
+  which is the default on Python 3.8+)
+- **SelectorEventLoop** → does NOT support subprocess → `NotImplementedError` in
   `_make_subprocess_transport`
 
-O Playwright async precisa de um loop com suporte a subprocess. Se a função roda sob
-`asyncio.run()` num contexto onde a policy efetiva é a Selector (ex: o processo herdou
-uma policy, ou o loop foi criado explicitamente), o launch do Chromium quebra no
+Playwright async needs a loop with subprocess support. If the function runs under
+`asyncio.run()` in a context where the effective policy is the Selector (e.g. the process inherited
+a policy, or the loop was created explicitly), the Chromium launch breaks in the
 subprocess.
 
-## Correção
+## Fix
 
-Forçar a policy Proactor antes de `asyncio.run()`:
+Force the Proactor policy before `asyncio.run()`:
 
 ```python
 import asyncio, sys
@@ -49,159 +49,159 @@ def export_carousel_pngs(...):
         return []
 ```
 
-Colocar a chamada a `set_event_loop_policy` no início da função que roda o Playwright
-(ou no módulo), ANTES do `asyncio.run()`.
+Put the `set_event_loop_policy` call at the start of the function that runs Playwright
+(or in the module), BEFORE the `asyncio.run()`.
 
-## Verificação
+## Verification
 
-- `type(asyncio.new_event_loop()).__name__` deve ser `ProactorEventLoop` (não
+- `type(asyncio.new_event_loop()).__name__` must be `ProactorEventLoop` (not
   `SelectorEventLoop`).
-- Rodar `python -c "from playwright.async_api import async_playwright; import asyncio; asyncio.run(async_playwright().start().chromium.launch())"`
-  deve lançar o Chromium sem `NotImplementedError`.
+- Run `python -c "from playwright.async_api import async_playwright; import asyncio; asyncio.run(async_playwright().start().chromium.launch())"`
+  must launch Chromium without `NotImplementedError`.
 
-## Pitfall adicional (não confundir com o de cima)
+## Additional pitfall (do not confuse with the one above)
 
-Se o launch falhar com `Executable doesn't exist at ...\ms-playwright\...`, NÃO é o bug
-do loop — é o browser não instalado: `python -m playwright install chromium`.
+If the launch fails with `Executable doesn't exist at ...\ms-playwright\...`, it is NOT the
+loop bug — it is the browser not installed: `python -m playwright install chromium`.
 
-## PREFRIDO: trocar Playwright/Chromium por `resvg-py` (cross-platform, ECS-safe)
+## PREFERRED: replace Playwright/Chromium with `resvg-py` (cross-platform, ECS-safe)
 
-Para export PNG de SVG (ex: carrossel 1080x1350), **não use Playwright/Chromium em
-produção**. Ele exige baixar ~150MB de Chromium (download pode falhar) e o container
-ECS Fargate Linux não tem Chrome/Edge instalado para `channel=`. O `resvg-py` é um
-renderizador SVG em Rust (wheel binário, sem lib nativa externa, sem browser) que
-funciona igual no Windows e no ECS Linux.
+To export PNG from SVG (e.g. carousel 1080x1350), **do not use Playwright/Chromium in
+production**. It requires downloading ~150MB of Chromium (the download can fail) and the
+ECS Fargate Linux container has no Chrome/Edge installed for `channel=`. `resvg-py` is a
+Rust SVG renderer (binary wheel, no external native lib, no browser) that
+works the same on Windows and ECS Linux.
 
 ```python
-# presentations/services/png_export.py (substitui playwright_export.py)
+# presentations/services/png_export.py (replaces playwright_export.py)
 import resvg_py
 def export_carousel_pngs(state, output_dir, total_slides):
-    # render_slide_svg(slide, theme, "4:5", browser=True) -> svg (já 1080x1350)
+    # render_slide_svg(slide, theme, "4:5", browser=True) -> svg (already 1080x1350)
     png_bytes = resvg_py.svg_to_bytes(svg_string=svg, width=1080, height=1350)
 ```
 
-- Import é `import resvg_py` (não `resvg`), função `svg_to_bytes(svg_string=..., width=..., height=...)`.
-- `svg_string` espera `str` (não bytes).
-- Reusa o SVG que `svg_renderer.render_slide_svg` já gera (mesmo motor do PPTX/HTML).
-- Adicionar `resvg-py>=0.3` ao `pyproject.toml`; NÃO precisa mudar o Dockerfile.
-- O `_build_carousel` (orchestrator) e o endpoint `/pngs/` (views) passam a chamar `png_export` com o `state` (não o html_path).
+- Import is `import resvg_py` (not `resvg`), function `svg_to_bytes(svg_string=..., width=..., height=...)`.
+- `svg_string` expects `str` (not bytes).
+- Reuses the SVG that `svg_renderer.render_slide_svg` already generates (same engine as PPTX/HTML).
+- Add `resvg-py>=0.3` to `pyproject.toml`; no need to change the Dockerfile.
+- `_build_carousel` (orchestrator) and the `/pngs/` endpoint (views) now call `png_export` with the `state` (not the html_path).
 
-Testes: `tests/presentations/test_png_export.py` (3 testes: disponível, gera PNG 1080x1350, vazio sem slides).
+Tests: `tests/presentations/test_png_export.py` (3 tests: available, generates PNG 1080x1350, empty without slides).
 
-## MELHOR ALTERNATIVA — trocar Playwright por `resvg-py` (recomendado para prod)
+## BETTER ALTERNATIVE — replace Playwright with `resvg-py` (recommended for prod)
 
-Se o usuário não consegue instalar o Chromium (`playwright install` falha no download
-de ~150MB) OU o serviço vai para produção em **ECS Fargate Linux** (onde não há
-Chrome/Edge e o Chromium precisa ser baixado no container), abandone o Playwright e
-converta o **SVG que o projeto já gera** em PNG via **`resvg-py`**:
+If the user cannot install Chromium (`playwright install` fails on the ~150MB
+download) OR the service is going to production on **ECS Fargate Linux** (where there is no
+Chrome/Edge and Chromium must be downloaded in the container), abandon Playwright and
+convert the **SVG the project already generates** to PNG via **`resvg-py`**:
 
-- Renderizador SVG em Rust, **wheel binário** — sem browser, sem lib nativa externa
-  (diferente de `cairosvg`/`reportlab.renderPM` que exigem `libcairo` C, ausente no
-  Windows e chato no ECS). Funciona igual em dev (Windows) e produção (Linux).
-- Uso: `resvg_py.svg_to_bytes(svg_string=str, width=1080, height=1350)` → PNG bytes.
-  O módulo de import é **`resvg_py`** (não `resvg`); a função é **`svg_to_bytes`**
-  (não `render`). `svg_string` espera `str`, não bytes.
-- Pré-requisito: os slides já são renderizados como SVG canônico 1080x1350
-  (`svg_renderer.render_slide_svg(..., "4:5")`) — o PNG reflete o mesmo design do
-  HTML/PPTX sem precisar de browser para "fotografar" o HTML.
-- Dependência: adicionar `resvg-py>=0.3` ao `pyproject.toml` (não precisa mudar o
-  Dockerfile — o wheel instala via `uv sync`).
-- Exemplo de módulo de export: `presentations/services/png_export.py` (aceita o
-  `state` dict, não o caminho HTML, pois o PNG vem do SVG de cada slide).
+- Rust SVG renderer, **binary wheel** — no browser, no external native lib
+  (unlike `cairosvg`/`reportlab.renderPM` which require the C `libcairo`, absent on
+  Windows and annoying on ECS). Works the same in dev (Windows) and production (Linux).
+- Usage: `resvg_py.svg_to_bytes(svg_string=str, width=1080, height=1350)` → PNG bytes.
+  The import module is **`resvg_py`** (not `resvg`); the function is **`svg_to_bytes`**
+  (not `render`). `svg_string` expects `str`, not bytes.
+- Prerequisite: the slides are already rendered as canonical 1080x1350 SVG
+  (`svg_renderer.render_slide_svg(..., "4:5")`) — the PNG reflects the same design as the
+  HTML/PPTX without needing a browser to "photograph" the HTML.
+- Dependency: add `resvg-py>=0.3` to `pyproject.toml` (no need to change the
+  Dockerfile — the wheel installs via `uv sync`).
+- Example export module: `presentations/services/png_export.py` (accepts the
+  `state` dict, not the HTML path, since the PNG comes from each slide's SVG).
 
-**Teste de sanidade:** `resvg_py.svg_to_bytes(svg_string=svg, width=1080, height=1350)`
-deve retornar bytes PNG. Verificar dimensões com `PIL.Image`; usar
-`with Image.open(p) as img:` (fechar a imagem ou o `TemporaryDirectory` falha com
-`PermissionError` no Windows).
+**Sanity test:** `resvg_py.svg_to_bytes(svg_string=svg, width=1080, height=1350)`
+must return PNG bytes. Verify dimensions with `PIL.Image`; use
+`with Image.open(p) as img:` (close the image or the `TemporaryDirectory` fails with
+`PermissionError` on Windows).
 
-**`channel="chrome"` como opção rápida (dev):** `p.chromium.launch(channel="chrome")`
-usa o Google Chrome/Edge já instalado no sistema (sem baixar Chromium). Bom para dev
-rápido, MAS não funciona no ECS (sem browser instalado). Se a prod é Linux, prefira
+**`channel="chrome"` as a quick option (dev):** `p.chromium.launch(channel="chrome")`
+uses the Google Chrome/Edge already installed on the system (without downloading Chromium). Good for quick
+dev, BUT does not work on ECS (no browser installed). If prod is Linux, prefer
 `resvg-py`.
 
-## Alternativa PRODUÇÃO: resvg-py (preferida quando há container/ECS)
+## PRODUCTION alternative: resvg-py (preferred when there is a container/ECS)
 
-Quando o serviço roda em produção (ex.: AWS ECS Fargate, Linux) e o export PNG de um
-carrossel/slide vai rodar lá, **não use Playwright+Chromium** — não há Chrome/Edge no
-container e baixar o Chromium (~150MB) falha ou incha a imagem. A alternativa
-open-source é **`resvg-py`** (renderizador SVG em Rust, wheel binário, sem browser e
-sem lib nativa externa). Funciona no Windows dev E no Linux de produção, sem mudar o
+When the service runs in production (e.g. AWS ECS Fargate, Linux) and the PNG export of a
+carousel/slide will run there, **do not use Playwright+Chromium** — there is no Chrome/Edge in the
+container and downloading Chromium (~150MB) fails or bloats the image. The open-source
+alternative is **`resvg-py`** (Rust SVG renderer, binary wheel, no browser and
+no external native lib). Works on Windows dev AND on Linux production, without changing the
 Dockerfile.
 
-- Adicionar `resvg-py>=0.3` ao `pyproject.toml` (não ao extra tools — é dependência do
-  serviço de export PNG).
-- Instalação em venv gerido por `uv`: **não há `pip`** (`No module named pip`) — usar
-  `uv pip install resvg-py`, ou adicionar ao pyproject e `uv sync`.
-- Import: `import resvg_py` (nome do módulo é `resvg_py`, NÃO `resvg`).
-- Conversão: `resvg_py.svg_to_bytes(svg_string=<str>, width=1080, height=1350)` —
-  `svg_string` espera **`str`**, não bytes (erro: `'bytes' object is not an instance of 'str'`).
-  Escreva o retorno com `Path(...).write_bytes(png_bytes)`.
-- Reusa o SVG canônico que o projeto já gera (ex.: `render_slide_svg(slide, theme, "4:5")`,
-  que já sai em 1080×1350) — sem precisar "fotografar" o HTML.
+- Add `resvg-py>=0.3` to `pyproject.toml` (not to the tools extra — it is a dependency of the
+  PNG export service).
+- Installation in a `uv`-managed venv: **there is no `pip`** (`No module named pip`) — use
+  `uv pip install resvg-py`, or add it to pyproject and `uv sync`.
+- Import: `import resvg_py` (the module name is `resvg_py`, NOT `resvg`).
+- Conversion: `resvg_py.svg_to_bytes(svg_string=<str>, width=1080, height=1350)` —
+  `svg_string` expects **`str`**, not bytes (error: `'bytes' object is not an instance of 'str'`).
+  Write the return with `Path(...).write_bytes(png_bytes)`.
+- Reuses the canonical SVG the project already generates (e.g. `render_slide_svg(slide, theme, "4:5")`,
+  which already comes out at 1080×1350) — no need to "photograph" the HTML.
 
-**Por que as outras alternativas falham (testadas):**
-- `cairosvg` → precisa da lib C `libcairo` nativa (`OSError: no library called "cairo-2"`) — não roda puro no Windows.
-- `svglib` + `reportlab` `renderPM` → também exige o backend nativo `rlPyCairo` (`RenderPMError: cannot import desired renderPM backend rlPyCairo`).
-- `Pillow` → NÃO renderiza SVG (`UnidentifiedImageError`).
+**Why the other alternatives fail (tested):**
+- `cairosvg` → needs the native C lib `libcairo` (`OSError: no library called "cairo-2"`) — does not run pure on Windows.
+- `svglib` + `reportlab` `renderPM` → also requires the native `rlPyCairo` backend (`RenderPMError: cannot import desired renderPM backend rlPyCairo`).
+- `Pillow` → does NOT render SVG (`UnidentifiedImageError`).
 
-Só o `resvg-py` (Rust binário) funciona sem dependência de sistema.
+Only `resvg-py` (Rust binary) works without a system dependency.
 
-**Assinatura da função:** `svg_to_bytes(svg_string=None, svg_path=None, width=None, height=None, ...)` — se passar `svg_path`, pode passar bytes; se passar `svg_string`, tem que ser `str`.
+**Function signature:** `svg_to_bytes(svg_string=None, svg_path=None, width=None, height=None, ...)` — if you pass `svg_path`, you can pass bytes; if you pass `svg_string`, it must be `str`.
 
-## Diagnóstico chave: traceback de Playwright no runtime ≠ código ainda usa Playwright
+## Key diagnosis: Playwright traceback at runtime ≠ code still uses Playwright
 
-O erro mais enganoso deste fluxo: o **log de runtime continua mostrando o traceback
-do Playwright** (`playwright/_impl/_transport.py` → `NotImplementedError`) mesmo depois
-de você já ter trocado o código para `resvg-py`. Antes de voltar a editar código,
-verifique se o servidor está rodando com código **antigo em memória**.
+The most misleading error in this flow: the **runtime log keeps showing the Playwright
+traceback** (`playwright/_impl/_transport.py` → `NotImplementedError`) even after
+you have already switched the code to `resvg-py`. Before going back to editing code,
+check whether the server is running with **old code in memory**.
 
-Causa: o fix resvg já foi mergeado na main, mas o processo **Daphne não foi reiniciado**
-após o merge — o módulo antigo (`playwright_export.py`) ficou carregado na memória do
-processo. O `manage.py runserver`/Daphne **NÃO faz auto-reload** dessas mudanças.
+Cause: the resvg fix was already merged into main, but the **Daphne process was not restarted**
+after the merge — the old module (`playwright_export.py`) stayed loaded in the process
+memory. `manage.py runserver`/Daphne **does NOT auto-reload** these changes.
 
-Fluxo de diagnóstico (ordem):
-1. **Verificar o código no disco** — grep real (não comentários) por `from playwright`,
+Diagnostic flow (in order):
+1. **Check the code on disk** — real grep (not comments) for `from playwright`,
    `async_playwright`, `sync_playwright`, `p.chromium`, `async with async_playwright`.
-   Se só há menções em comentários/docstrings, o código já migrou.
-2. **Verificar se o servidor está rodando** — `netstat -ano | findstr :8000`. Se não há
-   processo escutando, o traceback foi de uma execução antiga.
-3. **Testar o export diretamente via shell** com o estado real do objeto (ex. pegar a
-   `Presentation` pelo uuid e chamar `export_carousel_pngs(state, dir, n)`). Se gera os
-   PNGs sem erro, o código está correto e o problema é o processo velho.
-4. **Reiniciar o Daphne** — matar o processo da porta 8000 (`taskkill /PID <pid> /F`) e
-   relançar com o env Windows completo (USERPROFILE/HOME/LOCALAPPDATA/APPDATA — ver
-   `crewai-stub-on-subprocess-restart.md`). Depois re-testar o download.
+   If there are only mentions in comments/docstrings, the code has already migrated.
+2. **Check if the server is running** — `netstat -ano | findstr :8000`. If there is no
+   process listening, the traceback was from an old execution.
+3. **Test the export directly via shell** with the real object state (e.g. get the
+   `Presentation` by uuid and call `export_carousel_pngs(state, dir, n)`). If it generates the
+   PNGs without error, the code is correct and the problem is the old process.
+4. **Restart Daphne** — kill the process on port 8000 (`taskkill /PID <pid> /F`) and
+   relaunch with the full Windows env (USERPROFILE/HOME/LOCALAPPDATA/APPDATA — see
+   `crewai-stub-on-subprocess-restart.md`). Then re-test the download.
 
-Regra: **se o código no disco está certo e o teste shell gera os PNGs, NÃO edite mais
-código — reinicie o servidor.** O traceback de runtime com Playwright após a migração é
-quase sempre o processo velho em memória, não um caminho residual de código.
+Rule: **if the code on disk is correct and the shell test generates the PNGs, do NOT edit
+code anymore — restart the server.** The Playwright runtime traceback after the migration is
+almost always the old process in memory, not a residual code path.
 
-## Migração completa: NÃO é só mudar a função — a assinatura e TODOS os call-sites mudam
+## Complete migration: it is NOT just changing the function — the signature and ALL call-sites change
 
-Ao substituir o Playwright pelo resvg-py, o novo módulo `export_carousel_pngs` muda a
-assinatura e **há mais de um call-site**. A migração em `crewbotics-back`:
-- Novo `presentations/services/png_export.py` com assinatura `export_carousel_pngs(state: dict, output_dir: str, total_slides: int)` — precisa do `state` (para renderizar o SVG por slide), NÃO do `html_path`.
-- **`playwright_export.py` deletado** (substituído).
-- **`orchestrator.py`** (`_build_carousel`): passou a chamar `export_carousel_pngs(state, png_dir, len(slides))`.
-- **`presentations/views.py`** (endpoint `GET .../pngs/` → ZIP): ANTES chamava `export_carousel_pngs(carousel_path, png_dir, len(slides))` com o caminho do HTML; DEPOIS `export_carousel_pngs(pres.state, png_dir, len(slides))` com o `state` da apresentação.
+When replacing Playwright with resvg-py, the new `export_carousel_pngs` module changes the
+signature and **there is more than one call-site**. The migration in `crewbotics-back`:
+- New `presentations/services/png_export.py` with signature `export_carousel_pngs(state: dict, output_dir: str, total_slides: int)` — needs the `state` (to render the SVG per slide), NOT the `html_path`.
+- **`playwright_export.py` deleted** (replaced).
+- **`orchestrator.py`** (`_build_carousel`): now calls `export_carousel_pngs(state, png_dir, len(slides))`.
+- **`presentations/views.py`** (endpoint `GET .../pngs/` → ZIP): BEFORE called `export_carousel_pngs(carousel_path, png_dir, len(slides))` with the HTML path; AFTER `export_carousel_pngs(pres.state, png_dir, len(slides))` with the presentation's `state`.
 
-Pitfalls da migração:
-- **Sempre procurar TODOS os call-sites** antes de mudar a assinatura — `grep` por `export_carousel_pngs` e `playwright_export` em todo o repo (não só no arquivo). Deixar um call-site antigo (com `html_path` posicional) quebra com `TypeError`.
-- Verificar imports stale após deletar `playwright_export.py`: nenhum `from .playwright_export import ...` deve sobrar.
-- `resvg-py` vai nas **dependências principais** do `pyproject.toml` (não num extra) — o serviço de export PNG roda em produção.
+Migration pitfalls:
+- **Always look for ALL call-sites** before changing the signature — `grep` for `export_carousel_pngs` and `playwright_export` across the whole repo (not just the file). Leaving an old call-site (with positional `html_path`) breaks with `TypeError`.
+- Check for stale imports after deleting `playwright_export.py`: no `from .playwright_export import ...` should remain.
+- `resvg-py` goes in the **main dependencies** of `pyproject.toml` (not in an extra) — the PNG export service runs in production.
 
-## Pitfall de TESTE no Windows: Pillow lazy-open bloqueia o cleanup do TemporaryDirectory
+## TEST pitfall on Windows: Pillow lazy-open blocks the TemporaryDirectory cleanup
 
-Ao testar `export_carousel_pngs` (que escreve PNGs) com `tempfile.TemporaryDirectory()`, o
-`Image.open(p)` do Pillow abre o arquivo **lazy** — o handle fica aberto até a imagem ser
-descartada. No Windows, o `TemporaryDirectory.cleanup()` falha ao deletar o PNG ainda em uso:
+When testing `export_carousel_pngs` (which writes PNGs) with `tempfile.TemporaryDirectory()`, the
+Pillow `Image.open(p)` opens the file **lazily** — the handle stays open until the image is
+discarded. On Windows, `TemporaryDirectory.cleanup()` fails to delete the PNG still in use:
 
 ```
 PermissionError: [WinError 32] The process cannot access the file because it is
 being used by another process: '...\\tmpXXX\\slide_2.png'
 ```
 
-Correção no teste: usar o context manager do Pillow para fechar o handle antes do cleanup:
+Fix in the test: use Pillow's context manager to close the handle before cleanup:
 
 ```python
 with tempfile.TemporaryDirectory() as tmp:
@@ -210,9 +210,9 @@ with tempfile.TemporaryDirectory() as tmp:
         with open(p, "rb") as f:
             assert f.read(8) == b"\x89PNG\r\n\x1a\n"
         from PIL import Image
-        with Image.open(p) as img:   # fecha o handle
+        with Image.open(p) as img:   # closes the handle
             assert img.size == (1080, 1350)
 ```
 
-Sem o `with Image.open(...)` o teste falha só no teardown (não no assert), o que é confuso.
-O mesmo vale para qualquer teste que escreva arquivos com Pillow dentro de um TemporaryDirectory.
+Without the `with Image.open(...)` the test fails only at teardown (not at the assert), which is confusing.
+The same applies to any test that writes files with Pillow inside a TemporaryDirectory.

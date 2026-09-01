@@ -2,12 +2,12 @@
 """
 cp-bug-fix — NEXUS-Micro Bug Fix Crew (self-contained)
 
-Monta uma crew CrewAI com agentes embutidos (sem dependência externa):
+Builds a CrewAI crew with embedded agents (no external dependency):
   Developer → QA (API Tester + Test Automation Engineer) → Evidence Collector
 
-Uso:
-  python run.py "descrição do bug aqui"
-  python run.py --bug "o endpoint /login retorna 500 com email acentuado" --type backend
+Usage:
+  python run.py "bug description here"
+  python run.py --bug "the /login endpoint returns 500 with an accented email" --type backend
 """
 
 import argparse
@@ -16,7 +16,7 @@ import os
 from pathlib import Path
 try:
     from crewai import Agent, Task, Crew, Process
-except ImportError:  # DT-07: a lib so e exigida na execucao real, nao no --help
+except ImportError:  # DT-07: the lib is only required for real execution, not --help
     Agent = Task = Crew = Process = None
 import sys as _sys
 from pathlib import Path as _Path
@@ -29,7 +29,7 @@ from _shared.llm import (build_crew_llm, require_crewai, require_llm,
 setup_console()  # DT-01: UTF-8 no stdout/stderr (console Windows e cp1252)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# AGENTES EMBUTIDOS (self-contained — sem dependência de agency-agents/)
+# EMBEDDED AGENTS (self-contained — no dependency on agency-agents/)
 # ═══════════════════════════════════════════════════════════════════════════
 
 AGENTS = {
@@ -249,52 +249,52 @@ def main():
     parser.add_argument(
         "bug_description",
         nargs="?",
-        help="Descrição do bug a ser corrigido",
+        help="Description of the bug to fix",
     )
     parser.add_argument(
         "--bug", "-b",
         dest="bug",
-        help="Descrição do bug (alternativa ao argumento posicional)",
+        help="Bug description (alternative to the positional argument)",
     )
     parser.add_argument(
         "--type", "-t",
         choices=["backend", "frontend"],
         default="backend",
-        help="Tipo de bug: backend ou frontend (default: backend)",
+        help="Bug type: backend or frontend (default: backend)",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Apenas monta a crew e mostra os agentes, sem executar",
+        help="Only builds the crew and shows the agents, without running",
     )
     args = parser.parse_args()
 
-    require_crewai()  # DT-07: mensagem acionavel em vez de traceback
+    require_crewai()  # DT-07: actionable message instead of a traceback
 
     bug_description = args.bug or args.bug_description
     if not bug_description:
         parser.print_help()
-        print("\n❌ Erro: forneça a descrição do bug")
+        print("\n❌ Error: provide the bug description")
         sys.exit(1)
 
     print(f"\n🐛 Bug: {bug_description}")
-    print(f"🔧 Tipo: {args.type}")
-    print(f"📂 Agentes: embutidos (self-contained)")
+    print(f"🔧 Type: {args.type}")
+    print(f"📂 Agents: embedded (self-contained)")
     print()
 
     crew = build_crew(bug_description, args.type)
 
     if args.dry_run:
-        print("🧪 DRY RUN — crew montada, agentes:")
+        print("🧪 DRY RUN — crew built, agents:")
         for agent in crew.agents:
             print(f"  - {agent.role}")
-        print("\n✅ Crew pronta. Remova --dry-run para executar.")
+        print("\n✅ Crew ready. Remove --dry-run to execute.")
         return
 
-    print("🚀 Executando crew...\n")
-    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
+    print("🚀 Running crew...\n")
+    require_llm()  # DT-08: fails early, with a message, if there is no LLM
     result = crew.kickoff()
-    print(f"\n✅ Resultado final:\n{result}")
+    print(f"\n✅ Final result:\n{result}")
 
 
 if __name__ == "__main__":

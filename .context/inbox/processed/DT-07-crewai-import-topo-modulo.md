@@ -1,48 +1,48 @@
-# DT-07 — `crewai` importado no topo do módulo impede até `--help` [Corrigido]
+# DT-07 — `crewai` imported at the top of the module blocks even `--help` [Fixed]
 
-**Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
-**Verificado empiricamente**: sim (12/15 skills falham)
+**Type**: Technical debt · **Priority**: High · **Opened on**: 2026-08-18
+**Verified empirically**: yes (12/15 skills fail)
 
-## Sintoma
+## Symptom
 
-Sem `crewai` instalado, **12 das 15 skills** morrem no import — nem `--help`
-funciona:
+Without `crewai` installed, **12 of the 15 skills** die at import — not even
+`--help` works:
 
 ```
 ModuleNotFoundError: No module named 'crewai'
-  File ".../cp-requisitos/scripts/run.py", line 19, in <module>
+  File ".../cp-requirements/scripts/run.py", line 19, in <module>
     from crewai import Agent, Task, Crew, Process
 ```
 
-Afeta: `cp-arquitetura`, `cp-bug-fix`, `cp-competitive-analysis`, `cp-devops`,
-`cp-documentacao`, `cp-goal-loop`, `cp-implementacao`, `cp-manutencao`,
-`cp-qualidade`, `cp-requisitos`, `cp-seguranca`, `cp-testes`.
+Affects: `cp-architecture`, `cp-bug-fix`, `cp-competitive-analysis`, `cp-devops`,
+`cp-documentation`, `cp-goal-loop`, `cp-implementation`, `cp-maintenance`,
+`cp-quality`, `cp-requirements`, `cp-security`, `cp-testing`.
 
-Não afeta: `cp-agilista` e `cp-inicializador-doc` (não usam LLM) e
-`cp-orquestrador` (já usa import tardio dentro das funções — ver "Referência").
+Does not affect: `cp-agile` and `cp-doc-initializer` (do not use an LLM) and
+`cp-orchestrator` (already uses late import inside functions — see "Reference").
 
-## Impacto
+## Impact
 
-- Impossível inspecionar o contrato CLI de uma skill sem instalar a lib pesada.
-- Impossível escrever smoke test de `--help`/`--dry-run` (bloqueia DT-02/DT-03).
-- Mensagem de erro é um traceback, não uma instrução acionável.
+- Impossible to inspect a skill's CLI contract without installing the heavy lib.
+- Impossible to write a `--help`/`--dry-run` smoke test (blocks DT-02/DT-03).
+- The error message is a traceback, not an actionable instruction.
 
-## Referência — o padrão correto já existe no repositório
+## Reference — the correct pattern already exists in the repository
 
-`cp-orquestrador/scripts/run.py` faz import tardio com mensagem clara:
+`cp-orchestrator/scripts/run.py` does a late import with a clear message:
 
 ```python
 try:
     from crewai import Agent, Task, Crew, Process
 except ImportError:
-    print("❌ crewai não instalado. Execute: pip install crewai")
+    print("❌ crewai not installed. Run: pip install crewai")
     sys.exit(1)
 ```
 
-## Correção proposta
+## Proposed fix
 
-Substituir o import de topo pelo mesmo padrão, movendo `from crewai import ...`
-para dentro de `get_agent()`/`build_crew()`, ou usar guarda no topo:
+Replace the top-level import with the same pattern, moving `from crewai import ...`
+inside `get_agent()`/`build_crew()`, or use a guard at the top:
 
 ```python
 try:
@@ -53,19 +53,19 @@ except ImportError:
     Agent = Task = Crew = Process = None
 ```
 
-...e checar `CREWAI_AVAILABLE` só no ponto de execução real (`kickoff`), deixando
-`--help` e `--dry-run` funcionarem sempre.
+...and check `CREWAI_AVAILABLE` only at the real execution point (`kickoff`),
+letting `--help` and `--dry-run` always work.
 
-## Critério de aceite
+## Acceptance criterion
 
-- `python skills/cp-<qualquer>/scripts/run.py --help` retorna 0 em venv limpo.
-- Executar sem `crewai` produz mensagem acionável e exit code ≠ 0.
+- `python skills/cp-<any>/scripts/run.py --help` returns 0 in a clean venv.
+- Running without `crewai` produces an actionable message and exit code ≠ 0.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Corrigido em 2026-08-18**, propagado aos agentes via `./scripts/install.sh`.
-Verificado empiricamente com o harness de duas camadas (sem `crewai` / com
-`crewai` stub e sem chave). Ver `.context/docs/04-qualidade-qa.md`.
+**Fixed on 2026-08-18**, propagated to the agents via `./scripts/install.sh`.
+Verified empirically with the two-layer harness (without `crewai` / with
+`crewai` stub and no key). See `.context/docs/04-quality-qa.md`.

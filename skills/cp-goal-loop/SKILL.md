@@ -1,96 +1,96 @@
 ---
 name: cp-goal-loop
-description: "Loop autonomo de tentativa-e-correcao. Executa um processo ate alcancar a condicao de sucesso. Quando encontra um bloqueio, para, implementa a solucao, e recomeca. Repete ate sucesso ou esgotar tentativas. Use quando o usuario pedir para realizar um processo completo, testar algo de ponta a ponta, validar um fluxo, ou qualquer tarefa que possa encontrar bloqueios no caminho."
+description: "Autonomous try-and-correct loop. Runs a process until the success condition is reached. When it hits a blocker, it stops, implements the solution, and restarts. Repeats until success or until attempts run out. Use when the user asks to run a complete process, test something end to end, validate a flow, or any task that may hit blockers along the way."
 ---
 
-# cp-goal-loop — Loop Autonomo com Auto-Correcao
+# cp-goal-loop — Autonomous Loop with Self-Correction
 
-Executa um processo ate alcancar a condicao de sucesso. Quando encontra um bloqueio, PARA, implementa a solucao, e RECOMECA o processo do inicio. Repete ate sucesso ou esgotar o numero maximo de tentativas.
+Runs a process until the success condition is reached. When it hits a blocker, it STOPS, implements the solution, and RESTARTS the process from the beginning. Repeats until success or until the maximum number of attempts runs out.
 
-## Analogia
+## Analogy
 
-Imagine um robo tentando atravessar uma sala cheia de obstaculos:
-
-```
-TENTATIVA 1: Anda 3 passos -> BATE numa cadeira
-  -> PARA, move a cadeira, RECOMECA do inicio
-TENTATIVA 2: Anda 5 passos -> BATE numa porta trancada
-  -> PARA, implementa uma chave, RECOMECA do inicio
-TENTATIVA 3: Anda ate o fim -> ATRAVESSOU A SALA -> SUCESSO
-```
-
-## Uso
+Imagine a robot trying to cross a room full of obstacles:
 
 ```
-/carregar skill cp-goal-loop
-objetivo: [descricao do que precisa ser alcancado]
-processo: [passos para tentar alcancar o objetivo]
+ATTEMPT 1: Walks 3 steps -> HITS a chair
+  -> STOPS, moves the chair, RESTARTS from the beginning
+ATTEMPT 2: Walks 5 steps -> HITS a locked door
+  -> STOPS, implements a key, RESTARTS from the beginning
+ATTEMPT 3: Walks to the end -> CROSSED THE ROOM -> SUCCESS
 ```
 
-Ou mais simples:
+## Usage
 
 ```
-tente rodar a migracao do banco e fazer deploy em staging.
-Se algo falhar, corrija e tente de novo ate funcionar.
+/load skill cp-goal-loop
+goal: [description of what needs to be achieved]
+process: [steps to try to reach the goal]
 ```
 
-## Parametros
-
-| Parametro | Default | Descricao |
-|-----------|---------|-----------|
-| `max_tentativas` | 5 | Numero maximo de ciclos tentativa-correcao |
-| `max_tempo` | 30min | Tempo maximo total |
-| `modo` | e2e | e2e (end-to-end) ou unit (testes unitarios) |
-
-## Fluxo interno
+Or more simply:
 
 ```
-1. INICIA TENTATIVA N
-2. Executa o processo passo a passo
-3. Se SUCESSO -> FIM
-4. Se BLOQUEIO:
-   a. Diagnostica a causa raiz
-   b. Implementa a correcao (codigo, config, dados)
-   c. Valida a correcao isoladamente
+try running the database migration and deploying to staging.
+If something fails, fix it and try again until it works.
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_attempts` | 5 | Maximum number of try-correct cycles |
+| `max_time` | 30min | Maximum total time |
+| `mode` | e2e | e2e (end-to-end) or unit (unit tests) |
+
+## Internal flow
+
+```
+1. START ATTEMPT N
+2. Run the process step by step
+3. If SUCCESS -> END
+4. If BLOCKER:
+   a. Diagnose the root cause
+   b. Implement the fix (code, config, data)
+   c. Validate the fix in isolation
    d. N = N + 1
-   e. Se N <= max_tentativas -> VOLTA AO PASSO 1
-   f. Se N > max_tentativas -> RELATORIO DE BLOQUEIOS RESIDUAIS
+   e. If N <= max_attempts -> BACK TO STEP 1
+   f. If N > max_attempts -> RESIDUAL BLOCKERS REPORT
 ```
 
-## Exemplos
+## Examples
 
-**Exemplo 1: Deploy com migracoes**
+**Example 1: Deploy with migrations**
 ```
-objetivo: deploy em staging com todas as migracoes aplicadas e health check verde
-processo:
-  1. Rodar python manage.py migrate
-  2. Rodar pytest com o banco de staging
-  3. Fazer deploy via CI/CD
-  4. Bater no health check /api/health
-  5. Confirmar que o frontend carrega
-```
-
-**Exemplo 2: Onboarding de usuario**
-```
-objetivo: criar conta, verificar email, fazer primeiro login, criar primeiro projeto
-processo:
-  1. POST /api/register com dados validos
-  2. Verificar email via link de confirmacao
-  3. POST /api/login e obter token
-  4. GET /api/me confirma autenticacao
-  5. POST /api/projects cria primeiro projeto
-  6. GET /api/projects confirma que aparece na lista
+goal: deploy to staging with all migrations applied and a green health check
+process:
+  1. Run python manage.py migrate
+  2. Run pytest with the staging database
+  3. Deploy via CI/CD
+  4. Hit the /api/health health check
+  5. Confirm the frontend loads
 ```
 
-**Exemplo 3: Integracao com API externa**
+**Example 2: User onboarding**
 ```
-objetivo: sincronizar contatos do CRM com o banco local
-processo:
-  1. Autenticar na API do CRM
-  2. Puxar lista de contatos (paginado)
-  3. Para cada contato, upsert no banco local
-  4. Verificar que o total de contatos no banco = total na API
-  5. Agendar proxima sincronizacao para daqui 1h
+goal: create account, verify email, first login, create first project
+process:
+  1. POST /api/register with valid data
+  2. Verify email via confirmation link
+  3. POST /api/login and get a token
+  4. GET /api/me confirms authentication
+  5. POST /api/projects creates the first project
+  6. GET /api/projects confirms it appears in the list
+```
+
+**Example 3: External API integration**
+```
+goal: sync CRM contacts with the local database
+process:
+  1. Authenticate on the CRM API
+  2. Pull the contact list (paginated)
+  3. For each contact, upsert into the local database
+  4. Verify that the total contacts in the database = total in the API
+  5. Schedule the next sync for 1 hour from now
 ```
 
 ## E2E CRUD Testing Pattern
@@ -113,7 +113,7 @@ Run each LOOP spec **three times** — each channel catches a different failure 
 | Browser (UI clicks) | UI rendering, navigation, button states, SSE streaming | Edge-case status codes, raw response validation |
 | Chat (Copilot) | NLU intent parsing, MCP tool wiring, chat→backend pipeline | Direct API edge cases, UI polish |
 
-**Chat channel** is the most realistic: the user types "crie uma pasta" and the Copilot executes via MCP. Use this when the test goal is "can the Copilot operate the system" rather than "can the API work."
+**Chat channel** is the most realistic: the user types "create a folder" and the Copilot executes via MCP. Use this when the test goal is "can the Copilot operate the system" rather than "can the API work."
 
 **Recommended order:** API first (fastest, most precise), then Chat (validates the NLU→MCP→backend pipeline), then Browser (validates the full UI stack).
 
@@ -125,7 +125,7 @@ See the companion references for each channel:
 
 ### LOOP Spec Lifecycle
 
-1. **Create** `.hermes/docs/testes-de-loop/LOOP-NNN-<slug>.md` with criteria + results table
+1. **Create** `.hermes/docs/loop-tests/LOOP-NNN-<slug>.md` with criteria + results table
 2. **Execute API pass** — run each phase via REST calls, document results
 3. **Execute browser pass** — run each phase via web UI, document results
 4. **Update spec** — mark criteria PASS/FAIL, add execution rows to results table
@@ -135,15 +135,15 @@ See the companion references for each channel:
 This pattern is useful as a quality gate after implementing new endpoints or modifying existing ones. Run it as a goal-loop:
 
 ```text
-objetivo: validar CRUD completo de presentations via API + browser
-processo: seguir o roteiro em references/e2e-crud-testing.md fase 3, depois references/browser-e2e-crud-testing.md fase 3
+goal: validate complete CRUD of presentations via API + browser
+process: follow the script in references/e2e-crud-testing.md phase 3, then references/browser-e2e-crud-testing.md phase 3
 ```
 
 ## Script
 
 ```bash
 python .hermes/skills/cp-goal-loop/scripts/run.py \
-  --goal "deploy em staging funcionando" \
+  --goal "deploy in staging working" \
   --steps "migrate,test,deploy,health-check"
 ```
 
@@ -182,7 +182,7 @@ The RAG distance cutoff (0.45) can also discard relevant results for short queri
 ### Chat completions returns SSE, not JSON
 The endpoint streams tokens as Server-Sent Events. Parse with:
 ```python
-for line in raw.split("\\n"):
+for line in raw.split("\n"):
     if line.startswith("data: "):
         event = json.loads(line[6:])
 ```
@@ -195,7 +195,7 @@ The request body expects `messages` array (OpenAI format), not a `message` strin
 `POST /presentations/{uuid}/regenerate/` takes ~33s to compile the .pptx. Set HTTP timeout ≥60s.
 
 ### Chat testing: Copilot may ask for confirmation before destructive operations
-When testing via chat, the Copilot may ask "Você gostaria de prosseguir?" before executing delete/unpublish. Send a follow-up confirmation message (e.g. "Sim, pode prosseguir"). This is expected — the Copilot is being cautious. Do NOT treat this as a test failure.
+When testing via chat, the Copilot may ask "Would you like to proceed?" before executing delete/unpublish. Send a follow-up confirmation message (e.g. "Yes, go ahead"). This is expected — the Copilot is being cautious. Do NOT treat this as a test failure.
 
 ### Chat testing: Copilot may lack MCP tools for some operations
 Known gaps: restore from trash, list page templates, create page. When found, register a bug in `.hermes/inbox/bugs/` and document the gap in the LOOP spec. Do NOT block the entire test — skip the broken phase and continue testing remaining phases. Fix pattern: create the missing skill file, register it in `chat/skills/__init__.py`, restart Django.
@@ -211,8 +211,8 @@ Skills are registered via `@register_skill` decorators that execute at module im
 4. Verify the skill loads: `python -c "import chat.skills.<new_skill>; print('OK')"` (run with clean env to avoid lxml conflict)
 
 ### Bug lifecycle during LOOP execution
-1. **Register** `.hermes/inbox/bugs/BUG-YYYYMMDD-<slug>.md` with status `[Aberto]`
+1. **Register** `.hermes/inbox/bugs/BUG-YYYYMMDD-<slug>.md` with status `[Open]`
 2. **Document** in the LOOP spec results table
 3. **Skip the broken phase** and continue testing remaining phases
 4. **Fix** in a separate pass (or inline if using goal-loop auto-correction)
-5. **Close** by updating status to `[Corrigido]` and re-run the affected phase
+5. **Close** by updating status to `[Fixed]` and re-run the affected phase

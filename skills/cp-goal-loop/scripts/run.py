@@ -2,14 +2,14 @@
 """
 cp-goal-loop — Autonomous Try-Fix-Retry Loop (self-contained)
 
-Executa um processo ate alcancar a condicao de sucesso.
-Quando encontra um bloqueio, PARA, diagnostica, implementa a correcao,
-valida isoladamente, e RECOMECA o processo do inicio.
+Runs a process until the success condition is reached.
+When it hits a blocker, it STOPS, diagnoses, implements the fix,
+validates in isolation, and RESTARTS the process from the beginning.
 
-Uso:
-  python run.py --goal "deploy em staging funcionando" --steps "migrate,test,deploy,health-check"
-  python run.py --goal "onboarding completo" --steps-file steps.json
-  python run.py --goal "sync de contatos" --max-attempts 3
+Usage:
+  python run.py --goal "deploy in staging working" --steps "migrate,test,deploy,health-check"
+  python run.py --goal "complete onboarding" --steps-file steps.json
+  python run.py --goal "sync contacts" --max-attempts 3
 """
 
 import argparse
@@ -22,7 +22,7 @@ from pathlib import Path
 from datetime import datetime
 try:
     from crewai import Agent, Task, Crew, Process
-except ImportError:  # DT-07: a lib so e exigida na execucao real, nao no --help
+except ImportError:  # DT-07: the lib is only required for real execution, not --help
     Agent = Task = Crew = Process = None
 import sys as _sys
 from pathlib import Path as _Path
@@ -212,33 +212,33 @@ def main():
     parser = argparse.ArgumentParser(
         description="cp-goal-loop: Autonomous Try-Fix-Retry Loop (self-contained)",
     )
-    parser.add_argument("--goal", "-g", required=True, help="Objetivo a ser alcancado")
+    parser.add_argument("--goal", "-g", required=True, help="Goal to be achieved")
     parser.add_argument(
         "--steps", "-s",
-        help="Passos do processo, separados por virgula",
+        help="Process steps, comma-separated",
     )
     parser.add_argument(
         "--steps-file",
-        help="Arquivo JSON com os passos (array de strings)",
+        help="JSON file with the steps (array of strings)",
     )
     parser.add_argument(
         "--max-attempts", "-n",
         type=int, default=5,
-        help="Numero maximo de tentativas (default: 5)",
+        help="Maximum number of attempts (default: 5)",
     )
     parser.add_argument(
         "--max-time",
         type=int, default=30,
-        help="Tempo maximo em minutos (default: 30)",
+        help="Maximum time in minutes (default: 30)",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Apenas mostra o plano, sem executar",
+        help="Only shows the plan, without running",
     )
     args = parser.parse_args()
 
-    require_crewai()  # DT-07: mensagem acionavel em vez de traceback
+    require_crewai()  # DT-07: actionable message instead of a traceback
 
     # --- Parse steps ---
     if args.steps:
@@ -246,34 +246,34 @@ def main():
     elif args.steps_file:
         steps = json.loads(Path(args.steps_file).read_text())
     else:
-        # BUG-05: sem --steps, deriva um passo unico do proprio objetivo. O
-        # orquestrador (modo goal-loop) so envia --goal, e exigir --steps aqui
-        # quebrava o exemplo documentado no SKILL.md. O loop de
-        # tentativa-e-correcao continua valido com um passo so.
+        # BUG-05: without --steps, derive a single step from the goal itself. The
+        # orchestrator (goal-loop mode) only sends --goal, and requiring --steps here
+        # broke the example documented in the SKILL.md. The try-and-correct loop
+        # remains valid with a single step.
         steps = [args.goal]
-        print("[i] --steps nao informado: usando o objetivo como passo unico.")
+        print("[i] --steps not provided: using the goal as a single step.")
 
     if not steps:
-        print("[!] Lista de passos vazia")
+        print("[!] Empty steps list")
         sys.exit(1)
 
     # --- Show plan ---
     print(f"\n{'='*60}")
-    print(f"  GOAL LOOP — Modo Autonomo (self-contained)")
+    print(f"  GOAL LOOP — Autonomous Mode (self-contained)")
     print(f"{'='*60}")
-    print(f"  Objetivo: {args.goal}")
-    print(f"  Max tentativas: {args.max_attempts}")
-    print(f"  Max tempo: {args.max_time}min")
-    print(f"  Passos ({len(steps)}):")
+    print(f"  Goal: {args.goal}")
+    print(f"  Max attempts: {args.max_attempts}")
+    print(f"  Max time: {args.max_time}min")
+    print(f"  Steps ({len(steps)}):")
     for i, s in enumerate(steps, 1):
         print(f"    {i}. {s}")
     print()
 
     if args.dry_run:
-        print("[i] DRY RUN — plano exibido. Remova --dry-run para executar.")
+        print("[i] DRY RUN — plan shown. Remove --dry-run to execute.")
         return
 
-    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
+    require_llm()  # DT-08: fails early, with a message, if there is no LLM
 
     # --- Main loop ---
     start_time = time.time()
@@ -284,13 +284,13 @@ def main():
     for attempt in range(1, args.max_attempts + 1):
         elapsed = time.time() - start_time
         if elapsed > max_seconds:
-            print(f"\n[!] Tempo maximo ({args.max_time}min) excedido. Parando.")
+            print(f"\n[!] Max time ({args.max_time}min) exceeded. Stopping.")
             break
 
         print(f"\n{'='*60}")
-        print(f"  TENTATIVA {attempt}/{args.max_attempts}")
-        print(f"  Tempo decorrido: {elapsed/60:.1f}min")
-        print(f"  Bloqueios anteriores: {len(previous_failures)}")
+        print(f"  ATTEMPT {attempt}/{args.max_attempts}")
+        print(f"  Elapsed time: {elapsed/60:.1f}min")
+        print(f"  Previous blockers: {len(previous_failures)}")
         print(f"{'='*60}\n")
 
         try:
@@ -301,7 +301,7 @@ def main():
             # Check if goal was achieved
             success_markers = ["GOAL ACHIEVED", "ALL STEPS SUCCEED", "SUCCESS"]
             if any(m in result_str.upper() for m in success_markers):
-                print(f"\n  [***] GOAL ALCANCADO na tentativa {attempt}!")
+                print(f"\n  [***] GOAL ACHIEVED on attempt {attempt}!")
                 final_result = {
                     "status": "success",
                     "attempts": attempt,
@@ -311,7 +311,7 @@ def main():
                 }
                 break
             else:
-                print(f"\n  [!] Tentativa {attempt} nao alcancou o objetivo.")
+                print(f"\n  [!] Attempt {attempt} did not reach the goal.")
                 failure_info = {
                     "attempt": attempt,
                     "step": "unknown",
@@ -322,7 +322,7 @@ def main():
                 previous_failures.append(failure_info)
 
         except Exception as e:
-            print(f"\n  [!!] Tentativa {attempt} explodiu: {e}")
+            print(f"\n  [!!] Attempt {attempt} exploded: {e}")
             traceback.print_exc()
             failure_info = {
                 "attempt": attempt,
@@ -336,22 +336,22 @@ def main():
     # --- Final report ---
     elapsed_total = (time.time() - start_time) / 60
     print(f"\n{'='*60}")
-    print(f"  RELATORIO FINAL")
+    print(f"  FINAL REPORT")
     print(f"{'='*60}")
 
     if final_result and final_result["status"] == "success":
-        print(f"  [OK] GOAL ALCANCADO!")
-        print(f"  Tentativas: {final_result['attempts']}")
-        print(f"  Tempo total: {final_result['total_time_min']:.1f}min")
-        print(f"  Bloqueios resolvidos: {final_result['previous_failures']}")
+        print(f"  [OK] GOAL ACHIEVED!")
+        print(f"  Attempts: {final_result['attempts']}")
+        print(f"  Total time: {final_result['total_time_min']:.1f}min")
+        print(f"  Blockers resolved: {final_result['previous_failures']}")
     else:
-        print(f"  [!!] GOAL NAO ALCANCADO apos {attempt} tentativas")
-        print(f"  Tempo total: {elapsed_total:.1f}min")
-        print(f"  Bloqueios encontrados: {len(previous_failures)}")
-        print(f"\n  Bloqueios residuais:")
+        print(f"  [!!] GOAL NOT ACHIEVED after {attempt} attempts")
+        print(f"  Total time: {elapsed_total:.1f}min")
+        print(f"  Blockers found: {len(previous_failures)}")
+        print(f"\n  Residual blockers:")
         for i, f in enumerate(previous_failures, 1):
             print(f"    {i}. Step: {f.get('step', '?')}")
-            print(f"       Erro: {f.get('error', '?')[:200]}")
+            print(f"       Error: {f.get('error', '?')[:200]}")
 
     # Save report
     output_dir = Path(__file__).resolve().parent.parent / "outputs"
@@ -370,7 +370,7 @@ def main():
     }
     report_file = output_dir / f"goal_loop_{timestamp}.json"
     report_file.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\n  Relatorio salvo em: {report_file}")
+    print(f"\n  Report saved to: {report_file}")
 
 
 if __name__ == "__main__":

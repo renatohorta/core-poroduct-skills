@@ -1,3 +1,3 @@
 # tasks
 
-<!-- Itens de tasks são registrados aqui. Formato: um arquivo .md por item. -->
+<!-- Task items are recorded here. Format: one .md file per item. -->

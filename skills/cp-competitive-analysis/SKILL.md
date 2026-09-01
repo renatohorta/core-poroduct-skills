@@ -1,94 +1,94 @@
 ---
 name: cp-competitive-analysis
-description: "Análise Competitiva — cria uma crew CrewAI com Analista de Mercado, Analista de Competidores, Analista de Pricing/Posicionamento e Estrategista para comparar produtos, features, preços, posicionamento e estratégias de mercado, gerando relatórios completos de inteligência competitiva. Use quando o usuário disser 'analisar concorrentes', 'análise competitiva', 'comparar concorrentes', 'benchmarking de mercado', 'competitive analysis', 'battle card', 'SWOT de concorrentes', ou precisar de inteligência competitiva para decisões estratégicas."
+description: "Competitive Analysis — creates a CrewAI crew with a Market Analyst, Competitor Analyst, Pricing/Positioning Analyst and Strategist to compare products, features, prices, positioning and market strategies, generating complete competitive intelligence reports. Use when the user says 'analyze competitors', 'competitive analysis', 'compare competitors', 'market benchmarking', 'competitive analysis', 'battle card', 'competitor SWOT', or needs competitive intelligence for strategic decisions."
 ---
 
-# cp-competitive-analysis — Análise Competitiva
+# cp-competitive-analysis — Competitive Analysis
 
-Cria uma crew CrewAI com agentes especializados para executar o ciclo completo de análise competitiva:
+Creates a CrewAI crew with specialized agents to run the complete competitive analysis cycle:
 
-1. **Analista de Mercado** — Define o escopo, mapeia o mercado, tamanho, crescimento e dinâmica competitiva
-2. **Analista de Competidores** — Perfila cada concorrente: overview, produto, forças, fraquezas, estratégia
-3. **Analista de Pricing/Posicionamento** — Compara preços, tiers, posicionamento e mapa de posicionamento
-4. **Estrategista** — SWOT, vantagens competitivas, recomendações estratégicas e battle cards
+1. **Market Analyst** — Defines the scope, maps the market, size, growth and competitive dynamics
+2. **Competitor Analyst** — Profiles each competitor: overview, product, strengths, weaknesses, strategy
+3. **Pricing/Positioning Analyst** — Compares prices, tiers, positioning and the positioning map
+4. **Strategist** — SWOT, competitive advantages, strategic recommendations and battle cards
 
-## Agentes
+## Agents
 
-| Agente | Função |
-|--------|--------|
-| Analista de Mercado | Define mercado, tamanho, crescimento, tendências e dinâmica competitiva |
-| Analista de Competidores | Perfila concorrentes: overview, produto, forças, fraquezas, estratégia |
-| Analista de Pricing/Posicionamento | Compara preços, tiers, posicionamento e mapa de posicionamento |
-| Estrategista | SWOT, vantagens competitivas, recomendações e battle cards |
+| Agent | Function |
+|-------|----------|
+| Market Analyst | Defines market, size, growth, trends and competitive dynamics |
+| Competitor Analyst | Profiles competitors: overview, product, strengths, weaknesses, strategy |
+| Pricing/Positioning Analyst | Compares prices, tiers, positioning and the positioning map |
+| Strategist | SWOT, competitive advantages, recommendations and battle cards |
 
-## Entrada
+## Input
 
-Contexto da análise — sua empresa/produto, concorrentes a analisar (ou critérios para identificá-los), indústria/segmento, escopo geográfico e aspectos de foco. Pode ser:
-- Texto direto no argumento: `"nossa empresa é um SaaS de gestão de clínicas; analise concorrentes como Doctoralia e Zenklub"`
-- Arquivo: `--input contexto.txt`
+Analysis context — your company/product, competitors to analyze (or criteria to identify them), industry/segment, geographic scope and focus aspects. Can be:
+- Direct text in the argument: `"our company is a SaaS for clinic management; analyze competitors like Doctoralia and Zenklub"`
+- File: `--input context.txt`
 
-## Saída
+## Output
 
-Relatório de inteligência competitiva completo contendo:
-- Executive summary com key takeaways
-- Market overview (definição, tamanho, crescimento, landscape)
-- Perfis de cada concorrente (overview, produto, forças, fraquezas, estratégia)
-- Matriz de comparação de features
-- Comparação de pricing (tiers/planos)
-- Mapa de posicionamento
-- Resumo SWOT
-- Vantagens competitivas (suas vs. dos concorrentes)
-- Recomendações estratégicas (imediatas, médio prazo, respostas a vigiar)
-- Battle cards por concorrente (pitch, resposta, diferenciais, objeções)
+Complete competitive intelligence report containing:
+- Executive summary with key takeaways
+- Market overview (definition, size, growth, landscape)
+- Profiles of each competitor (overview, product, strengths, weaknesses, strategy)
+- Feature comparison matrix
+- Pricing comparison (tiers/plans)
+- Positioning map
+- SWOT summary
+- Competitive advantages (yours vs. competitors')
+- Strategic recommendations (immediate, medium-term, responses to watch)
+- Battle cards per competitor (pitch, response, differentiators, objections)
 
 ## Quality Gate
 
-O Estrategista emite veredito PASS/FAIL sobre a completude do relatório. Se FAIL, o relatório precisa de correções antes de ser considerado concluído.
+The Strategist issues a PASS/FAIL verdict on the report's completeness. If FAIL, the report needs corrections before being considered complete.
 
-## Uso
+## Usage
 
 ```bash
-# Contexto direto
-python .hermes/skills/cp-competitive-analysis/scripts/run.py "SaaS de gestão de clínicas; concorrentes: Doctoralia, Zenklub"
+# Direct context
+python .hermes/skills/cp-competitive-analysis/scripts/run.py "SaaS for clinic management; competitors: Doctoralia, Zenklub"
 
-# Contexto de arquivo
-python .hermes/skills/cp-competitive-analysis/scripts/run.py --input contexto.txt
+# File context
+python .hermes/skills/cp-competitive-analysis/scripts/run.py --input context.txt
 
-# Salvar saída em arquivo específico
-python .hermes/skills/cp-competitive-analysis/scripts/run.py "nosso produto X" --output docs/analise-competitiva.md
+# Save output to a specific file
+python .hermes/skills/cp-competitive-analysis/scripts/run.py "our product X" --output docs/competitive-analysis.md
 
-# Apenas ver a estrutura da crew
-python .hermes/skills/cp-competitive-analysis/scripts/run.py "teste" --dry-run
+# Only see the crew structure
+python .hermes/skills/cp-competitive-analysis/scripts/run.py "test" --dry-run
 ```
 
-## Exemplo
+## Example
 
 ```bash
 python .hermes/skills/cp-competitive-analysis/scripts/run.py \
-  "Somos um SaaS de gestão de clínicas de estética no Brasil. \
-   Queremos analisar concorrentes como Doctoralia, Zenklub e Clínica Ágil, \
-   focando em features, pricing e posicionamento. Objetivo: estratégia de go-to-market."
+  "We are a SaaS for managing aesthetic clinics in Brazil. \
+   We want to analyze competitors like Doctoralia, Zenklub and Clínica Ágil, \
+   focusing on features, pricing and positioning. Goal: go-to-market strategy."
 ```
 
 ## Script
 
-O script `scripts/run.py` é self-contained — todos os agentes estão embutidos no próprio código Python. Não depende de diretório externo.
+The `scripts/run.py` script is self-contained — all agents are embedded in the Python code itself. It does not depend on an external directory.
 
-## Caminho manual (alternativa ao script)
+## Manual path (alternative to the script)
 
-Quando o alvo é um concorrente específico e o time tem documentação interna do próprio produto, o caminho manual costuma render melhor que a crew — o agente já tem contexto do produto e pode comparar com precisão. Fluxo validado:
+When the target is a specific competitor and the team has internal documentation of its own product, the manual path usually yields better results than the crew — the agent already has product context and can compare with precision. Validated flow:
 
-1. **Navegar no site oficial do concorrente** (browser_navigate) — home, `/pricing`, `/about`, páginas de produto. Extrair texto real via `browser_console` com `document.body.innerText` (o snapshot acessível às vezes omite conteúdo renderizado por JS).
-2. **Delegar a pesquisa ampla a um subagente** (`delegate_task` com toolsets `["web","browser"]`) para coletar capacidades, planos, posicionamento e concorrentes em paralelo — evita poluir o contexto do agente principal com dezenas de navegações.
-3. **Ler a documentação interna** do produto próprio (`.hermes/docs/`) para a comparação feature-a-feature, pricing, SWOT e battle card.
-4. **Salvar a especificação** em `doc/competitive-analysis/<concorrente>-vs-<produto>.md` (convenção do projeto Crewbotics — pasta `doc/` na raiz, não `.hermes/docs/`).
+1. **Navigate the competitor's official site** (browser_navigate) — home, `/pricing`, `/about`, product pages. Extract real text via `browser_console` with `document.body.innerText` (the accessible snapshot sometimes omits JS-rendered content).
+2. **Delegate the broad research to a subagent** (`delegate_task` with toolsets `["web","browser"]`) to collect capabilities, plans, positioning and competitors in parallel — avoids polluting the main agent's context with dozens of navigations.
+3. **Read the internal documentation** of your own product (`.hermes/docs/`) for the feature-by-feature comparison, pricing, SWOT and battle card.
+4. **Save the spec** in `doc/competitive-analysis/<competitor>-vs-<product>.md` (Crewbotics project convention — `doc/` folder at the root, not `.hermes/docs/`).
 
-## Pitfall: contadores de preço animados
+## Pitfall: animated price counters
 
-Páginas de pricing modernas (ex.: manus.im) renderizam os valores em US$ como **contadores animados** — cada dígito é um elemento separado que muda com animação. Isso faz `document.body.innerText` e seletores de texto devolverem dígitos soltos (`"0","1","2",...`) ou nada, e o preço real não é extraível por scraping. O que funciona:
-- **Créditos/quantidades** (ex.: "4.000 créditos/mês") costumam ser texto estático e são extraíveis.
-- **Preços em moeda** podem não ser extraíveis — **marque como "não confirmado"** no relatório e peça o valor ao usuário (que pode ter a página aberta no navegador dele) em vez de inventar.
+Modern pricing pages (e.g. manus.im) render the US$ values as **animated counters** — each digit is a separate element that changes with animation. This makes `document.body.innerText` and text selectors return loose digits (`"0","1","2",...`) or nothing, and the real price is not extractable by scraping. What works:
+- **Credits/quantities** (e.g. "4,000 credits/month") are usually static text and extractable.
+- **Prices in currency** may not be extractable — **mark them as "unconfirmed"** in the report and ask the user for the value (who may have the page open in their browser) instead of inventing it.
 
-## Referências
+## References
 
-- `references/manus-im.md` — dados de pesquisa do Manus (manus.im) coletados em 15/08/2026: capacidades, planos, posicionamento, concorrentes e notas de confiabilidade.
+- `references/manus-im.md` — Manus (manus.im) research data collected on 15/08/2026: capabilities, plans, positioning, competitors and reliability notes.

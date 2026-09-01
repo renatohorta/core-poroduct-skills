@@ -1,12 +1,12 @@
-"""Testes internos (unidade) das skills cp-*.
+"""Internal (unit) tests of the cp-* skills.
 
-Diferente dos smoke tests (que chamam o script via subprocess), estes testes
-importam o código diretamente para testar funções e classes internas:
-  - cp-agilista: LocalIntegration, parse_frontmatter, build_task_template
-  - cp-inicializador-doc: InicializadorDoc, KANBAN_COLUMNS, ingest_vision
-  - cp-orquestrador: PipelineExecutor._build_cli_args, nexus_detect_mode
+Unlike the smoke tests (which call the script via subprocess), these tests
+import the code directly to test internal functions and classes:
+  - cp-agile: LocalIntegration, parse_frontmatter, build_task_template
+  - cp-doc-initializer: DocInitializer, KANBAN_COLUMNS, ingest_vision
+  - cp-orchestrator: PipelineExecutor._build_cli_args, nexus_detect_mode
 
-NENHUM teste requer crewai ou LLM — testam apenas lógica pura em Python.
+NO test requires crewai or an LLM — they only test pure Python logic.
 """
 import importlib.util
 import re
@@ -19,16 +19,16 @@ import pytest
 from conftest import REPO_ROOT, SKILLS_DIR, clean_env
 
 # ═══════════════════════════════════════════════════════════════════════
-# HELPERS — import run.py como módulo, isolando dependências de crewai
+# HELPERS — import run.py as a module, isolating crewai dependencies
 # ═══════════════════════════════════════════════════════════════════════
 
-AGILISTA_PY = SKILLS_DIR / "cp-agilista" / "scripts" / "run.py"
-INICIALIZADOR_PY = SKILLS_DIR / "cp-inicializador-doc" / "scripts" / "run.py"
-ORQUESTRADOR_PY = SKILLS_DIR / "cp-orquestrador" / "scripts" / "run.py"
+AGILE_PY = SKILLS_DIR / "cp-agile" / "scripts" / "run.py"
+INITIALIZER_PY = SKILLS_DIR / "cp-doc-initializer" / "scripts" / "run.py"
+ORCHESTRATOR_PY = SKILLS_DIR / "cp-orchestrator" / "scripts" / "run.py"
 
 
 def import_skill(path: Path, name: str = None):
-    """Importa run.py como módulo, sem executar main()."""
+    """Imports run.py as a module, without executing main()."""
     spec = importlib.util.spec_from_file_location(
         name or path.stem, path,
         submodule_search_locations=[],
@@ -39,144 +39,144 @@ def import_skill(path: Path, name: str = None):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# cp-agilista — lógica pura (sem crewai)
+# cp-agile — pure logic (no crewai)
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.fixture(scope="module")
-def agilista():
-    return import_skill(AGILISTA_PY, "cp_agilista")
+def agile():
+    return import_skill(AGILE_PY, "cp_agile")
 
 
-class TestAgilistaCore:
-    """Funções auxiliares: template, frontmatter, parsing."""
+class TestAgileCore:
+    """Helper functions: template, frontmatter, parsing."""
 
-    def test_build_task_template_preenche_todos_os_campos(self, agilista):
-        conteudo = agilista.build_task_template(
+    def test_build_task_template_fills_all_fields(self, agile):
+        content = agile.build_task_template(
             task_id="TASK-001",
-            title="Implementar login",
+            title="Implement login",
             status="ready",
-            priority="alta",
+            priority="high",
             assignee="renat",
             tags='["frontend", "auth"]',
-            description="Criar tela de login com JWT",
-            acceptance_criteria="Login funcional com email e senha",
-            tipo="task",
-            origem="inbox/bugs/bug-report.md",
+            description="Create a login screen with JWT",
+            acceptance_criteria="Working login with email and password",
+            type="task",
+            source="inbox/bugs/bug-report.md",
         )
-        assert "id: TASK-001" in conteudo
-        assert "title: Implementar login" in conteudo
-        assert "status: ready" in conteudo
-        assert "priority: alta" in conteudo
-        assert "assignee: renat" in conteudo
-        assert "tipo: task" in conteudo
-        assert "origem: inbox/bugs/bug-report.md" in conteudo
-        assert "## Critérios de Aceitação" in conteudo
-        # O template tem seções que o feedback loop adiciona
-        assert "## Dúvidas Pendentes" in conteudo
-        assert "## Log de Impedimentos" in conteudo
+        assert "id: TASK-001" in content
+        assert "title: Implement login" in content
+        assert "status: ready" in content
+        assert "priority: high" in content
+        assert "assignee: renat" in content
+        assert "type: task" in content
+        assert "source: inbox/bugs/bug-report.md" in content
+        assert "## Acceptance Criteria" in content
+        # The template has sections that the feedback loop adds
+        assert "## Pending Questions" in content
+        assert "## Blockers Log" in content
 
-    def test_build_task_template_defaults(self, agilista):
-        """Testa que defaults sensatos sao aplicados."""
-        conteudo = agilista.build_task_template("TASK-042", "Minha task")
-        assert "priority: media" in conteudo
-        assert "status: backlog" in conteudo
-        assert "tipo: task" in conteudo  # DEFAULT_TRILHA
-        assert "origem: " in conteudo  # vazio por default
+    def test_build_task_template_defaults(self, agile):
+        """Tests that sensible defaults are applied."""
+        content = agile.build_task_template("TASK-042", "My task")
+        assert "priority: medium" in content
+        assert "status: backlog" in content
+        assert "type: task" in content  # DEFAULT_TRACK
+        assert "source: " in content  # empty by default
 
-    def test_parse_frontmatter_basico(self, agilista):
-        conteudo = """---
+    def test_parse_frontmatter_basic(self, agile):
+        content = """---
 id: TASK-001
-title: Teste
+title: Test
 status: ready
-priority: alta
+priority: high
 ---
-# Conteudo
+# Content
 """
-        meta = agilista.parse_frontmatter(conteudo)
+        meta = agile.parse_frontmatter(content)
         assert meta["id"] == "TASK-001"
-        assert meta["title"] == "Teste"
+        assert meta["title"] == "Test"
         assert meta["status"] == "ready"
 
-    def test_parse_frontmatter_sem_frontmatter(self, agilista):
-        assert agilista.parse_frontmatter("# So conteudo") == {}
+    def test_parse_frontmatter_without_frontmatter(self, agile):
+        assert agile.parse_frontmatter("# Only content") == {}
 
-    def test_parse_frontmatter_valor_com_aspas(self, agilista):
-        conteudo = """---
-title: 'Meu titulo'
+    def test_parse_frontmatter_value_with_quotes(self, agile):
+        content = """---
+title: 'My title'
 tags: "[]"
 ---
 """
-        meta = agilista.parse_frontmatter(conteudo)
-        assert meta["title"] == "Meu titulo"
+        meta = agile.parse_frontmatter(content)
+        assert meta["title"] == "My title"
         assert meta["tags"] == "[]"
 
-    def test_parse_frontmatter_campo_vazio(self, agilista):
-        conteudo = """---
+    def test_parse_frontmatter_empty_field(self, agile):
+        content = """---
 id: TASK-001
 assignee:
 ---
 """
-        meta = agilista.parse_frontmatter(conteudo)
+        meta = agile.parse_frontmatter(content)
         assert meta["id"] == "TASK-001"
         assert meta.get("assignee", "") == ""
 
-    def test_read_task_meta_arquivo_inexistente(self, agilista, tmp_path):
-        meta = agilista.read_task_meta(tmp_path / "nao-existe.md")
+    def test_read_task_meta_missing_file(self, agile, tmp_path):
+        meta = agile.read_task_meta(tmp_path / "does-not-exist.md")
         assert meta == {}
 
-    def test_read_task_status_lida_do_frontmatter(self, agilista, tmp_path):
-        task = tmp_path / "tarefa.md"
+    def test_read_task_status_reads_from_frontmatter(self, agile, tmp_path):
+        task = tmp_path / "task.md"
         task.write_text("""---
 id: TASK-X
 status: doing
 ---
-# Tarefa
+# Task
 """, encoding="utf-8")
-        assert agilista.read_task_status(task) == "doing"
+        assert agile.read_task_status(task) == "doing"
 
-    def test_read_task_status_sem_frontmatter(self, agilista, tmp_path):
-        task = tmp_path / "tarefa.md"
-        task.write_text("# Apenas conteudo", encoding="utf-8")
-        assert agilista.read_task_status(task) == ""
+    def test_read_task_status_without_frontmatter(self, agile, tmp_path):
+        task = tmp_path / "task.md"
+        task.write_text("# Only content", encoding="utf-8")
+        assert agile.read_task_status(task) == ""
 
-    def test_constantes_validas(self, agilista):
-        """Verifica que VALID_STATUSES e TRILHAS estao consistentes."""
-        # TODAS as trilhas tem prefixo
-        for trilha, prefixo in agilista.TRILHAS.items():
-            assert len(prefixo) > 0, f"{trilha} sem prefixo"
-        assert agilista.DEFAULT_TRILHA in agilista.TRILHAS
-        # `inbox` nao esta nas trilhas — e um conceito separado
-        assert "inbox" not in agilista.TRILHAS
-        # blocked e um status valido
-        assert "blocked" in agilista.VALID_STATUSES
+    def test_constants_valid(self, agile):
+        """Verifies that VALID_STATUSES and TRACKS are consistent."""
+        # ALL tracks have a prefix
+        for track, prefix in agile.TRACKS.items():
+            assert len(prefix) > 0, f"{track} without prefix"
+        assert agile.DEFAULT_TRACK in agile.TRACKS
+        # `inbox` is not a track — it is a separate concept
+        assert "inbox" not in agile.TRACKS
+        # blocked is a valid status
+        assert "blocked" in agile.VALID_STATUSES
 
-    def test_trilha_patterns_cobrem_todas_as_trilhas(self, agilista):
-        """Cada trilha (exceto task, que e default) tem pelo menos um padrao."""
-        trilhas_com_padrao = {t for t, _ in agilista.TRILHA_PATTERNS}
-        trilhas_definidas = set(agilista.TRILHAS.keys())
-        # task nao precisa de padrao — e default
-        assert trilhas_com_padrao == trilhas_definidas - {"task"}, (
-            f"TRILHA_PATTERNS nao cobre: {trilhas_definidas - {'task'} - trilhas_com_padrao}"
+    def test_track_patterns_cover_all_tracks(self, agile):
+        """Each track (except task, which is the default) has at least one pattern."""
+        tracks_with_pattern = {t for t, _ in agile.TRACK_PATTERNS}
+        tracks_defined = set(agile.TRACKS.keys())
+        # task does not need a pattern — it is the default
+        assert tracks_with_pattern == tracks_defined - {"task"}, (
+            f"TRACK_PATTERNS does not cover: {tracks_defined - {'task'} - tracks_with_pattern}"
         )
 
 
-class TestAgilistaLocalIntegration:
-    """LocalIntegration: operacoes no sistema de arquivos local."""
+class TestAgileLocalIntegration:
+    """LocalIntegration: operations on the local filesystem."""
 
     @pytest.fixture
-    def local(self, agilista, tmp_path):
+    def local(self, agile, tmp_path):
         kanban_root = tmp_path / ".context" / "kanban"
-        return agilista.LocalIntegration(root=kanban_root)
+        return agile.LocalIntegration(root=kanban_root)
 
-    def test_ensure_structure_cria_colunas(self, agilista, tmp_path):
+    def test_ensure_structure_creates_columns(self, agile, tmp_path):
         root = tmp_path / "kanban"
-        li = agilista.LocalIntegration(root=root)
-        for col in agilista.KANBAN_COLUMNS + [agilista.BLOCKED_DIR]:
-            assert (root / col).is_dir(), f"coluna {col} nao criada"
+        li = agile.LocalIntegration(root=root)
+        for col in agile.KANBAN_COLUMNS + [agile.BLOCKED_DIR]:
+            assert (root / col).is_dir(), f"column {col} not created"
 
-    def test_scan_ready_encontra_tasks_prontas(self, local, agilista):
-        # Cria task com status: ready no 1-backlog
+    def test_scan_ready_finds_ready_tasks(self, local, agile):
+        # Creates a task with status: ready in 1-backlog
         backlog = local.root / "1-backlog"
         t1 = backlog / "TASK-001.md"
         t1.parent.mkdir(parents=True, exist_ok=True)
@@ -185,7 +185,7 @@ id: TASK-001
 status: ready
 ---
 """, encoding="utf-8")
-        # Cria task com status: backlog — ignorada
+        # Creates a task with status: backlog — ignored
         t2 = backlog / "TASK-002.md"
         t2.write_text("""---
 id: TASK-002
@@ -193,30 +193,30 @@ status: backlog
 ---
 """, encoding="utf-8")
 
-        prontas = local.scan_ready()
-        assert len(prontas) == 1
-        assert prontas[0].name == "TASK-001.md"
+        ready = local.scan_ready()
+        assert len(ready) == 1
+        assert ready[0].name == "TASK-001.md"
 
-    def test_scan_ready_backlog_vazio_retorna_lista_vazia(self, local):
+    def test_scan_ready_empty_backlog_returns_empty_list(self, local):
         assert local.scan_ready() == []
 
-    def test_all_tasks_lista_em_todas_as_colunas(self, local, agilista):
-        # Task no backlog
+    def test_all_tasks_lists_in_all_columns(self, local, agile):
+        # Task in backlog
         b1 = local.root / "1-backlog" / "TASK-001.md"
         b1.parent.mkdir(parents=True, exist_ok=True)
         b1.write_text("---\nid: TASK-001\ntitle: Backlog task\nstatus: ready\n---\n", encoding="utf-8")
-        # Task no doing
+        # Task in doing
         d1 = local.root / "3-doing" / "TASK-002.md"
         d1.parent.mkdir(parents=True, exist_ok=True)
         d1.write_text("---\nid: TASK-002\ntitle: Doing task\nstatus: doing\n---\n", encoding="utf-8")
 
         tasks = local.all_tasks()
         assert len(tasks) == 2
-        titulos = {t["title"] for t in tasks}
-        assert "Backlog task" in titulos
-        assert "Doing task" in titulos
+        titles = {t["title"] for t in tasks}
+        assert "Backlog task" in titles
+        assert "Doing task" in titles
 
-    def test_move_to_move_arquivo_entre_colunas(self, local, agilista):
+    def test_move_to_moves_file_between_columns(self, local, agile):
         src = local.root / "1-backlog" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("---\nid: TASK-001\n---\n", encoding="utf-8")
@@ -227,454 +227,454 @@ status: backlog
         assert moved.exists()
         assert not src.exists()
 
-    def test_move_to_task_inexistente_retorna_none(self, local):
-        assert local.move_to("TASK-INEXISTENTE", "2-todo") is None
+    def test_move_to_missing_task_returns_none(self, local):
+        assert local.move_to("TASK-MISSING", "2-todo") is None
 
-    def test_find_task_acha_em_qualquer_coluna(self, local, agilista):
+    def test_find_task_finds_in_any_column(self, local, agile):
         src = local.root / "4-review" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("---\nid: TASK-001\n---\n", encoding="utf-8")
 
-        encontrado = local.find_task("TASK-001")
-        assert encontrado is not None
-        assert encontrado.name == "TASK-001.md"
+        found = local.find_task("TASK-001")
+        assert found is not None
+        assert found.name == "TASK-001.md"
 
-    def test_find_task_inexistente_retorna_none(self, local):
+    def test_find_task_missing_returns_none(self, local):
         assert local.find_task("GHOST") is None
 
-    def test_add_duvida_adiciona_secao_no_arquivo(self, local, agilista):
+    def test_add_question_adds_section_to_file(self, local, agile):
         src = local.root / "3-doing" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
-        src.write_text("---\nid: TASK-001\n---\n\n# Minha Task\n", encoding="utf-8")
+        src.write_text("---\nid: TASK-001\n---\n\n# My Task\n", encoding="utf-8")
 
-        result = local.add_duvida("TASK-001", "Qual o escopo do MVP?")
+        result = local.add_question("TASK-001", "What is the MVP scope?")
         assert result is not None
-        conteudo = result.read_text(encoding="utf-8")
-        assert "## ❓ Dúvidas Pendentes" in conteudo
-        assert "Qual o escopo do MVP?" in conteudo
+        content = result.read_text(encoding="utf-8")
+        assert "## Pending Questions" in content
+        assert "What is the MVP scope?" in content
 
-    def test_add_duvida_acumula_multiplas(self, local, agilista):
+    def test_add_question_accumulates_multiple(self, local, agile):
         src = local.root / "3-doing" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("---\nid: TASK-001\n---\n", encoding="utf-8")
 
-        local.add_duvida("TASK-001", "Primeira duvida")
-        local.add_duvida("TASK-001", "Segunda duvida")
-        conteudo = src.read_text(encoding="utf-8")
-        # Duas entradas sob a mesma secao
-        assert conteudo.count("## ❓ Dúvidas Pendentes") == 1
-        assert conteudo.count("Primeira duvida") == 1
-        assert conteudo.count("Segunda duvida") == 1
+        local.add_question("TASK-001", "First question")
+        local.add_question("TASK-001", "Second question")
+        content = src.read_text(encoding="utf-8")
+        # Two entries under the same section
+        assert content.count("## Pending Questions") == 1
+        assert content.count("First question") == 1
+        assert content.count("Second question") == 1
 
-    def test_add_duvida_task_inexistente_retorna_none(self, local):
-        assert local.add_duvida("GHOST", "mensagem") is None
+    def test_add_question_missing_task_returns_none(self, local):
+        assert local.add_question("GHOST", "message") is None
 
-    def test_add_impedimento_move_para_blocked_e_adiciona_log(self, local, agilista):
+    def test_add_blocker_moves_to_blocked_and_adds_log(self, local, agile):
         src = local.root / "3-doing" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("---\nid: TASK-001\n---\n", encoding="utf-8")
 
-        result = local.add_impedimento("TASK-001", "Falha de conexao", "alta")
+        result = local.add_blocker("TASK-001", "Connection failure", "high")
         assert result is not None
         assert result.parent.name == "blocked"
-        conteudo = result.read_text(encoding="utf-8")
-        assert "## Log de Impedimentos" in conteudo
-        assert "Falha de conexao" in conteudo
-        assert "alta" in conteudo
+        content = result.read_text(encoding="utf-8")
+        assert "## Blockers Log" in content
+        assert "Connection failure" in content
+        assert "high" in content
 
-    def test_resume_move_de_blocked_para_todo(self, local, agilista):
+    def test_resume_moves_from_blocked_to_todo(self, local, agile):
         src = local.root / "blocked" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("---\nid: TASK-001\n---\n", encoding="utf-8")
 
-        result = local.resume("TASK-001", "Resposta: sim")
+        result = local.resume("TASK-001", "Answer: yes")
         assert result is not None
         assert result.parent.name == "2-todo"
-        conteudo = result.read_text(encoding="utf-8")
-        assert "✅ [Resposta Humana]" in conteudo
-        assert "Resposta: sim" in conteudo
+        content = result.read_text(encoding="utf-8")
+        assert "✅ [Human Answer]" in content
+        assert "Answer: yes" in content
 
-    def test_resume_sem_estar_blocked_nao_move(self, local, agilista):
+    def test_resume_not_blocked_does_not_move(self, local, agile):
         src = local.root / "1-backlog" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_text("---\nid: TASK-001\n---\n", encoding="utf-8")
 
         result = local.resume("TASK-001", "ok")
-        # Continua na mesma pasta (nao estava blocked)
+        # Stays in the same folder (was not blocked)
         assert result.parent.name == "1-backlog"
 
-    def test_resume_task_inexistente_retorna_none(self, local):
+    def test_resume_missing_task_returns_none(self, local):
         assert local.resume("GHOST", "ok") is None
 
-    def test_document_kanban_gera_md(self, local, agilista, tmp_path):
-        # Adiciona uma task
+    def test_document_kanban_generates_md(self, local, agile, tmp_path):
+        # Adds a task
         src = local.root / "1-backlog" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
-        src.write_text("---\nid: TASK-001\ntitle: Minha Task\npriority: alta\n---\n", encoding="utf-8")
+        src.write_text("---\nid: TASK-001\ntitle: My Task\npriority: high\n---\n", encoding="utf-8")
 
-        # documentacao deve ir para o contexto certo
+        # documentation should go to the right context
         context_root = tmp_path / ".context"
         dest = local.document_kanban(context_root=str(context_root))
         assert dest.exists()
-        conteudo = dest.read_text(encoding="utf-8")
-        assert "Kanban / Esteira de Execução" in conteudo
-        assert "1-backlog" in conteudo
-        assert "Minha Task" in conteudo
-        assert "TASK-001" in conteudo
+        content = dest.read_text(encoding="utf-8")
+        assert "Kanban / Execution Pipeline" in content
+        assert "1-backlog" in content
+        assert "My Task" in content
+        assert "TASK-001" in content
 
 
-class TestAgilistaFeedbackLoop:
+class TestAgileFeedbackLoop:
     @pytest.fixture
-    def feedback(self, agilista, tmp_path):
+    def feedback(self, agile, tmp_path):
         root = tmp_path / ".context" / "kanban"
-        # Precisa de uma task existente
+        # Needs an existing task
         src = root / "3-doing" / "TASK-001.md"
         src.parent.mkdir(parents=True, exist_ok=True)
-        src.write_text("---\nid: TASK-001\ntitle: Minha Task\n---\n", encoding="utf-8")
-        # Troca o KANBAN_ROOT para o tmp_path
-        old_root = agilista.KANBAN_ROOT
-        agilista.KANBAN_ROOT = root
-        fb = agilista.CPAgilistaFeedbackLoop(sync_trello=False)
+        src.write_text("---\nid: TASK-001\ntitle: My Task\n---\n", encoding="utf-8")
+        # Swaps KANBAN_ROOT for the tmp_path
+        old_root = agile.KANBAN_ROOT
+        agile.KANBAN_ROOT = root
+        fb = agile.CPAgileFeedbackLoop(sync_trello=False)
         yield fb
 
-    def test_duvida_emite_evento(self, feedback):
-        evento = feedback.duvida("TASK-001", "Qual o escopo?")
-        assert evento["event"] == "DUVIDA"
-        assert evento["payload"]["task_id"] == "TASK-001"
+    def test_question_emits_event(self, feedback):
+        event = feedback.question("TASK-001", "What is the scope?")
+        assert event["event"] == "QUESTION"
+        assert event["payload"]["task_id"] == "TASK-001"
 
-    def test_impedimento_emite_evento(self, feedback):
-        evento = feedback.impedimento("TASK-001", "Falha geral", "critica")
-        assert evento["event"] == "IMPEDIMENTO"
-        assert evento["payload"]["severidade"] == "critica"
+    def test_blocker_emits_event(self, feedback):
+        event = feedback.blocker("TASK-001", "General failure", "critical")
+        assert event["event"] == "BLOCKER"
+        assert event["payload"]["severity"] == "critical"
 
-    def test_resume_task_emite_evento(self, feedback):
-        # Primeiro block, depois resume
-        feedback.impedimento("TASK-001", "erro")
-        evento = feedback.resume_task("TASK-001", "resposta humana")
-        assert evento["event"] == "HUMAN_CLARIFICATION_RECEIVED"
-        assert evento["payload"]["resposta"] == "resposta humana"
+    def test_resume_task_emits_event(self, feedback):
+        # First block, then resume
+        feedback.blocker("TASK-001", "error")
+        event = feedback.resume_task("TASK-001", "human answer")
+        assert event["event"] == "HUMAN_CLARIFICATION_RECEIVED"
+        assert event["payload"]["answer"] == "human answer"
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# cp-inicializador-doc — lógica pura
+# cp-doc-initializer — pure logic
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.fixture(scope="module")
 def inic():
-    return import_skill(INICIALIZADOR_PY, "cp_inicializador_doc")
+    return import_skill(INITIALIZER_PY, "cp_doc_initializer")
 
 
-class TestInicializadorDocCore:
-    """InicializadorDoc: criacao de estrutura e ingestao de vision."""
+class TestDocInitializerCore:
+    """DocInitializer: structure creation and vision ingestion."""
 
-    def test_build_cria_toda_estrutura(self, inic, tmp_path):
-        init = inic.InicializadorDoc(project_dir=tmp_path)
-        resumo = init.build()
-        assert resumo["files_created"] > 0
-        # Verifica pecas-chave
+    def test_build_creates_entire_structure(self, inic, tmp_path):
+        init = inic.DocInitializer(project_dir=tmp_path)
+        summary = init.build()
+        assert summary["files_created"] > 0
+        # Verifies key pieces
         context = tmp_path / ".context"
         assert (context / "README.md").is_file()
         # docs
         for fname in inic.DOC_FILES:
-            assert (context / "docs" / fname).is_file(), f"{fname} faltando"
+            assert (context / "docs" / fname).is_file(), f"{fname} missing"
         # inbox
-        for nome in inic.INBOX_DIRS:
-            assert (context / "inbox" / nome / "README.md").is_file(), f"inbox/{nome} faltando"
+        for name in inic.INBOX_DIRS:
+            assert (context / "inbox" / name / "README.md").is_file(), f"inbox/{name} missing"
         # tracking
-        assert (context / "tracking" / "progresso.md").is_file()
-        assert (context / "tracking" / "decisoes.md").is_file()
+        assert (context / "tracking" / "progress.md").is_file()
+        assert (context / "tracking" / "decisions.md").is_file()
         # kanban
         assert (context / "kanban" / "README.md").is_file()
         for col in inic.KANBAN_COLUMNS + [inic.KANBAN_BLOCKED_DIR]:
-            assert (context / "kanban" / col / ".gitkeep").is_file(), f"kanban/{col}/.gitkeep faltando"
-        # Ponteiros na raiz
+            assert (context / "kanban" / col / ".gitkeep").is_file(), f"kanban/{col}/.gitkeep missing"
+        # Pointers at the root
         assert (tmp_path / "CLAUDE.md").is_file()
         assert (tmp_path / "AGENT.md").is_file()
 
-    def test_build_dry_run_nao_cria_arquivos(self, inic, tmp_path):
-        init = inic.InicializadorDoc(project_dir=tmp_path, dry_run=True)
-        resumo = init.build()
-        assert resumo["dry_run"] is True
-        # Nada foi criado de fato
+    def test_build_dry_run_does_not_create_files(self, inic, tmp_path):
+        init = inic.DocInitializer(project_dir=tmp_path, dry_run=True)
+        summary = init.build()
+        assert summary["dry_run"] is True
+        # Nothing was actually created
         assert not (tmp_path / ".context").exists()
         assert "dry-run" in init.created[0]
 
-    def test_ingest_vision_move_arquivo(self, inic, tmp_path):
-        # Cria vision.md na raiz
+    def test_ingest_vision_moves_file(self, inic, tmp_path):
+        # Creates vision.md at the root
         vision_src = tmp_path / "vision.md"
-        vision_src.write_text("# Visao do Produto\n", encoding="utf-8")
+        vision_src.write_text("# Product Vision\n", encoding="utf-8")
 
-        init = inic.InicializadorDoc(project_dir=tmp_path)
-        ingerido = init.ingest_vision()
-        assert ingerido is True
-        # vision.md foi movido para .context/docs/
-        destino = tmp_path / ".context" / "docs" / "00-vision.md"
-        assert destino.is_file()
+        init = inic.DocInitializer(project_dir=tmp_path)
+        ingested = init.ingest_vision()
+        assert ingested is True
+        # vision.md was moved to .context/docs/
+        dest = tmp_path / ".context" / "docs" / "00-vision.md"
+        assert dest.is_file()
         assert not vision_src.exists()
-        assert "Visao do Produto" in destino.read_text(encoding="utf-8")
+        assert "Product Vision" in dest.read_text(encoding="utf-8")
 
-    def test_ingest_vision_sem_vision_retorna_false(self, inic, tmp_path):
-        init = inic.InicializadorDoc(project_dir=tmp_path)
+    def test_ingest_vision_without_vision_returns_false(self, inic, tmp_path):
+        init = inic.DocInitializer(project_dir=tmp_path)
         assert init.ingest_vision() is False
 
-    def test_ingest_vision_dry_run_nao_move(self, inic, tmp_path):
+    def test_ingest_vision_dry_run_does_not_move(self, inic, tmp_path):
         vision_src = tmp_path / "vision.md"
-        vision_src.write_text("# Visao\n", encoding="utf-8")
+        vision_src.write_text("# Vision\n", encoding="utf-8")
 
-        init = inic.InicializadorDoc(project_dir=tmp_path, dry_run=True)
-        ingerido = init.ingest_vision()
-        assert ingerido is True
-        # Arquivo original ainda existe
+        init = inic.DocInitializer(project_dir=tmp_path, dry_run=True)
+        ingested = init.ingest_vision()
+        assert ingested is True
+        # Original file still exists
         assert vision_src.exists()
 
-    def test_kankan_columns_batem_agilista(self, inic):
-        """As colunas declaradas no inicializador batem com as do agilista."""
-        agilista = import_skill(AGILISTA_PY, "cp_agilista")
-        assert inic.KANBAN_COLUMNS == agilista.KANBAN_COLUMNS
-        assert inic.KANBAN_BLOCKED_DIR == agilista.BLOCKED_DIR
+    def test_kanban_columns_match_agile(self, inic):
+        """The columns declared in the initializer match those of cp-agile."""
+        agile = import_skill(AGILE_PY, "cp_agile")
+        assert inic.KANBAN_COLUMNS == agile.KANBAN_COLUMNS
+        assert inic.KANBAN_BLOCKED_DIR == agile.BLOCKED_DIR
 
-    def test_report_gaps_nao_quebra(self, inic, tmp_path, capsys):
-        init = inic.InicializadorDoc(project_dir=tmp_path)
+    def test_report_gaps_does_not_break(self, inic, tmp_path, capsys):
+        init = inic.DocInitializer(project_dir=tmp_path)
         init.build()
         init.report_gaps()
-        capturado = capsys.readouterr().out
-        assert "RESUMO EXECUTIVO" in capturado
-        assert "Kanban/esteira (06)" in capturado
+        captured = capsys.readouterr().out
+        assert "EXECUTIVE SUMMARY" in captured
+        assert "Kanban/pipeline (06)" in captured
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# cp-orquestrador — logica pura (sem crewai)
+# cp-orchestrator — pure logic (no crewai)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestOrquestradorNexusDetectMode:
-    """nexus_detect_mode: classificacao de requisito em modo NEXUS."""
+class TestOrchestratorNexusDetectMode:
+    """nexus_detect_mode: requirement classification into NEXUS mode."""
 
     orq = None
 
     @pytest.fixture(scope="class", autouse=True)
     @classmethod
     def _setup_orq(cls):
-        cls.orq = import_skill(ORQUESTRADOR_PY, "cp_orquestrador")
+        cls.orq = import_skill(ORCHESTRATOR_PY, "cp_orchestrator")
 
     def test_full_keywords(self):
-        """Palavras de sistema completo retornam 'full'."""
-        assert self.orq.nexus_detect_mode("Construir um sistema de agendamento") == "full"
-        assert self.orq.nexus_detect_mode("Criar do zero uma plataforma SaaS") == "full"
-        assert self.orq.nexus_detect_mode("Aplicativo de delivery") == "full"
-        assert self.orq.nexus_detect_mode("app de musica") == "full"
+        """Complete-system words return 'full'."""
+        assert self.orq.nexus_detect_mode("Build a scheduling system") == "full"
+        assert self.orq.nexus_detect_mode("Create a SaaS platform from scratch") == "full"
+        assert self.orq.nexus_detect_mode("Delivery application") == "full"
+        assert self.orq.nexus_detect_mode("music app") == "full"
 
     def test_sprint_keywords(self):
-        """Palavras de feature/funcionalidade retornam 'sprint'."""
-        assert self.orq.nexus_detect_mode("implementar feature de login") == "sprint"
-        assert self.orq.nexus_detect_mode("Adicionar relatorio de vendas") == "sprint"
-        assert self.orq.nexus_detect_mode("Nova tela de cadastro") == "sprint"
+        """Feature/functionality words return 'sprint'."""
+        assert self.orq.nexus_detect_mode("implement login feature") == "sprint"
+        assert self.orq.nexus_detect_mode("Add sales report") == "sprint"
+        assert self.orq.nexus_detect_mode("Add a new screen") == "sprint"
 
     def test_micro_keywords(self):
-        """Palavras de bug/correcao retornam 'micro'."""
-        assert self.orq.nexus_detect_mode("Corrigir bug no login") == "micro"
-        assert self.orq.nexus_detect_mode("Ajustar layout da tela") == "micro"
-        assert self.orq.nexus_detect_mode("fix pequeno no header") == "micro"
+        """Bug/fix words return 'micro'."""
+        assert self.orq.nexus_detect_mode("Fix bug in login") == "micro"
+        assert self.orq.nexus_detect_mode("Adjust screen layout") == "micro"
+        assert self.orq.nexus_detect_mode("small fix in header") == "micro"
 
-    def test_tie_full_ganha(self):
-        """Empate vai para full (prioridade na ordem de comparacao)."""
-        assert self.orq.nexus_detect_mode("sistema de relatorio") == "full"
+    def test_tie_full_wins(self):
+        """A tie goes to full (priority in the comparison order)."""
+        assert self.orq.nexus_detect_mode("complete system for reports") == "full"
 
     def test_case_insensitive(self):
-        assert self.orq.nexus_detect_mode("CRIAR PLATAFORMA") == "full"
-        assert self.orq.nexus_detect_mode("ADICIONAR BOTAO") == "sprint"
+        assert self.orq.nexus_detect_mode("CREATE PLATFORM") == "full"
+        assert self.orq.nexus_detect_mode("ADD BUTTON") == "sprint"
 
-    def test_requisito_vazio_retorna_full_pelo_tiebreaker(self):
-        """String vazia: nenhum keyword casa, full ganha no tiebreaker (full >= sprint)."""
+    def test_empty_requirement_returns_full_by_tiebreaker(self):
+        """Empty string: no keyword matches, full wins on the tiebreaker (full >= sprint)."""
         assert self.orq.nexus_detect_mode("") == "full"
         assert self.orq.nexus_detect_mode("   ") == "full"
 
 
-class TestOrquestradorCrewPaths:
-    """SKILL_PATHS e CREWS: validacao das definicoes estaticas."""
+class TestOrchestratorCrewPaths:
+    """SKILL_PATHS and CREWS: validation of the static definitions."""
 
     orq = None
 
     @pytest.fixture(scope="class", autouse=True)
     @classmethod
     def _setup_orq(cls):
-        cls.orq = import_skill(ORQUESTRADOR_PY, "cp_orquestrador")
+        cls.orq = import_skill(ORCHESTRATOR_PY, "cp_orchestrator")
 
-    def test_toda_crew_com_skill_tem_path_valido(self):
-        """Toda crew que aponta pra skill externa precisa que o run.py exista."""
-        faltando = [
+    def test_every_crew_with_skill_has_valid_path(self):
+        """Every crew that points to an external skill needs the run.py to exist."""
+        missing = [
             ck for ck, path in self.orq.SKILL_PATHS.items()
             if ck in self.orq.CREWS and not path.exists()
         ]
-        assert not faltando, f"skills faltando: {faltando}"
+        assert not missing, f"missing skills: {missing}"
 
-    def test_todo_modo_referencia_crew_existente(self):
-        """Nenhum modo aponta para crew inexistente."""
-        crews_nativas = {"full-dev"}
-        for modo, info in self.orq.MODOS.items():
+    def test_every_mode_references_existing_crew(self):
+        """No mode points to a nonexistent crew."""
+        native_crews = {"full-dev"}
+        for mode, info in self.orq.MODOS.items():
             for ck in info["crews"]:
-                assert ck in self.orq.CREWS or ck in crews_nativas, (
-                    f"modo {modo!r} -> crew inexistente: {ck!r}"
+                assert ck in self.orq.CREWS or ck in native_crews, (
+                    f"mode {mode!r} -> nonexistent crew: {ck!r}"
                 )
 
-    def test_invoke_default_aplicado_onde_falta(self):
-        """Crews sem 'invoke' recebem o default {briefing_arg: 'input', output: True}."""
+    def test_invoke_default_applied_where_missing(self):
+        """Crews without 'invoke' receive the default {briefing_arg: 'input', output: True}."""
         invoke_default = {"briefing_arg": "input", "output": True}
         for ck, crew in self.orq.CREWS.items():
             if "invoke" not in crew:
                 assert crew.get("invoke", invoke_default) == invoke_default, (
-                    f"{ck}: sem invoke explicito, mas default nao seria aplicado"
+                    f"{ck}: no explicit invoke, but the default would not be applied"
                 )
 
-    def test_crews_tem_todos_os_campos_obrigatorios(self):
-        """Cada crew tem name, skill, description, agents, inputs, outputs, quality_gate."""
-        obrigatorios = {"name", "skill", "description", "agents",
-                        "inputs", "outputs", "quality_gate"}
+    def test_crews_have_all_required_fields(self):
+        """Each crew has name, skill, description, agents, inputs, outputs, quality_gate."""
+        required = {"name", "skill", "description", "agents",
+                    "inputs", "outputs", "quality_gate"}
         for ck, crew in self.orq.CREWS.items():
-            ausentes = obrigatorios - set(crew.keys())
-            assert not ausentes, f"{ck}: campos obrigatorios ausentes: {ausentes}"
+            missing = required - set(crew.keys())
+            assert not missing, f"{ck}: missing required fields: {missing}"
 
 
-class TestOrquestradorPipelineExecutor:
-    """PipelineExecutor: construcao de args e resolucao de fases."""
+class TestOrchestratorPipelineExecutor:
+    """PipelineExecutor: arg building and phase resolution."""
 
     orq = None
 
     @pytest.fixture(scope="class", autouse=True)
     @classmethod
     def _setup_orq(cls):
-        cls.orq = import_skill(ORQUESTRADOR_PY, "cp_orquestrador")
+        cls.orq = import_skill(ORCHESTRATOR_PY, "cp_orchestrator")
 
-    def test_build_cli_args_crew_com_invoke(self, tmp_path):
-        """Crew com invoke explicito e respeitada."""
+    def test_build_cli_args_crew_with_invoke(self, tmp_path):
+        """A crew with explicit invoke is respected."""
         executor = self.orq.PipelineExecutor(
-            briefing="teste", mode="full",
+            briefing="test", mode="full",
             output_dir=str(tmp_path), python_cmd=sys.executable,
         )
         args = executor._build_cli_args("goal-loop")
         assert args is not None
-        # goal-loop tem invoke: {briefing_arg: 'goal', output: False}
+        # goal-loop has invoke: {briefing_arg: 'goal', output: False}
         assert "--goal" in " ".join(args)
         assert "--dry-run" not in " ".join(args)
 
-    def test_build_cli_args_agilista_retorna_daemon_sem_dry_run(self, tmp_path):
-        """Agilista retorna com --daemon, sem precisar de --dry-run (o orquestrador nao passa)."""
+    def test_build_cli_args_agile_returns_daemon_without_dry_run(self, tmp_path):
+        """Agile returns with --daemon, without needing --dry-run (the orchestrator does not pass it)."""
         executor = self.orq.PipelineExecutor(
-            briefing="teste", mode="full",
+            briefing="test", mode="full",
             output_dir=str(tmp_path), python_cmd=sys.executable,
         )
-        args = executor._build_cli_args("agilista")
+        args = executor._build_cli_args("agile")
         assert args is not None
         args_str = " ".join(args)
         assert "--daemon" in args_str
-        assert "teste" not in args_str  # briefing nao vai para modo daemon
+        assert "test" not in args_str  # briefing does not go to daemon mode
 
-    def test_build_cli_args_com_output_quando_skill_aceita(self, tmp_path):
-        """Skills com output=True recebem --output com path valido."""
+    def test_build_cli_args_with_output_when_skill_accepts(self, tmp_path):
+        """Skills with output=True receive --output with a valid path."""
         executor = self.orq.PipelineExecutor(
-            briefing="teste", mode="full",
+            briefing="test", mode="full",
             output_dir=str(tmp_path), python_cmd=sys.executable,
         )
-        args = executor._build_cli_args("arquitetura")
+        args = executor._build_cli_args("architecture")
         args_str = " ".join(args)
         assert "--output" in args_str
 
-    def test_resolve_modo_mantem_modo_explicito(self):
-        """Quando o usuario passa --mode explicitamente, esse modo e usado."""
+    def test_resolve_mode_keeps_explicit_mode(self):
+        """When the user passes --mode explicitly, that mode is used."""
         executor = self.orq.PipelineExecutor.__new__(self.orq.PipelineExecutor)
         executor.mode = "micro"
         assert executor.mode == "micro"
 
-    def test_get_previous_artifact_mapeia_corretamente(self, tmp_path):
-        """O mapa prev_map liga cada fase a fase anterior correta."""
+    def test_get_previous_artifact_maps_correctly(self, tmp_path):
+        """The prev_map links each phase to the correct previous phase."""
         executor = self.orq.PipelineExecutor(
-            briefing="teste", mode="full",
+            briefing="test", mode="full",
             output_dir=str(tmp_path), python_cmd=sys.executable,
         )
-        # Simula artefatos de fases anteriores
-        prev_map_esperado = {
-            "arquitetura": "requisitos",
-            "implementacao": "arquitetura",
-            "testes": "implementacao",
-            "seguranca": "implementacao",
-            "devops": "implementacao",
-            "documentacao": "implementacao",
-            "qualidade": None,
+        # Simulates artifacts of previous phases
+        expected_prev_map = {
+            "architecture": "requirements",
+            "implementation": "architecture",
+            "testing": "implementation",
+            "security": "implementation",
+            "devops": "implementation",
+            "documentation": "implementation",
+            "quality": None,
             "bug-fix": None,
             "competitive-analysis": None,
             "goal-loop": None,
-            "manutencao": None,
-            "inicializador-doc": None,
-            "agilista": None,
+            "maintenance": None,
+            "doc-initializer": None,
+            "agile": None,
         }
-        # Testa via _get_previous_artifact (indiretamente)
-        for crew_key, esperado in prev_map_esperado.items():
+        # Tests via _get_previous_artifact (indirectly)
+        for crew_key, expected in expected_prev_map.items():
             if crew_key in self.orq.CREWS:
                 invoke = self.orq.CREWS[crew_key].get("invoke", {"briefing_arg": "input", "output": True})
-                # Skills que nao usam --input nao tem fase anterior
+                # Skills that do not use --input have no previous phase
                 if invoke.get("briefing_arg") != "input":
                     continue
-                # Nao da pra acessar prev_map direto, mas o comportamento de
-                # _get_previous_artifact retorna None quando nao tem artefato
+                # Cannot access prev_map directly, but the behavior of
+                # _get_previous_artifact returns None when there is no artifact
                 result = executor._get_previous_artifact(crew_key)
-                if esperado is None:
-                    assert result is None or result == "", f"{crew_key}: esperava None, veio {result!r}"
+                if expected is None:
+                    assert result is None or result == "", f"{crew_key}: expected None, got {result!r}"
 
 
-class TestOrquestradorModos:
-    """MODOS: validacao estrutural de cada pipeline mode."""
+class TestOrchestratorModes:
+    """MODOS: structural validation of each pipeline mode."""
 
     orq = None
 
     @pytest.fixture(scope="class", autouse=True)
     @classmethod
     def _setup_orq(cls):
-        cls.orq = import_skill(ORQUESTRADOR_PY, "cp_orquestrador")
+        cls.orq = import_skill(ORCHESTRATOR_PY, "cp_orchestrator")
 
-    def test_modo_full_tem_oito_crews(self):
-        modo = self.orq.MODOS.get("full")
-        assert modo is not None
-        len(modo["crews"]) >= 7  # pelo menos as 7 primeiras
+    def test_full_mode_has_eight_crews(self):
+        mode = self.orq.MODOS.get("full")
+        assert mode is not None
+        len(mode["crews"]) >= 7  # at least the first 7
 
-    def test_todo_modo_tem_name_e_description(self):
+    def test_every_mode_has_name_and_description(self):
         for slug, info in self.orq.MODOS.items():
-            assert "name" in info, f"modo {slug} sem name"
-            assert "description" in info, f"modo {slug} sem description"
-            assert "crews" in info, f"modo {slug} sem crews"
-            assert len(info["crews"]) > 0, f"modo {slug} com crews vazia"
+            assert "name" in info, f"mode {slug} without name"
+            assert "description" in info, f"mode {slug} without description"
+            assert "crews" in info, f"mode {slug} without crews"
+            assert len(info["crews"]) > 0, f"mode {slug} with empty crews"
 
 
-class TestOrquestradorQualityGate:
-    """Testes do QualityGate extra (alem do test_quality_gate.py)."""
+class TestOrchestratorQualityGate:
+    """Extra QualityGate tests (beyond test_quality_gate.py)."""
 
     orq = None
 
     @pytest.fixture(scope="class", autouse=True)
     @classmethod
     def _setup_orq(cls):
-        cls.orq = import_skill(ORQUESTRADOR_PY, "cp_orquestrador")
+        cls.orq = import_skill(ORCHESTRATOR_PY, "cp_orchestrator")
 
-    def test_check_quality_gate_classifica_corretamente(self):
-        """Testa mais alguns casos do quality gate."""
+    def test_check_quality_gate_classifies_correctly(self):
+        """Tests a few more quality gate cases."""
         executor = self.orq.PipelineExecutor.__new__(self.orq.PipelineExecutor)
 
         # PASS keywords
-        assert executor._check_quality_gate("fase", "Testes OK", 0)["status"] == "PASS"
+        assert executor._check_quality_gate("phase", "Tests OK", 0)["status"] == "PASS"
 
-        # FAIL por keyword (TRACEBACK, FALHOU, CRÍTICO, etc.)
-        assert executor._check_quality_gate("fase", "Pipeline FALHOU no build", 0)["status"] == "FAIL"
-        assert executor._check_quality_gate("fase", "Erro CRÍTICO encontrado", 0)["status"] == "FAIL"
+        # FAIL by keyword (TRACEBACK, FAILED, CRITICAL, etc.)
+        assert executor._check_quality_gate("phase", "Pipeline FAILED in build", 0)["status"] == "FAIL"
+        assert executor._check_quality_gate("phase", "CRITICAL error found", 0)["status"] == "FAIL"
 
-        # WARN quando nao reconhece nada ou saida vazia
-        assert executor._check_quality_gate("fase", "build concluido com ressalvas", 0)["status"] == "WARN"
-        assert executor._check_quality_gate("fase", "", 0)["status"] == "WARN"
+        # WARN when it recognizes nothing or empty output
+        assert executor._check_quality_gate("phase", "build with caveats", 0)["status"] == "WARN"
+        assert executor._check_quality_gate("phase", "", 0)["status"] == "WARN"
 
-    def test_quality_gate_rejeita_traceback(self):
+    def test_quality_gate_rejects_traceback(self):
         executor = self.orq.PipelineExecutor.__new__(self.orq.PipelineExecutor)
-        resultado = executor._check_quality_gate(
-            "fase",
+        result = executor._check_quality_gate(
+            "phase",
             "Traceback (most recent call last):\n  File \"run.py\", line 1",
             1,
         )
-        assert resultado["status"] == "FAIL"
+        assert result["status"] == "FAIL"

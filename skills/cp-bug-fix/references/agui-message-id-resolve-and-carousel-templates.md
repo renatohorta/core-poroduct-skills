@@ -1,36 +1,36 @@
-# AG-UI: resolver mensagens por uuid+id (evitar 500) + templates de carrossel HTML→SVG
+# AG-UI: resolve messages by uuid+id (avoid 500) + carousel HTML→SVG templates
 
-Duas técnicas reutilizáveis encontradas ao trabalhar no chat do Copilot (crewbotics).
+Two reusable techniques found while working on the Copilot chat (crewbotics).
 
 ---
 
-## 1. Resolver mensagens de chat por `uuid` + `id` inteiro, ignorando IDs otimistas do AG-UI
+## 1. Resolve chat messages by `uuid` + integer `id`, ignoring AG-UI optimistic IDs
 
-### Sintoma
-O endpoint `/api/v1/chat/conversations/<id>/branches/?message=<id>` (e `/branch-version/`)
-retorna **500 em loop** quando o frontend AG-UI chama. No log do Daphne:
+### Symptom
+The endpoint `/api/v1/chat/conversations/<id>/branches/?message=<id>` (and `/branch-version/`)
+returns **500 in a loop** when the AG-UI frontend calls it. In the Daphne log:
 ```
 ValueError: Field 'id' expected a number but got '3dccd053-f23d-4b71-b8e5-c1604a3174fd'.
 ```
-Seguido de dezenas de `500 172522` para o mesmo endpoint (o front re-tenta).
+Followed by dozens of `500 172522` for the same endpoint (the frontend retries).
 
-### Causa raiz
-O `ChatMessage.id` é `BigAutoField` (inteiro), mas o `message` que o front envia pode ser:
-- o **`uuid`** da mensagem (o `toThreadMessage` do hook `useConversationThreadList.tsx`
-  usa `id: m.uuid`), ou
-- o **`pk` inteiro**, ou
-- um **ID otimista ainda em streaming**: `__optimistic__Z0fS1y5`, `msg_29abe6cbe5ab`.
+### Root cause
+The `ChatMessage.id` is `BigAutoField` (integer), but the `message` the frontend sends can be:
+- the message **`uuid`** (the `toThreadMessage` of the `useConversationThreadList.tsx` hook
+  uses `id: m.uuid`), or
+- the **integer `pk`**, or
+- an **optimistic ID still streaming**: `__optimistic__Z0fS1y5`, `msg_29abe6cbe5ab`.
 
-`filter(pk=<uuid_string>)` lança `ValueError` (campo inteiro) → 500.
+`filter(pk=<uuid_string>)` throws `ValueError` (integer field) → 500.
 
-### Correção (backend)
+### Fix (backend)
 ```python
 def _looks_like_valid_message_id(value) -> bool:
     s = str(value).strip()
     if not s:
         return False
     if s.isdigit():
-        return True            # pk inteiro
+        return True            # integer pk
     try:
         uuid.UUID(s)
         return True            # uuid string
@@ -43,36 +43,36 @@ def _resolve_message(conv, msg_id):
         return CM.objects.filter(conversation=conv, id=int(s)).first()
     return CM.objects.filter(conversation=conv, uuid=s).first()
 ```
-Use `_resolve_message` em vez de `filter(pk=msg_id)` nos endpoints de mensagem. Rejeite IDs
-otimistas cedo (retorne `{"branches": []}` / 404 em vez de 500).
+Use `_resolve_message` instead of `filter(pk=msg_id)` in the message endpoints. Reject optimistic
+IDs early (return `{"branches": []}` / 404 instead of 500).
 
-### Correção (frontend)
-O BranchPicker pula IDs otimistas antes de chamar o backend:
+### Fix (frontend)
+The BranchPicker skips optimistic IDs before calling the backend:
 ```tsx
 useEffect(() => {
   if (!msgId) { setBranches([]); return; }
   if (/^(__optimistic__|msg_)/.test(msgId)) { setBranches([]); return; }
-  // ... chama chatApi.messageBranches(convId, msgId)
+  // ... calls chatApi.messageBranches(convId, msgId)
 }, [msgId, activeIdRef]);
 ```
 
-### Testes
-- `branches/?message=__optimistic__Z0fS1y5` → `200 {"branches":[]}` (não 500).
-- `branches/?message=<root.uuid>` → `200` com a lista (o front envia uuid, não pk).
+### Tests
+- `branches/?message=__optimistic__Z0fS1y5` → `200 {"branches":[]}` (not 500).
+- `branches/?message=<root.uuid>` → `200` with the list (the frontend sends uuid, not pk).
 
 ---
 
-## 2. Templates de carrossel HTML/CSS → SVG + resvg-py (sem browser)
+## 2. Carousel HTML/CSS templates → SVG + resvg-py (no browser)
 
-Quando o usuário fornece templates HTML/CSS de carrossel (ex: pasta `templates/` com
-`slide.html`, paleta CSS, fontes TTF — típico de zips Freepik) e pede para reimplementar
-uma skill de carrossel, **NÃO** renderize HTML→PNG com Playwright/Chromium: não existe
-browser no ECS Linux (produção). A estratégia aprovada foi portar a estética para SVG e
-renderizar com `resvg-py`, que aceita `font_files=[]` para usar as fontes reais dos templates.
+When the user provides carousel HTML/CSS templates (e.g. a `templates/` folder with
+`slide.html`, CSS palette, TTF fonts — typical of Freepik zips) and asks to reimplement
+a carousel skill, do **NOT** render HTML→PNG with Playwright/Chromium: there is no
+browser on ECS Linux (production). The approved strategy was to port the aesthetic to SVG and
+render with `resvg-py`, which accepts `font_files=[]` to use the templates' real fonts.
 
-### Passos
-1. **Extrair paletas**: `:root { --bg:#CDC4FB; --accent:#7070F0; ... }` de cada `slide.html`.
-2. **Copiar fontes TTF** para `static/<modulo>/fonts/` e montar um dict de templates:
+### Steps
+1. **Extract palettes**: `:root { --bg:#CDC4FB; --accent:#7070F0; ... }` from each `slide.html`.
+2. **Copy TTF fonts** to `static/<modulo>/fonts/` and build a templates dict:
 ```python
 TEMPLATES = {
     "constellation": {
@@ -84,30 +84,30 @@ TEMPLATES = {
 }
 TEMPLATE_NAMES = tuple(TEMPLATES.keys())
 ```
-3. **Renderer SVG** (1080×1350) com layouts por slide (cover, bullets, steps, list, quote,
-   pricing, cta), usando `font-family` + `font-weight` — o resvg-py resolve via `font_files`.
-4. **Converter**:
+3. **SVG renderer** (1080×1350) with per-slide layouts (cover, bullets, steps, list, quote,
+   pricing, cta), using `font-family` + `font-weight` — resvg-py resolves them via `font_files`.
+4. **Convert**:
 ```python
 import resvg_py
 png = resvg_py.svg_to_bytes(
-    svg_string=<str>,   # NÃO bytes
+    svg_string=<str>,   # NOT bytes
     width=1080, height=1350,
-    font_files=<lista de caminhos absolutos TTF>,
+    font_files=<list of absolute TTF paths>,
 )
 ```
-5. **Roteiro via LLM provider-agnostic**: `llm_client.complete_json(..., system=SYSTEM_PROMPT)`
-   devolve `{title, template, slides:[{layout, title, body, eyebrow, items}]}` — o LLM escolhe
-   o template e o layout de cada slide. NUNCA importe SDK de provedor.
+5. **Route via provider-agnostic LLM**: `llm_client.complete_json(..., system=SYSTEM_PROMPT)`
+   returns `{title, template, slides:[{layout, title, body, eyebrow, items}]}` — the LLM chooses
+   the template and the layout of each slide. NEVER import a provider SDK.
 
-### Pitfalls do resvg-py
-- `resvg_py.svg_to_bytes(svg_string=...)` espera `str`, não bytes.
-- Sem `font_files`/`font_dirs`, cai em fontes do sistema e perde a identidade tipográfica
-  (Poppins/Montserrat/AbrilFatface viram Arial genérica).
-- Caminho das fontes: resolva com `Path(__file__).resolve().parents[N] / "static" / ...` —
-  o N depende de onde o módulo vive.
+### resvg-py pitfalls
+- `resvg_py.svg_to_bytes(svg_string=...)` expects `str`, not bytes.
+- Without `font_files`/`font_dirs`, it falls back to system fonts and loses the typographic
+  identity (Poppins/Montserrat/AbrilFatface become generic Arial).
+- Font path: resolve with `Path(__file__).resolve().parents[N] / "static" / ...` —
+  the N depends on where the module lives.
 
-### Contrato estável
-Mantenha o CarouselCard (`slides: {imageUrl, caption}[]`) e o mesmo `name` da skill — assim
-o frontend não precisa mudar; o Copilot passa a usar a nova implementação automaticamente.
-Arquive cada PNG na base de conhecimento com `archive_conversation_file()` para o
-`CarouselCard` exibir o preview inline.
+### Stable contract
+Keep the CarouselCard (`slides: {imageUrl, caption}[]`) and the same skill `name` — that way
+the frontend does not need to change; Copilot starts using the new implementation automatically.
+Archive each PNG in the knowledge base with `archive_conversation_file()` so the
+`CarouselCard` displays the inline preview.

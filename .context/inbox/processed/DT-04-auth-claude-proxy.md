@@ -1,37 +1,37 @@
-# DT-04 — `claude_proxy.py` sem autenticação [Concluido]
+# DT-04 — `claude_proxy.py` without authentication [Done]
 
-**Tipo**: Segurança · **Prioridade**: Média · **Aberto em**: 2026-08-18
-**Relacionado**: SEC-02 em `.context/docs/03-seguranca-lgpd.md`
+**Type**: Security · **Priority**: Medium · **Opened on**: 2026-08-18
+**Related**: SEC-02 in `.context/docs/03-security-lgpd.md`
 
-## Contexto
+## Context
 
-`scripts/claude_proxy.py` expõe `/v1/chat/completions` delegando a `claude -p`, que
-usa a sessão OAuth do Claude Code do usuário. O servidor **não valida nenhum
-header** — qualquer processo local pode consumir a sessão e a cota.
+`scripts/claude_proxy.py` exposes `/v1/chat/completions` delegating to `claude -p`,
+which uses the user's Claude Code OAuth session. The server **validates no
+header** — any local process can consume the session and quota.
 
-Mitigação atual: bind em `127.0.0.1` (não exposto na rede). Risco residual: outros
-processos/usuários na mesma máquina.
+Current mitigation: bind on `127.0.0.1` (not exposed on the network). Residual
+risk: other processes/users on the same machine.
 
-## Proposta
+## Proposal
 
-Validar `Authorization: Bearer <token>` contra `CLAUDE_PROXY_TOKEN`:
+Validate `Authorization: Bearer ***` against `CLAUDE_PROXY_TOKEN`:
 
-- Token ausente no ambiente → mantém comportamento atual + aviso no startup
-  (não quebra quem já usa).
-- Token presente → rejeitar requisição sem match com 401.
+- Token absent from the environment → keep current behavior + warning at startup
+  (does not break existing users).
+- Token present → reject a request without a match with 401.
 
-Combina bem com o `.env` das skills, que já precisa preencher `LLM_API_KEY`
-(hoje ignorada pelo proxy).
+Combines well with the skills' `.env`, which already needs to fill `LLM_API_KEY`
+(today ignored by the proxy).
 
-## Critério de aceite
+## Acceptance criterion
 
-- Com `CLAUDE_PROXY_TOKEN` setado, requisição sem o header correto recebe 401.
-- `.env.example` documenta a variável.
+- With `CLAUDE_PROXY_TOKEN` set, a request without the correct header receives 401.
+- `.env.example` documents the variable.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
-credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.
+**Done on 2026-08-18.** Verified with the suite (`pytest`, 158 tests, no
+LLM credential). See `.context/docs/04-quality-qa.md`.

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-chat.py — Conversa direta com as skills cp-* usando o LLM via .env.
+chat.py — Direct conversation with the cp-* skills using the LLM via .env.
 
-Permite acionar qualquer skill cp-* de forma interativa, usando o LLM
-configurado no .env (mesma convenção do crewbotics-back: LLM_MODEL,
-GEMINI_API_KEY/OPENAI_API_KEY/etc.). Não depende do agente (Hermes/Claude).
+Lets you trigger any cp-* skill interactively, using the LLM configured in the
+.env (same convention as crewbotics-back: LLM_MODEL, GEMINI_API_KEY/OPENAI_API_KEY/etc.).
+Does not depend on the agent (Hermes/Claude).
 
-Uso:
-  python chat.py                          # lista as skills disponíveis
-  python chat.py cp-requisitos            # conversa com a skill
-  python chat.py cp-requisitos "briefing" # executa com briefing direto
-  python chat.py --skill cp-requisitos --prompt "sistema de agendamento"
-  python chat.py --list                   # lista skills
+Usage:
+  python chat.py                          # lists the available skills
+  python chat.py cp-requirements            # talks to the skill
+  python chat.py cp-requirements "briefing" # runs with a direct briefing
+  python chat.py --skill cp-requirements --prompt "scheduling system"
+  python chat.py --list                   # lists skills
 """
 
 import argparse
@@ -20,8 +20,8 @@ import os
 import sys
 from pathlib import Path
 
-# DT-01: UTF-8 no stdout/stderr (o console do Windows usa cp1252 e derruba o
-# script com UnicodeEncodeError ao imprimir emoji/box-drawing).
+# DT-01: UTF-8 on stdout/stderr (the Windows console uses cp1252 and breaks the
+# script with UnicodeEncodeError when printing emoji/box-drawing).
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         try:
@@ -31,31 +31,31 @@ for _stream in (sys.stdout, sys.stderr):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CONFIGURAÇÃO
+# CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
-# Skills que aceitam briefing posicional (conversa direta)
+# Skills that accept a positional briefing (direct conversation)
 CHAT_SKILLS = {
-    "cp-requisitos": "briefing",
-    "cp-arquitetura": "briefing",
-    "cp-implementacao": "briefing",
-    "cp-testes": "briefing",
-    "cp-seguranca": "briefing",
+    "cp-requirements": "briefing",
+    "cp-architecture": "briefing",
+    "cp-implementation": "briefing",
+    "cp-testing": "briefing",
+    "cp-security": "briefing",
     "cp-devops": "briefing",
-    "cp-documentacao": "briefing",
-    "cp-qualidade": "briefing",
+    "cp-documentation": "briefing",
+    "cp-quality": "briefing",
     "cp-bug-fix": "bug_description",
     "cp-competitive-analysis": "context",
-    "cp-manutencao": "descricao",
+    "cp-maintenance": "description",
     "cp-goal-loop": "goal",
-    "cp-orquestrador": "briefing",
+    "cp-orchestrator": "briefing",
 }
 
 
 def _load_dotenv(root: Path = None) -> dict:
-    """Carrega variáveis de um .env na raiz do projeto."""
+    """Loads variables from a .env at the project root."""
     base = Path(root) if root else Path.cwd()
     env_file = base / ".env"
     if not env_file.exists():
@@ -71,35 +71,35 @@ def _load_dotenv(root: Path = None) -> dict:
 
 
 def list_skills():
-    """Lista as skills disponíveis para conversa."""
-    print("=== Skills cp-* disponíveis para conversa ===")
+    """Lists the skills available for conversation."""
+    print("=== cp-* skills available for conversation ===")
     for name, arg in CHAT_SKILLS.items():
         run_py = SKILLS_DIR / name / "scripts" / "run.py"
         status = "✅" if run_py.exists() else "❌"
         print(f"  {status} {name} (arg: {arg})")
-    print("\nUso: python chat.py <skill> \"<briefing>\"")
-    print("     python chat.py cp-requisitos \"sistema de agendamento\"")
+    print("\nUsage: python chat.py <skill> \"<briefing>\"")
+    print("     python chat.py cp-requirements \"scheduling system\"")
 
 
 def _resolve_python():
-    """Resolve o interpretador Python que tem crewai instalado.
+    """Resolves the Python interpreter that has crewai installed.
 
-    Prioridade:
-      1. Env var CP_SKILLS_PYTHON (explicita)
-      2. .venv/Scripts/python.exe no diretório atual ou pai
+    Priority:
+      1. Env var CP_SKILLS_PYTHON (explicit)
+      2. .venv/Scripts/python.exe in the current directory or parents
       3. sys.executable (fallback)
     """
     explicit = os.environ.get("CP_SKILLS_PYTHON")
     if explicit and Path(explicit).exists():
         return explicit
 
-    # Procura .venv no cwd e em diretórios pai
+    # Looks for .venv in cwd and parent directories
     cwd = Path.cwd()
     for base in [cwd] + list(cwd.parents[:4]):
         for venv in [base / ".venv", base / "venv"]:
             py = venv / "Scripts" / "python.exe"
             if py.exists():
-                # Confirma que tem crewai
+                # Confirms it has crewai
                 import subprocess
                 r = subprocess.run([str(py), "-c", "import crewai"],
                                    capture_output=True, text=True)
@@ -109,30 +109,30 @@ def _resolve_python():
 
 
 def run_skill(skill: str, prompt: str, extra_args: list = None):
-    """Executa uma skill cp-* com o briefing fornecido."""
+    """Runs a cp-* skill with the provided briefing."""
     run_py = SKILLS_DIR / skill / "scripts" / "run.py"
     if not run_py.exists():
-        print(f"❌ Skill '{skill}' não encontrada em {run_py}")
+        print(f"❌ Skill '{skill}' not found at {run_py}")
         return 1
 
-    # Carrega o .env e injeta no ambiente
+    # Loads the .env and injects it into the environment
     dotenv = _load_dotenv()
     for k, v in dotenv.items():
         os.environ.setdefault(k, v)
 
-    # Resolve o Python com crewai
+    # Resolves the Python with crewai
     python = _resolve_python()
 
-    # Monta o comando
+    # Builds the command
     cmd = [python, str(run_py)]
     if prompt:
         cmd.append(prompt)
     if extra_args:
         cmd.extend(extra_args)
 
-    print(f"🚀 Executando {skill} com o LLM do .env...")
+    print(f"🚀 Running {skill} with the .env LLM...")
     print(f"   Python: {python}")
-    print(f"   Comando: {' '.join(cmd)}\n")
+    print(f"   Command: {' '.join(cmd)}\n")
 
     import subprocess
     result = subprocess.run(cmd, cwd=str(SKILLS_DIR.parent))
@@ -141,24 +141,24 @@ def run_skill(skill: str, prompt: str, extra_args: list = None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="chat.py — Conversa direta com as skills cp-* via .env",
+        description="chat.py — Direct conversation with the cp-* skills via .env",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
-Exemplos:
+Examples:
   python chat.py --list
-  python chat.py cp-requisitos "sistema de agendamento para clínicas"
-  python chat.py --skill cp-requisitos --prompt "sistema de agendamento"
-  python chat.py cp-bug-fix "o endpoint /login retorna 500"
+  python chat.py cp-requirements "scheduling system for clinics"
+  python chat.py --skill cp-requirements --prompt "scheduling system"
+  python chat.py cp-bug-fix "the /login endpoint returns 500"
         """,
     )
-    parser.add_argument("skill", nargs="?", help="Nome da skill (ex: cp-requisitos)")
-    parser.add_argument("prompt", nargs="?", help="Briefing/prompt para a skill")
-    parser.add_argument("--skill", dest="skill_flag", help="Nome da skill (alternativa)")
-    parser.add_argument("--prompt", dest="prompt_flag", help="Briefing (alternativa)")
-    parser.add_argument("--list", "-l", action="store_true", help="Lista as skills")
-    parser.add_argument("--extra", nargs="*", default=[], help="Args extras para a skill")
-    # parse_known_args: flags desconhecidas (ex: --dry-run) são capturadas e
-    # repassadas para a skill, em vez de o argparse rejeitar.
+    parser.add_argument("skill", nargs="?", help="Skill name (e.g. cp-requirements)")
+    parser.add_argument("prompt", nargs="?", help="Briefing/prompt for the skill")
+    parser.add_argument("--skill", dest="skill_flag", help="Skill name (alternative)")
+    parser.add_argument("--prompt", dest="prompt_flag", help="Briefing (alternative)")
+    parser.add_argument("--list", "-l", action="store_true", help="Lists the skills")
+    parser.add_argument("--extra", nargs="*", default=[], help="Extra args for the skill")
+    # parse_known_args: unknown flags (e.g. --dry-run) are captured and
+    # forwarded to the skill, instead of argparse rejecting them.
     args, unknown = parser.parse_known_args()
 
     if args.list:
@@ -173,11 +173,11 @@ Exemplos:
         return 0
 
     if skill not in CHAT_SKILLS:
-        print(f"❌ Skill '{skill}' não suporta conversa direta.")
-        print("   Disponíveis:", ", ".join(CHAT_SKILLS.keys()))
+        print(f"❌ Skill '{skill}' does not support direct conversation.")
+        print("   Available:", ", ".join(CHAT_SKILLS.keys()))
         return 1
 
-    # Combina --extra com flags desconhecidas (ex: --dry-run)
+    # Combines --extra with unknown flags (e.g. --dry-run)
     extra = list(args.extra) + list(unknown)
     return run_skill(skill, prompt, extra)
 

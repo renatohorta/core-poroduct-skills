@@ -9,16 +9,16 @@ Tests for the AG-UI chat endpoint (`POST /api/v1/chat/agui/`) have several traps
 `StreamingHttpResponse` only persists the `ChatMessage` (via `_finish()`) when the stream is **fully consumed**. Without consuming the stream, the assistant's response never gets written to the database.
 
 ```python
-# ERRADO — stream não consumido, _finish() nunca roda:
+# WRONG — stream not consumed, _finish() never runs:
 resp = _post(client, {"message": "Oi", "conversationId": str(conv.uuid)}, user=user)
 assert resp.status_code == 200
 msgs = ChatMessage.objects.filter(conversation=conv)
-assert msgs.count() == 2  # ← FALHA: só tem 1 (a do user)
+assert msgs.count() == 2  # ← FAILS: only 1 (the user's)
 
-# CERTO — consome o stream antes de verificar:
+# RIGHT — consumes the stream before checking:
 resp = _post(client, {"message": "Oi", "conversationId": str(conv.uuid)}, user=user)
 assert resp.status_code == 200
-async_to_sync(_collect)(resp)  # ← consome o stream, _finish() persiste a resposta
+async_to_sync(_collect)(resp)  # ← consumes the stream, _finish() persists the response
 msgs = ChatMessage.objects.filter(conversation=conv)
 assert msgs.count() == 2  # ← PASS: user + assistant
 ```
@@ -37,7 +37,7 @@ async def _collect(response) -> bytes:
 The `AguiReActEngine._run_loop()` checks `llm_client.is_configured()` first. If it returns `False`, it calls `_stub_run()` which does **not** use `litellm.acompletion`. Mocking only `acompletion` without `is_configured` makes the test pass in isolation but fail in batch (because the stub doesn't persist an assistant message).
 
 ```python
-# CERTO — mocka ambos:
+# RIGHT — mocks both:
 from chat import llm_client
 import litellm
 monkeypatch.setattr(llm_client, "is_configured", lambda: True)
@@ -49,7 +49,7 @@ monkeypatch.setattr(litellm, "acompletion", _fake_acompletion(_text_chunks("OK."
 When adding `setIsLoading(true/false)` to `onSwitchToThread`, the `return { messages }` must be **inside** the `try` block. If it's after the `finally`, the variable `messages` is out of scope (declared with `const` inside `try`).
 
 ```typescript
-// ERRADO — return fora do try, messages fora de escopo:
+// WRONG — return outside try, messages out of scope:
 try {
   const conv = await chatApi.getSession(threadId);
   const messages: ThreadMessage[] = (conv.messages ?? []).map(...);
@@ -58,7 +58,7 @@ try {
 }
 return { messages };  // ← ReferenceError: messages is not defined
 
-// CERTO — return dentro do try:
+// RIGHT — return inside try:
 try {
   const conv = await chatApi.getSession(threadId);
   const messages: ThreadMessage[] = (conv.messages ?? []).map(...);
@@ -73,15 +73,15 @@ try {
 When the user is already on the active thread, `sendPrompt` must **not** call `runtime.threads.switchToThread(activeId)`. The `switchToThread` method calls `core.applyExternalMessages([])` which **clears all current messages** — including partial assistant responses still being streamed.
 
 ```typescript
-// ERRADO — switchToThread limpa mensagens atuais:
+// WRONG — switchToThread clears current messages:
 const sendPrompt = useCallback(async (prompt: string) => {
   if (activeId) {
-    await runtime.threads.switchToThread(activeId);  // ← limpa mensagens!
+    await runtime.threads.switchToThread(activeId);  // ← clears messages!
     runtime?.thread?.append?.({ role: "user", content: [{ type: "text", text: prompt }] });
   }
 }, [...]);
 
-// CERTO — só faz append, sem switchToThread:
+// RIGHT — only appends, no switchToThread:
 const sendPrompt = useCallback(async (prompt: string) => {
   if (activeId) {
     runtime?.thread?.append?.({ role: "user", content: [{ type: "text", text: prompt }] });
@@ -106,13 +106,13 @@ grep -r "AguiRuntimeProvider" src/  # if only the file itself matches, it's dead
 When the user clicks "Nova conversa", calling only `adapter.onSwitchToNewThread()` creates the conversation in the backend and updates the sidebar, but **does not clear the current messages** in the runtime. The `chat__msgs` area continues showing the previous conversation's messages.
 
 ```typescript
-// ERRADO — só atualiza sidebar, não limpa mensagens:
+// WRONG — only updates sidebar, does not clear messages:
 <button onClick={() => adapter.onSwitchToNewThread()}>
 
-// CERTO — prefere runtime quando disponível:
+// RIGHT — prefers runtime when available:
 <button onClick={() => {
   if (runtime?.threads?.switchToNewThread) {
-    runtime.threads.switchToNewThread();  // ← chama core.applyExternalMessages([]) + core.resetState()
+    runtime.threads.switchToNewThread();  // ← calls core.applyExternalMessages([]) + core.resetState()
   } else {
     adapter.onSwitchToNewThread();
   }
@@ -127,7 +127,7 @@ When entering `/chat`, the `ThreadListProvider` auto-selects the most recent con
 ```typescript
 const [bootReady, setBootReady] = useState(false);
 
-// No auto-select useEffect:
+// In the auto-select useEffect:
 useEffect(() => {
   if (autoSelectDone.current) return;
   if (conversations.length === 0) return;
@@ -136,7 +136,7 @@ useEffect(() => {
   if (!mostRecent) return;
   threadIdRef.current = mostRecent.uuid;
   setActiveId(mostRecent.uuid);
-  setBootReady(true);  // ← sinaliza que o boot está pronto
+  setBootReady(true);  // ← signals that boot is ready
 }, [conversations]);
 ```
 
@@ -156,7 +156,7 @@ useEffect(() => {
 }, [controller.bootReady, controller.activeIdRef?.current]);
 ```
 
-**NÃO fazer:** usar `runtime` (state) como dependência do effect — `useAgUiRuntime` retorna um objeto NOVO a cada render, causando loop infinito. Use `runtimeRef` (ref).
+**Do NOT:** use `runtime` (state) as the effect dependency — `useAgUiRuntime` returns a NEW object on every render, causing an infinite loop. Use `runtimeRef` (ref).
 
 ## Complete Test Template
 

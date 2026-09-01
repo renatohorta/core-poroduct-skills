@@ -1,30 +1,30 @@
-# DT-05 — Dependências não declaradas [Concluido]
+# DT-05 — Dependencies not declared [Done]
 
-**Tipo**: Débito técnico · **Prioridade**: Alta · **Aberto em**: 2026-08-18
+**Type**: Technical debt · **Priority**: High · **Opened on**: 2026-08-18
 
-## Contexto
+## Context
 
-As skills importam `crewai`, mas o repositório não tem `requirements.txt` nem
-`pyproject.toml`. A instalação depende de o agente hospedeiro já ter a lib —
-não há como reproduzir o ambiente nem fixar versão.
+The skills import `crewai`, but the repository has no `requirements.txt` nor
+`pyproject.toml`. Installation depends on the host agent already having the lib —
+there is no way to reproduce the environment or pin a version.
 
-Consequências: `scripts/chat.py` precisa **detectar** um Python com `crewai`
-instalado, e uma quebra de API do CrewAI aparece sem aviso.
+Consequences: `scripts/chat.py` must **detect** a Python with `crewai`
+installed, and a CrewAI API break appears without warning.
 
-## Proposta
+## Proposal
 
-`requirements.txt` na raiz fixando ao menos `crewai` (versão conhecida-boa), com
-nota em `docs/INSTALLATION.md` sobre criar um venv local para desenvolvimento.
+`requirements.txt` at the root pinning at least `crewai` (known-good version),
+with a note in `docs/INSTALLATION.md` about creating a local venv for development.
 
-## Critério de aceite
+## Acceptance criterion
 
-- `pip install -r requirements.txt` em venv limpo permite rodar
-  `python scripts/chat.py --list` e um `--dry-run` de skill.
+- `pip install -r requirements.txt` in a clean venv allows running
+  `python scripts/chat.py --list` and a skill `--dry-run`.
 
 
 ---
 
-## Resolucao
+## Resolution
 
-**Concluido em 2026-08-18.** Verificado com a suite (`pytest`, 158 testes, sem
-credencial de LLM). Ver `.context/docs/04-qualidade-qa.md`.
+**Done on 2026-08-18.** Verified with the suite (`pytest`, 158 tests, no
+LLM credential). See `.context/docs/04-quality-qa.md`.

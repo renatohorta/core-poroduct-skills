@@ -1,29 +1,30 @@
-# Debugando erro de "ErrorBoundary" / "Chat indisponível" em React
+# Debugging "ErrorBoundary" / "Chat indisponível" errors in React
 
-Erro clássico do Crewbotics: o usuário reporta "Chat indisponível — Não foi possível
-carregar o chat. Verifique se o servidor está rodando" (o `ChatErrorBoundary` em
-`src/routes/chat.tsx` que envolve o `AguiChatPage`).
+Classic Crewbotics error: the user reports "Chat indisponível — Não foi possível
+carregar o chat. Verifique se o servidor está rodando" (the `ChatErrorBoundary` in
+`src/routes/chat.tsx` that wraps the `AguiChatPage`).
 
-## Causa raiz conceitual — erro de RENDER, não async
+## Conceptual root cause — RENDER error, not async
 
-O React ErrorBoundary (via `getDerivedStateFromError`/`componentDidCatch`) **só captura
-erros lançados durante o `render()` e métodos de ciclo de vida** de componentes filhos.
-Erros lançados dentro de:
+The React ErrorBoundary (via `getDerivedStateFromError`/`componentDidCatch`) **only
+catches errors thrown during the `render()` and lifecycle methods** of child components.
+Errors thrown inside:
 - `async function` / `await`
 - `onClick`, `onChange`, `addEventListener`
 - `.then()` / callbacks
-- handlers de `send` de attachments
+- attachment `send` handlers
 
-...NÃO chegam ao boundary — viram unhandled promise rejection e não derrubam a tela.
+...do NOT reach the boundary — they become unhandled promise rejections and do not
+crash the screen.
 
-**Portanto:** se a tela de erro do boundary APARECEU, o erro é de renderização. Um
-`throw new Error(...)` num handler async que você encontrou é uma pista falsa — corrigir
-ele NÃO resolve o boundary (experiência real desta sessão).
+**Therefore:** if the boundary error screen APPEARED, the error is a rendering error. A
+`throw new Error(...)` in an async handler you found is a red herring — fixing
+it does NOT resolve the boundary (real experience from this session).
 
-## Fluxo de diagnóstico que funciona
+## Diagnostic flow that works
 
-1. **Confirme que o backend está OK** com um teste de reprodução antes de mexer no frontend.
-   Exemplo (upload de PNG numa conversa):
+1. **Confirm the backend is OK** with a reproduction test before touching the frontend.
+   Example (PNG upload in a conversation):
    ```python
    # tests/chat/test_upload_png_chat.py
    import io
@@ -37,16 +38,16 @@ ele NÃO resolve o boundary (experiência real desta sessão).
    assert resp.status_code == 201
    assert resp.json()["uiComponent"]["component"] == "FileAttachment"
    ```
-   Se devolve 201, o problema é 100% frontend.
+   If it returns 201, the problem is 100% frontend.
 
-   **Pitfall do teste:** `derive_kind()` (em `knowledge/enums.py`) usa a EXTENSÃO do nome
-   do arquivo. `io.BytesIO` sem nome retorna `kind=TXT` (não `IMAGE`). Use
-   `SimpleUploadedFile("foto.png", ...)` para testar upload de imagem de verdade.
+   **Test pitfall:** `derive_kind()` (in `knowledge/enums.py`) uses the file name's
+   EXTENSION. `io.BytesIO` without a name returns `kind=TXT` (not `IMAGE`). Use
+   `SimpleUploadedFile("foto.png", ...)` to test a real image upload.
 
-2. **Confirme no log do servidor** que a requisição NUNCA chegou (ex.: nenhum upload no
-   `daphne.log`). Isso prova que o erro é de render no cliente, antes de qualquer fetch.
+2. **Confirm in the server log** that the request NEVER arrived (e.g. no upload in the
+   `daphne.log`). This proves the error is a client-side render error, before any fetch.
 
-3. **Adicione logging temporário no boundary** para expor o erro real:
+3. **Add temporary logging in the boundary** to expose the real error:
    ```tsx
    class ChatErrorBoundary extends Component<{children: ReactNode}, {error: Error | null}> {
      state = { error: null };
@@ -59,41 +60,42 @@ ele NÃO resolve o boundary (experiência real desta sessão).
      // ...
    }
    ```
-   O Vite dev faz hot-reload, então o logging fica ativo sem rebuild. O usuário reproduz
-   e você lê `window.__chatBoundaryError` no console para achar a mensagem exata.
+   Vite dev does hot-reload, so the logging stays active without a rebuild. The user
+   reproduces and you read `window.__chatBoundaryError` in the console to find the exact message.
 
-## File picker nativo de anexo NÃO é automatizável via DOM
+## Native attachment file picker is NOT automatable via DOM
 
-O `<ComposerPrimitive.AddAttachment>` do AG-UI cria dinamicamente um `<input type=file>`
-e chama `.click()`, abrindo um dialog NATIVO do browser. Ele **não aceita injeção
-programática** via `input.files = dt.files` + `dispatchEvent(change)` — o input some do
-DOM assim que o picker abre (`document.querySelector('input[type=file]')` retorna null).
+The AG-UI `<ComposerPrimitive.AddAttachment>` dynamically creates an `<input type=file>`
+and calls `.click()`, opening a NATIVE browser dialog. It **does not accept programmatic
+injection** via `input.files = dt.files` + `dispatchEvent(change)` — the input disappears
+from the DOM as soon as the picker opens (`document.querySelector('input[type=file]')` returns null).
 
-Para testar o fluxo de anexo num chat AG-UI:
-- NÃO tente automatizar o file picker (perde tempo).
-- Use logging no ErrorBoundary + faça o usuário testar manualmente no browser.
-- Isole o backend via curl/multipart autenticado:
+To test the attachment flow in an AG-UI chat:
+- Do NOT try to automate the file picker (wastes time).
+- Use logging in the ErrorBoundary + have the user test manually in the browser.
+- Isolate the backend via authenticated curl/multipart:
   ```bash
   # login → token
   curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ \
     -H "Content-Type: application/json" \
     -d '{"email":"x@y.com","password":"..."}'
-  # upload multipart com Bearer token
+  # multipart upload with Bearer token
   curl -X POST http://127.0.0.1:8000/api/v1/chat/conversations/<uuid>/upload/ \
-    -H "Authorization: Bearer <token>" \
+    -H "Authorization: Bearer ***" \
     -F "file=@foto.png;type=image/png"
   ```
-  (no sandbox do Hermes, `grep`/`where`/`bun` não existem no PATH; use `execute_code` +
-  `urllib.request` para login/upload, e para o frontend use o caminho absoluto do bun:
+  (in the Hermes sandbox, `grep`/`where`/`bun` are not on the PATH; use `execute_code` +
+  `urllib.request` for login/upload, and for the frontend use bun's absolute path:
   `C:\Users\<user>\AppData\Roaming\npm\bun.cmd`).
 
-## Detalhe: adicionar conversa quando não há thread ativa (AG-UI attachments)
+## Detail: adding a conversation when there is no active thread (AG-UI attachments)
 
-O adapter de attachments (`AguiChatPage.tsx`, bloco `attachments.send`) originalmente
-fazia `throw new Error("Nenhuma conversa ativa para upload.")` quando
-`activeIdRef.current` era null (estado vazio do chat). Embora isso NÃO seja a causa do
-ErrorBoundary (é async), é um bug latente: anexar arquivo sem conversa ativa quebrava.
-Correção robusta — criar a conversa quando não há thread ativa, replicando `sendPrompt`:
+The attachments adapter (`AguiChatPage.tsx`, `attachments.send` block) originally
+did `throw new Error("Nenhuma conversa ativa para upload.")` when
+`activeIdRef.current` was null (empty chat state). Although this is NOT the cause of the
+ErrorBoundary (it is async), it is a latent bug: attaching a file without an active
+conversation broke. Robust fix — create the conversation when there is no active thread,
+replicating `sendPrompt`:
 ```ts
 send: async (attachment: any) => {
   let convId = controller.activeIdRef?.current;
@@ -105,6 +107,6 @@ send: async (attachment: any) => {
     convId = conv.uuid;
   }
   const resp = await chatUploadApi.uploadFile(convId, attachment.file);
-  // ...monta o retorno do attachment...
+  // ...builds the attachment return...
 }
 ```

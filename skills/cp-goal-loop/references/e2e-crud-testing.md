@@ -33,17 +33,17 @@ def api(method, path, body=None, timeout=30):
         return e.code, err_body
 ```
 
-## Phase 1: Base de Conhecimento
+## Phase 1: Knowledge Base
 
 | Step | Method | Path | Body | Expected |
 |------|--------|------|------|----------|
-| Criar pasta | POST | /knowledge/folders/ | `{"name": "..."}` | 201 |
+| Create folder | POST | /knowledge/folders/ | `{"name": "..."}` | 201 |
 | Upload .md | POST | /knowledge/docs/ | multipart: file + folderId | 201 |
-| Ler | GET | /knowledge/docs/{uuid}/ | — | 200 |
-| Listar | GET | /knowledge/docs/?folderId={uuid} | — | 200 |
-| Renomear | PATCH | /knowledge/docs/{uuid}/ | `{"title": "..."}` | 200 |
+| Read | GET | /knowledge/docs/{uuid}/ | — | 200 |
+| List | GET | /knowledge/docs/?folderId={uuid} | — | 200 |
+| Rename | PATCH | /knowledge/docs/{uuid}/ | `{"title": "..."}` | 200 |
 | Soft delete | DELETE | /knowledge/docs/{uuid}/ | — | 204 |
-| Restaurar | POST | /knowledge/docs/{uuid}/restore/ | — | 200 |
+| Restore | POST | /knowledge/docs/{uuid}/restore/ | — | 200 |
 
 **Pitfall:** Upload via JSON body with `title` + `content` fields returns 400 — the `DocumentCreateSerializer` requires `file` (multipart) or `url`. Use multipart form-data.
 
@@ -53,41 +53,41 @@ from knowledge.tasks import index_document
 index_document(str(doc.id))
 ```
 
-## Phase 2: Páginas
+## Phase 2: Pages
 
 | Step | Method | Path | Body | Expected |
 |------|--------|------|------|----------|
-| Listar templates | GET | /page-templates/ | — | 200 (array) |
-| Criar pasta | POST | /page-folders/ | `{"name": "..."}` | 201 |
-| Criar página | POST | /pages/ | `{"title":"...","slug":"...","templateId":"...","folderId":"..."}` | 201 |
-| Editar | PATCH | /pages/{uuid}/ | `{"htmlContent":"...","cssContent":"..."}` | 200 |
-| Publicar | POST | /pages/{uuid}/publish/ | — | 200 |
-| Servir slug | GET | /p/{slug}/ | — | 200 (HTML) |
-| Despublicar | POST | /pages/{uuid}/unpublish/ | — | 200 |
-| Excluir | DELETE | /pages/{uuid}/ | — | 204 |
+| List templates | GET | /page-templates/ | — | 200 (array) |
+| Create folder | POST | /page-folders/ | `{"name": "..."}` | 201 |
+| Create page | POST | /pages/ | `{"title":"...","slug":"...","templateId":"...","folderId":"..."}` | 201 |
+| Edit | PATCH | /pages/{uuid}/ | `{"htmlContent":"...","cssContent":"..."}` | 200 |
+| Publish | POST | /pages/{uuid}/publish/ | — | 200 |
+| Serve slug | GET | /p/{slug}/ | — | 200 (HTML) |
+| Unpublish | POST | /pages/{uuid}/unpublish/ | — | 200 |
+| Delete | DELETE | /pages/{uuid}/ | — | 204 |
 
-## Phase 3: Apresentações
+## Phase 3: Presentations
 
 | Step | Method | Path | Body | Expected |
 |------|--------|------|------|----------|
-| Criar | POST | /presentations/ | `{"title":"...","state":{...}}` | 201 |
-| Listar | GET | /presentations/ | — | 200 |
-| Editar | PATCH | /presentations/{uuid}/ | `{"title":"..."}` | 200 |
-| Regenerar | POST | /presentations/{uuid}/regenerate/ | — | 200 (timeout ≥60s) |
-| Excluir | DELETE | /presentations/{uuid}/ | — | 204 |
+| Create | POST | /presentations/ | `{"title":"...","state":{...}}` | 201 |
+| List | GET | /presentations/ | — | 200 |
+| Edit | PATCH | /presentations/{uuid}/ | `{"title":"..."}` | 200 |
+| Regenerate | POST | /presentations/{uuid}/regenerate/ | — | 200 (timeout ≥60s) |
+| Delete | DELETE | /presentations/{uuid}/ | — | 204 |
 
 **Pitfall:** `regenerate` takes ~33s. Set timeout ≥60s on the HTTP call.
 
-## Phase 4: Chat e RAG
+## Phase 4: Chat and RAG
 
 | Step | Method | Path | Body | Expected |
 |------|--------|------|------|----------|
-| Criar conversa | POST | /chat/conversations/ | `{"title":"..."}` | 201 |
+| Create conversation | POST | /chat/conversations/ | `{"title":"..."}` | 201 |
 | Chat completions | POST | /chat/completions/ | `{"conversationId":"...","messages":[{"role":"user","content":"..."}]}` | 200 (SSE) |
-| Listar skills | GET | /chat/skills/ | — | 200 (array) |
+| List skills | GET | /chat/skills/ | — | 200 (array) |
 | RAG search | POST | /chat/knowledge-search/ | `{"query":"...","conversationId":"..."}` | 200 |
 
-**Pitfall:** Chat completions expects `messages` array (OpenAI format), NOT a `message` string. Returns SSE (Server-Sent Events), not JSON. Parse with:
+**Pitfall:** Chat completions expects a `messages` array (OpenAI format), NOT a `message` string. Returns SSE (Server-Sent Events), not JSON. Parse with:
 ```python
 for line in raw.split("\n"):
     if line.startswith("data: "):
@@ -101,5 +101,5 @@ for line in raw.split("\n"):
 Create `.hermes/docs/testes-de-loop/LOOP-NNN-<slug>.md` with:
 - Objective
 - Approval criteria (one per step, numbered)
-- Results table (tentativa | data | status | observações)
+- Results table (attempt | date | status | notes)
 - Bug handling block

@@ -1,80 +1,81 @@
-# Visão do Produto — Core Product Skills
+# Product Vision — Core Product Skills
 
-> Fonte de verdade: `.context/`. Atualizado em 2026-08-18.
+> Source of truth: `.context/`. Updated 2026-08-18.
 
 ## Status
 
-- [x] Concluído (visão inicial documentada)
+- [x] Done (initial vision documented)
 
-## O que é
+## What it is
 
-**Core Product Skills** é o repositório canônico das skills `cp-*` da **Fábrica de
-Software** — um conjunto de skills baseadas em CrewAI que orquestram agentes
-especializados para executar o ciclo completo de desenvolvimento de software, do
-requisito à entrega, com quality gates entre fases.
+**Core Product Skills** is the canonical repository of the `cp-*` skills of the
+**Software Factory** — a set of CrewAI-based skills that orchestrate specialized
+agents to run the complete software development cycle, from requirement to
+delivery, with quality gates between phases.
 
-Este repositório é o **código-fonte único**: qualquer alteração é feita aqui e
-propagada para os agentes consumidores (**Hermes Agent** e **Claude Code**) via
+This repository is the **single source code**: any change is made here and
+propagated to the consuming agents (**Hermes Agent** and **Claude Code**) via
 `scripts/install.sh`.
 
-## Problema que resolve
+## Problem it solves
 
-Sem este repositório, cada agente teria sua própria cópia divergente das skills,
-com paths hardcoded e configuração de LLM acoplada a um provider. Isso gerava:
+Without this repository, each agent would have its own divergent copy of the
+skills, with hardcoded paths and LLM configuration coupled to a provider. That
+caused:
 
-- **Divergência** entre a skill instalada no Hermes e a instalada no Claude.
-- **Retrabalho** ao corrigir o mesmo bug em dois lugares.
-- **Acoplamento a provider** — as crews caíam no default OpenAI do CrewAI
-  (`OPENAI_API_KEY is required`) mesmo com outro provider configurado.
+- **Divergence** between the skill installed in Hermes and the one installed in Claude.
+- **Rework** when fixing the same bug in two places.
+- **Provider coupling** — the crews fell into the CrewAI OpenAI default
+  (`OPENAI_API_KEY is required`) even with another provider configured.
 
-## Proposta de valor
+## Value proposition
 
-| Pilar | Como se materializa |
-|-------|---------------------|
-| **Fonte única de verdade** | Skills editadas em `skills/`, propagadas por `install.sh` |
-| **Ponto único de entrada** | `cp-orquestrador` aciona todas as demais skills por modo |
-| **Provider-agnostic** | `skills/_shared/llm.py` resolve o LLM do agente hospedeiro |
-| **Portabilidade** | Zero paths de SO/máquina e zero valores pessoais hardcoded |
-| **Quality gates** | Cada fase só avança com PASS/WARN; FAIL interrompe o pipeline |
+| Pillar | How it materializes |
+|--------|---------------------|
+| **Single source of truth** | Skills edited in `skills/`, propagated by `install.sh` |
+| **Single entry point** | `cp-orchestrator` triggers all other skills by mode |
+| **Provider-agnostic** | `skills/_shared/llm.py` resolves the host agent's LLM |
+| **Portability** | Zero OS/machine paths and zero hardcoded personal values |
+| **Quality gates** | Each phase only advances with PASS/WARN; FAIL stops the pipeline |
 
-## Usuários
+## Users
 
-| Persona | Uso |
+| Persona | Use |
 |---------|-----|
-| **Hermes Agent** | Consome as skills instaladas em `$HERMES_SKILLS_DIR/creative/` |
-| **Claude Code** | Consome as skills instaladas em `~/.claude/skills/` |
-| **Desenvolvedor/mantenedor** | Edita as skills aqui e roda `install.sh` |
-| **Operador via CLI** | Aciona skills diretamente por `scripts/chat.py` |
+| **Hermes Agent** | Consumes the skills installed in `$HERMES_SKILLS_DIR/creative/` |
+| **Claude Code** | Consumes the skills installed in `~/.claude/skills/` |
+| **Developer/maintainer** | Edits the skills here and runs `install.sh` |
+| **CLI operator** | Triggers skills directly via `scripts/chat.py` |
 
-## Escopo
+## Scope
 
-**Dentro do escopo**
-- Código-fonte das 15 skills `cp-*` (SKILL.md + `scripts/run.py` + `references/`)
-- Helper compartilhado de LLM (`skills/_shared/llm.py`)
-- Script de instalação/propagação (`scripts/install.sh`)
-- Ferramentas de apoio: chat direto (`scripts/chat.py`) e proxy OpenAI-compatível
-  para usar o Claude Code como LLM (`scripts/claude_proxy.py`)
+**In scope**
+- Source code of the 15 `cp-*` skills (SKILL.md + `scripts/run.py` + `references/`)
+- Shared LLM helper (`skills/_shared/llm.py`)
+- Install/propagation script (`scripts/install.sh`)
+- Support tools: direct chat (`scripts/chat.py`) and OpenAI-compatible proxy
+  to use Claude Code as the LLM (`scripts/claude_proxy.py`)
 
-**Fora do escopo**
-- Runtime dos agentes (Hermes Agent e Claude Code são projetos separados)
-- Os projetos-alvo onde o pipeline é executado (ex.: `crewbotics-back`)
-- Hospedagem/infra de LLM — o repositório apenas resolve credenciais e endpoints
+**Out of scope**
+- Agent runtime (Hermes Agent and Claude Code are separate projects)
+- The target projects where the pipeline runs (e.g. `crewbotics-back`)
+- LLM hosting/infra — the repository only resolves credentials and endpoints
 
-## Princípios de design
+## Design principles
 
-1. **Skill é self-contained** — cada `run.py` embute seus próprios agentes; não
-   depende de diretório externo de agentes.
-2. **O orquestrador é o gerente da fábrica** — direcione todo pedido para ele; ele
-   escolhe o modo, planeja as fases e aplica os quality gates.
-3. **Contrato CLI explícito** — o metadado `invoke` descreve como cada skill recebe
-   briefing (`positional`/`goal`/`input`/`daemon`/`dir`) e se aceita `--output`.
-   Nunca assuma; teste com `--dry-run`.
-4. **Auto-detecção sobre flags opcionais** — o modo correto deve ser detectado do
-   contexto, não depender de o LLM lembrar de setar um flag.
-5. **Documentação em `.context/`** — nunca em `.hermes/` ou `.claude/`.
+1. **Skill is self-contained** — each `run.py` embeds its own agents; it does
+   not depend on an external agents directory.
+2. **The orchestrator is the factory manager** — route every request to it; it
+   chooses the mode, plans the phases and applies the quality gates.
+3. **Explicit CLI contract** — the `invoke` metadata describes how each skill
+   receives the briefing (`positional`/`goal`/`input`/`daemon`/`dir`) and whether
+   it accepts `--output`. Never assume; test with `--dry-run`.
+4. **Auto-detection over optional flags** — the correct mode must be detected
+   from context, not depend on the LLM remembering to set a flag.
+5. **Documentation in `.context/`** — never in `.hermes/` or `.claude/`.
 
-## Decisões
+## Decisions
 
-- **ADR-0001** — Fonte de verdade em `.context/` (ver `.context/tracking/decisoes.md`).
-- **ADR-0002** — `cp-full-dev` fundido no `cp-orquestrador` (pipeline NEXUS nativo).
-- **ADR-0003** — LLM provider-agnostic via `skills/_shared/llm.py`.
+- **ADR-0001** — Source of truth in `.context/` (see `.context/tracking/decisions.md`).
+- **ADR-0002** — `cp-full-dev` merged into `cp-orchestrator` (native NEXUS pipeline).
+- **ADR-0003** — Provider-agnostic LLM via `skills/_shared/llm.py`.

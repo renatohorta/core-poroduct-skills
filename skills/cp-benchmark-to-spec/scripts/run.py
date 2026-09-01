@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-cp-benchmark-to-spec — Benchmark para Especificação Técnica (self-contained)
+cp-benchmark-to-spec — Benchmark to Technical Specification (self-contained)
 
-Transforma um produto de referência em documentação técnica completa e replicável.
-Recebe insumos (URLs, pesquisa web, screenshots), faz crawler da documentação,
-extrai o design system das telas e gera a especificação RUP + gestão de projeto.
+Transforms a reference product into complete, replicable technical documentation.
+Receives inputs (URLs, web research, screenshots), crawls the documentation,
+extracts the design system from the screens, and generates the RUP specification
++ project management.
 
-Uso:
-  python run.py "produto: Attio; URL: https://attio.com/help/reference"
-  python run.py --context "produto X" --output ./spec
-  python run.py --input contexto.txt
+Usage:
+  python run.py "product: Attio; URL: https://attio.com/help/reference"
+  python run.py --context "product X" --output ./spec
+  python run.py --input context.txt
 """
 
 import argparse
@@ -18,7 +19,7 @@ from pathlib import Path
 from datetime import datetime
 try:
     from crewai import Agent, Task, Crew, Process
-except ImportError:  # DT-07: a lib so e exigida na execucao real, nao no --help
+except ImportError:  # DT-07: the lib is only required for real execution, not --help
     Agent = Task = Crew = Process = None
 import sys as _sys
 from pathlib import Path as _Path
@@ -28,64 +29,64 @@ if str(_SKILLS_ROOT) not in _sys.path:
 from _shared.llm import (build_crew_llm, require_crewai, require_llm,
                          setup_console)
 
-setup_console()  # DT-01: UTF-8 no stdout/stderr (console Windows e cp1252)
+setup_console()  # DT-01: UTF-8 on stdout/stderr (Windows console is cp1252)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# AGENTES EMBUTIDOS
+# EMBEDDED AGENTS
 # ═══════════════════════════════════════════════════════════════════════════
 
 AGENTS = {
-    "analista-de-documentacao": {
-        "role": "Analista de Documentação",
-        "goal": "Fazer crawler da documentação do produto de referência e extrair o conteúdo-fonte completo",
+    "documentation-analyst": {
+        "role": "Documentation Analyst",
+        "goal": "Crawl the reference product's documentation and extract the complete source content",
         "backstory": (
-            "Analista de documentação experiente em engenharia reversa de produtos. "
-            "Você sabe extrair o máximo de informação de documentações públicas, "
-            "arquivos llms.txt e páginas web. Você identifica a estrutura do produto "
-            "(módulos, features, integrações) e organiza o conteúdo-fonte de forma "
-            "que um especificador técnico possa trabalhar. Você prioriza eficiência: "
-            "se o produto oferece um arquivo llms.txt/llms-full.txt, você o usa em "
-            "vez de raspar página por página. Seu lema: 'Documentação boa é a que "
-            "pode ser reconstruída.'"
+            "Documentation analyst experienced in product reverse engineering. "
+            "You know how to extract the maximum information from public documentation, "
+            "llms.txt files and web pages. You identify the product structure "
+            "(modules, features, integrations) and organize the source content so "
+            "that a technical specifier can work with it. You prioritize efficiency: "
+            "if the product offers an llms.txt/llms-full.txt file, you use it "
+            "instead of scraping page by page. Your motto: 'Good documentation is "
+            "what can be rebuilt.'"
         ),
     },
-    "analista-de-design": {
-        "role": "Analista de Design",
-        "goal": "Analisar screenshots do produto e extrair o design system completo (cores, tipografia, componentes)",
+    "design-analyst": {
+        "role": "Design Analyst",
+        "goal": "Analyze product screenshots and extract the complete design system (colors, typography, components)",
         "backstory": (
-            "Analista de design com olho clínico para design systems. Você extrai de "
-            "screenshots os tokens de UI: paleta de cores (hex), tipografia (fontes, "
-            "tamanhos, pesos), espaçamentos, bordas, raios, sombras, ícones, botões, "
-            "inputs, tabelas, badges. Você consolida as análises de poucas telas-chave "
-            "em vez de analisar imagem por imagem, evitando loops. Você marca valores "
-            "estimados como tal e recomenda validar contra o CSS real. Seu lema: "
-            "'Consistência visual é o que faz um produto parecer profissional.'"
+            "Design analyst with a clinical eye for design systems. You extract from "
+            "screenshots the UI tokens: color palette (hex), typography (fonts, "
+            "sizes, weights), spacing, borders, radii, shadows, icons, buttons, "
+            "inputs, tables, badges. You consolidate the analysis of a few key screens "
+            "instead of analyzing image by image, avoiding loops. You mark estimated "
+            "values as such and recommend validating against the real CSS. Your motto: "
+            "'Visual consistency is what makes a product look professional.'"
         ),
     },
-    "especificador-tecnico": {
-        "role": "Especificador Técnico",
-        "goal": "Gerar a especificação RUP completa (4 fases) a partir do conteúdo-fonte, referenciando sem duplicar",
+    "technical-specifier": {
+        "role": "Technical Specifier",
+        "goal": "Generate the complete RUP specification (4 phases) from the source content, referencing without duplicating",
         "backstory": (
-            "Especificador técnico sênior com domínio de arquitetura de software. "
-            "Você transforma conteúdo-fonte de um produto de referência em documentação "
-            "técnica completa e replicável: visão, atores, requisitos, glossário, "
-            "arquitetura, casos de uso, schema, especificações por módulo, API, "
-            "frontend, testes, deploy e treinamento. Você organiza por fases RUP "
-            "(Inception, Elaboration, Construction, Transition) e garante que cada "
-            "documento referencie os demais sem duplicar conteúdo. Você emite o "
-            "veredito final de completude (PASS/FAIL)."
+            "Senior technical specifier with mastery of software architecture. "
+            "You transform a reference product's source content into complete, "
+            "replicable technical documentation: vision, actors, requirements, glossary, "
+            "architecture, use cases, schema, per-module specifications, API, "
+            "frontend, tests, deploy and training. You organize by RUP phases "
+            "(Inception, Elaboration, Construction, Transition) and ensure each "
+            "document references the others without duplicating content. You issue the "
+            "final completeness verdict (PASS/FAIL)."
         ),
     },
-    "gestor-de-projeto": {
-        "role": "Gestor de Projeto",
-        "goal": "Gerar épicos, histórias, tasks e roadmap referenciando a especificação técnica",
+    "project-manager": {
+        "role": "Project Manager",
+        "goal": "Generate epics, stories, tasks and roadmap referencing the technical specification",
         "backstory": (
-            "Gestor de projeto experiente em transformar especificações técnicas em "
-            "planos de execução. Você cria épicos (EP), histórias (HS) e tasks (TSK) "
-            "que referenciam os documentos técnicos sem duplicar conteúdo. Você define "
-            "o roadmap de entregas com fases e marcos, e garante a rastreabilidade "
-            "Épico → História → Task → Caso de Uso → Requisito → Especificação. "
-            "Seu lema: 'Um bom plano é aquele que o time consegue executar.'"
+            "Experienced project manager in turning technical specifications into "
+            "execution plans. You create epics (EP), stories (HS) and tasks (TSK) "
+            "that reference the technical documents without duplicating content. You define "
+            "the delivery roadmap with phases and milestones, and ensure the traceability "
+            "Epic → Story → Task → Use Case → Requirement → Specification. "
+            "Your motto: 'A good plan is one the team can execute.'"
         ),
     },
 }
@@ -96,11 +97,11 @@ def get_agent(slug: str) -> Agent:
     data = AGENTS.get(slug)
     if not data:
         name = slug.replace("-", " ").title()
-        print(f"  [!] Agente não encontrado: {slug} — usando fallback genérico")
+        print(f"  [!] Agent not found: {slug} — using generic fallback")
         return Agent(
             role=name,
-            goal=f"Completar a tarefa com excelência como {name}",
-            backstory=f"Agente especializado atuando como {name}.",
+            goal=f"Complete the task with excellence as {name}",
+            backstory=f"Specialized agent acting as {name}.",
             llm=_crew_llm,
             verbose=True,
             allow_delegation=False,
@@ -122,161 +123,161 @@ def get_agent(slug: str) -> Agent:
 def build_crew(context: str, output_path: str = None):
     """Build a CrewAI crew for benchmark-to-spec."""
 
-    analista_doc = get_agent("analista-de-documentacao")
-    analista_design = get_agent("analista-de-design")
-    especificador = get_agent("especificador-tecnico")
-    gestor = get_agent("gestor-de-projeto")
+    doc_analyst = get_agent("documentation-analyst")
+    design_analyst = get_agent("design-analyst")
+    specifier = get_agent("technical-specifier")
+    manager = get_agent("project-manager")
 
-    # --- Task 1: Crawler da documentação ---
+    # --- Task 1: Documentation crawler ---
     crawler = Task(
         description=f"""
-        CONTEXTO (INSUMOS DO PRODUTO DE REFERÊNCIA):
+        CONTEXT (REFERENCE PRODUCT INPUTS):
         {context}
 
-        SEU TRABALHO — CRAWLER DA DOCUMENTAÇÃO:
-        1. Identifique o produto de referência e suas URLs de documentação
-        2. Se o produto oferecer um arquivo llms.txt/llms-full.txt, use-o (é o mais eficiente)
-        3. Caso contrário, navegue nas páginas de documentação e extraia o texto
-        4. Mapeie a estrutura do produto: módulos, features, integrações, conceitos-chave
-        5. Organize o conteúdo-fonte de forma que um especificador técnico possa trabalhar
+        YOUR JOB — DOCUMENTATION CRAWLER:
+        1. Identify the reference product and its documentation URLs
+        2. If the product offers an llms.txt/llms-full.txt file, use it (it is the most efficient)
+        3. Otherwise, navigate the documentation pages and extract the text
+        4. Map the product structure: modules, features, integrations, key concepts
+        5. Organize the source content so a technical specifier can work with it
 
-        FORMATO DE SAÍDA:
-        ## Produto de Referência
-        - Nome, categoria, posicionamento
-        ## Estrutura do Produto
-        - Módulos/features principais
-        ## Conceitos-chave
-        - Terminologia do domínio
-        ## Conteúdo-fonte
-        - Resumo do que foi extraído e onde está
+        OUTPUT FORMAT:
+        ## Reference Product
+        - Name, category, positioning
+        ## Product Structure
+        - Main modules/features
+        ## Key Concepts
+        - Domain terminology
+        ## Source Content
+        - Summary of what was extracted and where it is
         """,
-        expected_output="Produto identificado, estrutura mapeada, conceitos-chave e conteúdo-fonte organizado",
-        agent=analista_doc,
+        expected_output="Product identified, structure mapped, key concepts and organized source content",
+        agent=doc_analyst,
     )
 
     # --- Task 2: Design System ---
     design = Task(
         description=f"""
-        CONTEXTO (INSUMOS DO PRODUTO DE REFERÊNCIA):
+        CONTEXT (REFERENCE PRODUCT INPUTS):
         {context}
 
-        SEU TRABALHO — DESIGN SYSTEM:
-        Com base nos screenshots do produto (se fornecidos) e no conteúdo-fonte:
+        YOUR JOB — DESIGN SYSTEM:
+        Based on the product screenshots (if provided) and the source content:
 
-        1. **Paleta de cores** — cores de marca, neutras, semânticas (hex)
-        2. **Tipografia** — fontes, tamanhos, pesos, hierarquia
-        3. **Espaçamento** — grid base, aplicações
-        4. **Bordas e raios** — valores por componente
-        5. **Sombras** — níveis de elevação
-        6. **Ícones** — estilo, tamanhos
-        7. **Componentes** — botões, inputs, tabelas, badges, cards, sidebar, topbar
-        8. **Micro-interações** — transições, hovers
+        1. **Color palette** — brand, neutral, semantic colors (hex)
+        2. **Typography** — fonts, sizes, weights, hierarchy
+        3. **Spacing** — base grid, applications
+        4. **Borders and radii** — values per component
+        5. **Shadows** — elevation levels
+        6. **Icons** — style, sizes
+        7. **Components** — buttons, inputs, tables, badges, cards, sidebar, topbar
+        8. **Micro-interactions** — transitions, hovers
 
-        Consolide a análise de poucas telas-chave. Marque valores estimados como tal.
+        Consolidate the analysis of a few key screens. Mark estimated values as such.
 
-        FORMATO DE SAÍDA:
+        OUTPUT FORMAT:
         ## Design System
-        - Paleta de cores (tokens)
-        - Tipografia (escala)
-        - Espaçamento, bordas, raios, sombras
-        - Componentes de UI
-        - Micro-interações
+        - Color palette (tokens)
+        - Typography (scale)
+        - Spacing, borders, radii, shadows
+        - UI components
+        - Micro-interactions
         """,
-        expected_output="Design system completo com tokens de cor, tipografia, espaçamento, componentes e micro-interações",
-        agent=analista_design,
+        expected_output="Complete design system with color tokens, typography, spacing, components and micro-interactions",
+        agent=design_analyst,
     )
 
-    # --- Task 3: Especificação RUP ---
+    # --- Task 3: RUP Specification ---
     spec = Task(
         description=f"""
-        CONTEXTO (INSUMOS DO PRODUTO DE REFERÊNCIA):
+        CONTEXT (REFERENCE PRODUCT INPUTS):
         {context}
 
-        SEU TRABALHO — ESPECIFICAÇÃO RUP COMPLETA:
-        Com base no conteúdo-fonte e no design system, gere a especificação técnica
-        completa para o time reconstruir o produto. Organize por fases RUP:
+        YOUR JOB — COMPLETE RUP SPECIFICATION:
+        Based on the source content and the design system, generate the complete
+        technical specification for the team to rebuild the product. Organize by RUP phases:
 
-        **Fase 1 — Inception (`01-inception/`):**
-        - `00-visao-do-produto.md` — visão, problema, solução, público-alvo, diferenciais
-        - `01-atores.md` — atores e papéis
-        - `02-requisitos-gerais.md` — requisitos funcionais (RF) e não funcionais (RNF)
-        - `03-glossario.md` — terminologia do domínio
+        **Phase 1 — Inception (`01-inception/`):**
+        - `00-product-vision.md` — vision, problem, solution, target audience, differentiators
+        - `01-actors.md` — actors and roles
+        - `02-general-requirements.md` — functional (FR) and non-functional (NFR) requirements
+        - `03-glossary.md` — domain terminology
 
-        **Fase 2 — Elaboration (`02-elaboration/`):**
-        - `04-arquitetura-de-sistema.md` — arquitetura (backend/frontend/banco)
-        - `casos-de-uso/` — casos de uso detalhados por domínio
+        **Phase 2 — Elaboration (`02-elaboration/`):**
+        - `04-system-architecture.md` — architecture (backend/frontend/database)
+        - `use-cases/` — detailed use cases per domain
 
-        **Fase 3 — Construction (`03-construction/`):**
-        - `schema/` — modelo de dados PostgreSQL + migrations
-        - `especificacao/` — detalhamento técnico por módulo
-        - `api/` — especificação REST + WebSocket
-        - `frontend/` — componentes React, páginas, tipos
+        **Phase 3 — Construction (`03-construction/`):**
+        - `schema/` — PostgreSQL data model + migrations
+        - `specification/` — technical detail per module
+        - `api/` — REST + WebSocket specification
+        - `frontend/` — React components, pages, types
 
-        **Fase 4 — Transition (`04-transition/`):**
-        - `05-plano-de-testes.md` — testes por nível
-        - `06-deploy-e-infra.md` — deploy, CI/CD, infraestrutura
-        - `07-treinamento.md` — treinamento
+        **Phase 4 — Transition (`04-transition/`):**
+        - `05-test-plan.md` — tests per level
+        - `06-deploy-and-infra.md` — deploy, CI/CD, infrastructure
+        - `07-training.md` — training
 
-        **Design System (raiz):**
-        - `design-system.md` — especificação de UI/UX
+        **Design System (root):**
+        - `design-system.md` — UI/UX specification
 
-        REGRAS:
-        - Cada documento referencia os demais, NÃO duplica conteúdo
-        - Use PT-BR para documentação de produto; códigos/payloads em inglês
-        - Marque itens não documentados na fonte como "não documentado na fonte"
-        - Stack alvo: Django REST + React/Vite/TS + PostgreSQL + Redis + Celery
+        RULES:
+        - Each document references the others, does NOT duplicate content
+        - Use English for the documentation; codes/payloads in English
+        - Mark items not documented in the source as "not documented in the source"
+        - Target stack: Django REST + React/Vite/TS + PostgreSQL + Redis + Celery
 
-        Por fim, emita o **veredito de completude**: PASS ou FAIL.
-        Se FAIL, liste o que falta.
+        Finally, issue the **completeness verdict**: PASS or FAIL.
+        If FAIL, list what is missing.
 
-        FORMATO DE SAÍDA:
-        ## Especificação RUP
-        - Fase 1: Inception (documentos)
-        - Fase 2: Elaboration (documentos)
-        - Fase 3: Construction (documentos)
-        - Fase 4: Transition (documentos)
+        OUTPUT FORMAT:
+        ## RUP Specification
+        - Phase 1: Inception (documents)
+        - Phase 2: Elaboration (documents)
+        - Phase 3: Construction (documents)
+        - Phase 4: Transition (documents)
         - Design System
         ## Quality Gate: PASS/FAIL
         """,
-        expected_output="Especificação RUP completa (4 fases) + design system, com veredito PASS/FAIL",
-        agent=especificador,
+        expected_output="Complete RUP specification (4 phases) + design system, with PASS/FAIL verdict",
+        agent=specifier,
     )
 
-    # --- Task 4: Gestão de Projeto ---
-    projeto = Task(
+    # --- Task 4: Project Management ---
+    project = Task(
         description=f"""
-        CONTEXTO (INSUMOS DO PRODUTO DE REFERÊNCIA):
+        CONTEXT (REFERENCE PRODUCT INPUTS):
         {context}
 
-        SEU TRABALHO — GESTÃO DE PROJETO:
-        Com base na especificação RUP, gere a gestão de projeto em `05-project-management/`:
+        YOUR JOB — PROJECT MANAGEMENT:
+        Based on the RUP specification, generate the project management in `05-project-management/`:
 
-        - `README.md` — visão geral, convenções de ID, mapeamento épico→UC→docs
-        - `01-epicos.md` — épicos (EP-XX) por domínio, com referências técnicas
-        - `02-historias.md` — histórias (HS) com critérios de aceite vinculados aos casos de uso
-        - `03-tasks.md` — tasks (TSK) com referências técnicas de implementação
-        - `04-roadmap.md` — fases de entrega, dependências e marcos
+        - `README.md` — overview, ID conventions, epic→UC→docs mapping
+        - `01-epics.md` — epics (EP-XX) per domain, with technical references
+        - `02-stories.md` — stories (HS) with acceptance criteria linked to the use cases
+        - `03-tasks.md` — tasks (TSK) with technical implementation references
+        - `04-roadmap.md` — delivery phases, dependencies and milestones
 
-        REGRAS:
-        - Cada épico/história/task referencia os documentos técnicos, NÃO duplica
-        - Rastreabilidade: Épico → História → Task → Caso de Uso → Requisito → Especificação
-        - Use PT-BR
+        RULES:
+        - Each epic/story/task references the technical documents, does NOT duplicate
+        - Traceability: Epic → Story → Task → Use Case → Requirement → Specification
+        - Use English
 
-        FORMATO DE SAÍDA:
-        ## Gestão de Projeto
-        - Épicos (EP-XX)
-        - Histórias (HS-XX)
+        OUTPUT FORMAT:
+        ## Project Management
+        - Epics (EP-XX)
+        - Stories (HS-XX)
         - Tasks (TSK-XX)
-        - Roadmap (fases e marcos)
+        - Roadmap (phases and milestones)
         """,
-        expected_output="Gestão de projeto completa: épicos, histórias, tasks e roadmap referenciando a spec",
-        agent=gestor,
+        expected_output="Complete project management: epics, stories, tasks and roadmap referencing the spec",
+        agent=manager,
     )
 
     # --- Crew ---
     crew = Crew(
-        agents=[analista_doc, analista_design, especificador, gestor],
-        tasks=[crawler, design, spec, projeto],
+        agents=[doc_analyst, design_analyst, specifier, manager],
+        tasks=[crawler, design, spec, project],
         process=Process.sequential,
         verbose=True,
     )
@@ -290,33 +291,33 @@ def build_crew(context: str, output_path: str = None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="cp-benchmark-to-spec: Benchmark para Especificação Técnica (self-contained)",
+        description="cp-benchmark-to-spec: Benchmark to Technical Specification (self-contained)",
     )
     parser.add_argument(
         "context",
         nargs="?",
-        help="Insumos do produto de referência: URLs, pesquisa, screenshots, pedido",
+        help="Reference product inputs: URLs, research, screenshots, request",
     )
     parser.add_argument(
         "--input", "-i",
         dest="input_file",
-        help="Arquivo com o contexto (alternativa ao argumento posicional)",
+        help="File with the context (alternative to the positional argument)",
     )
     parser.add_argument(
         "--output", "-o",
         default=None,
-        help="Pasta de saída para salvar a especificação (default: doc_dev/)",
+        help="Output folder to save the specification (default: doc_dev/)",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Apenas monta a crew e mostra os agentes, sem executar",
+        help="Only builds the crew and shows the agents, without running",
     )
     args = parser.parse_args()
 
-    require_crewai()  # DT-07: mensagem acionavel em vez de traceback
+    require_crewai()  # DT-07: actionable message instead of a traceback
 
-    # --- Resolve contexto ---
+    # --- Resolve context ---
     context = None
     if args.input_file:
         context = Path(args.input_file).read_text(encoding="utf-8")
@@ -324,30 +325,30 @@ def main():
         context = args.context
     else:
         parser.print_help()
-        print("\n❌ Erro: forneça o contexto (argumento ou --input)")
+        print("\n❌ Error: provide the context (argument or --input)")
         sys.exit(1)
 
     output_path = args.output
 
-    print(f"\n📋 Contexto: {context[:120]}...")
-    print(f"📂 Agentes: embutidos (self-contained)")
+    print(f"\n📋 Context: {context[:120]}...")
+    print(f"📂 Agents: embedded (self-contained)")
     print()
 
     crew = build_crew(context, output_path)
 
     if args.dry_run:
-        print("🧪 DRY RUN — crew montada, agentes:")
+        print("🧪 DRY RUN — crew built, agents:")
         for agent in crew.agents:
             print(f"  - {agent.role}")
-        print("\n✅ Crew pronta. Remova --dry-run para executar.")
+        print("\n✅ Crew ready. Remove --dry-run to execute.")
         return
 
-    print("🚀 Executando crew de benchmark-to-spec...\n")
-    require_llm()  # DT-08: falha cedo, com mensagem, se nao ha LLM
+    print("🚀 Running benchmark-to-spec crew...\n")
+    require_llm()  # DT-08: fails early, with a message, if there is no LLM
     result = crew.kickoff()
     result_str = str(result)
 
-    print(f"\n✅ Especificação Técnica gerada!\n")
+    print(f"\n✅ Technical Specification generated!\n")
     print(result_str)
 
     # --- Save output ---
@@ -355,7 +356,7 @@ def main():
         out_file = Path(output_path)
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(result_str, encoding="utf-8")
-        print(f"\n📁 Salvo em: {out_file.resolve()}")
+        print(f"\n📁 Saved to: {out_file.resolve()}")
     else:
         # Save to default location
         output_dir = Path(__file__).resolve().parent.parent / "outputs"
@@ -363,7 +364,7 @@ def main():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_file = output_dir / f"benchmark-to-spec_{timestamp}.md"
         out_file.write_text(result_str, encoding="utf-8")
-        print(f"\n📁 Salvo em: {out_file.resolve()}")
+        print(f"\n📁 Saved to: {out_file.resolve()}")
 
 
 if __name__ == "__main__":

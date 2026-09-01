@@ -10,7 +10,7 @@ import pytest
 
 from conftest import SKILLS_DIR
 
-ORQ_RUN = SKILLS_DIR / "cp-orquestrador" / "scripts" / "run.py"
+ORQ_RUN = SKILLS_DIR / "cp-orchestrator" / "scripts" / "run.py"
 
 
 def _carrega_orquestrador():
@@ -40,7 +40,7 @@ def test_exit_code_diferente_de_zero_reprova(gate, returncode):
     nenhuma fail-keyword, o gate devolvia WARN e o pipeline reportava
     "Pipeline concluído com sucesso".
     """
-    resultado = gate("Tudo APROVADO com SUCESSO", returncode)
+    resultado = gate("Everything APPROVED with SUCCESS", returncode)
     assert resultado["status"] == "FAIL"
     assert str(returncode) in resultado["detail"]
 
@@ -61,9 +61,9 @@ def test_traceback_reprova_mesmo_com_exit_zero(gate):
 # ─────────────────────────── BUG-04 ───────────────────────────
 
 @pytest.mark.parametrize("saida", [
-    "Erro: invalid API token",       # "OK" dentro de "token"
-    "Broken pipeline detected",      # "OK" dentro de "Broken"
-    "Cookbook indisponivel",         # "OK" dentro de "Cookbook"
+    "Error: invalid API token",       # "OK" inside "token"
+    "Broken pipeline detected",      # "OK" inside "Broken"
+    "Cookbook unavailable",           # "OK" inside "Cookbook"
 ])
 def test_ok_como_substring_nao_aprova(gate, saida):
     """Regressão do BUG-04: keywords casavam como substring.
@@ -81,11 +81,11 @@ def test_ok_como_palavra_continua_aprovando(gate):
 
 
 @pytest.mark.parametrize("saida,esperado", [
-    ("Todos os testes PASS, cobertura 92%", "PASS"),
-    ("Build APROVADO", "PASS"),
-    ("Pipeline com RESSALVA pendente", "WARN"),
-    ("Quality gate FAIL: requisitos incompletos", "FAIL"),
-    ("saida sem nenhum indicador reconhecivel", "WARN"),
+    ("All tests PASS, coverage 92%", "PASS"),
+    ("Build APPROVED", "PASS"),
+    ("Pipeline with PENDING caveat", "WARN"),
+    ("Quality gate FAIL: incomplete requirements", "FAIL"),
+    ("output with no recognizable indicator", "WARN"),
 ])
 def test_classificacao_por_palavra_inteira(gate, saida, esperado):
     assert gate(saida, 0)["status"] == esperado

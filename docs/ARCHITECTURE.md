@@ -1,87 +1,87 @@
-# Arquitetura da Fábrica de Software
+# Software Factory Architecture
 
-A Fábrica de Software é um conjunto de skills CrewAI que orquestram agentes
-especializados para executar o ciclo completo de desenvolvimento de software —
-do requisito à entrega — com quality gates entre fases.
+The Software Factory is a set of CrewAI skills that orchestrate specialized
+agents to run the complete software development cycle — from requirement to
+delivery — with quality gates between phases.
 
-## Visão geral
+## Overview
 
 ```
                     ┌─────────────────────────────┐
-                    │     cp-orquestrador         │
-                    │  (Gerente da Fábrica)       │
-                    │  - coordena crews           │
-                    │  - gerencia artefatos       │
-                    │  - aplica quality gates     │
+                    │     cp-orchestrator         │
+                    │  (Factory Manager)          │
+                    │  - coordinates crews        │
+                    │  - manages artifacts         │
+                    │  - applies quality gates     │
                     └─────────────┬───────────────┘
-                                  │ aciona (modos)
+                                  │ triggers (modes)
         ┌────────────┬────────────┼────────────┬──────────────┐
         ▼            ▼            ▼            ▼              ▼
-   [Pipeline]   [Complementares] [NEXUS]   [Carrosséis]   [Análise]
-   cp-requisitos cp-bug-fix      full-dev   universal-     cp-competitive-
-   cp-arquitetura cp-goal-loop   (nativo)   carousel       analysis
-   cp-implementacao cp-manutencao           instagram-
-   cp-testes                                  carousel-
-   cp-seguranca                               generator
+   [Pipeline]   [Complementary] [NEXUS]   [Carousels]   [Analysis]
+   cp-requirements cp-bug-fix      full-dev   universal-     cp-competitive-
+   cp-architecture cp-goal-loop   (native)   carousel       analysis
+   cp-implementation cp-maintenance           instagram-
+   cp-testing                                  carousel-
+   cp-security                               generator
    cp-devops
-   cp-documentacao
-   cp-qualidade
+   cp-documentation
+   cp-quality
 ```
 
-## Pipeline principal (modo `full`)
+## Main pipeline (`full` mode)
 
 ```
-[Requisitos] → [Arquitetura] → [Implementação] → [Testes] → [Segurança] → [DevOps] → [Documentação] → [Qualidade] → [Entrega]
+[Requirements] → [Architecture] → [Implementation] → [Testing] → [Security] → [DevOps] → [Documentation] → [Quality] → [Delivery]
      │              │                │              │           │            │             │              │
- cp-requisitos  cp-arquitetura  cp-implementacao cp-testes  cp-seguranca cp-devops  cp-documentacao cp-qualidade
+ cp-requirements  cp-architecture  cp-implementation cp-testing  cp-security cp-devops  cp-documentation cp-quality
      │              │                │              │           │            │             │              │
  [Quality Gate] [Quality Gate]  [Quality Gate] [Quality Gate][Quality Gate][Quality Gate][Quality Gate][Quality Gate]
 ```
 
-Cada fase produz um artefato que alimenta a próxima. O quality gate decide:
-- **PASS** → avança
-- **WARN** → avança com ressalvas documentadas
-- **FAIL** → interrompe o pipeline
+Each phase produces an artifact that feeds the next. The quality gate decides:
+- **PASS** → advances
+- **WARN** → advances with documented caveats
+- **FAIL** → stops the pipeline
 
-## Modos de operação
+## Operation modes
 
-| Modo | Crews | Uso |
+| Mode | Crews | Use |
 |------|-------|-----|
-| `full` | 8 fases do pipeline | Projeto completo |
-| `sprint` | requisitos → arquitetura → implementação → testes → devops | Feature |
-| `micro` | implementação → testes | Bug fix rápido |
-| `security-audit` | segurança → qualidade | Auditoria de segurança |
-| `documentation` | documentação → qualidade | Documentação |
-| `bugfix` | cp-bug-fix | Correção de bug |
-| `competitive` | cp-competitive-analysis | Inteligência competitiva |
-| `full-dev` | NEXUS nativo | Pipeline NEXUS completo |
-| `goal-loop` | cp-goal-loop | Loop autônomo |
-| `manutencao` | cp-manutencao | Manutenção/evolução |
+| `full` | 8 pipeline phases | Complete project |
+| `sprint` | requirements → architecture → implementation → testing → devops | Feature |
+| `micro` | implementation → testing | Quick bug fix |
+| `security-audit` | security → quality | Security audit |
+| `documentation` | documentation → quality | Documentation |
+| `bugfix` | cp-bug-fix | Bug fix |
+| `competitive` | cp-competitive-analysis | Competitive intelligence |
+| `full-dev` | native NEXUS | Complete NEXUS pipeline |
+| `goal-loop` | cp-goal-loop | Autonomous loop |
+| `maintenance` | cp-maintenance | Maintenance/evolution |
 
-## Pipeline NEXUS (nativo no orquestrador)
+## NEXUS pipeline (native in the orchestrator)
 
-O `cp-full-dev` foi **fundido** no `cp-orquestrador`. O pipeline NEXUS (7 fases,
-39 agentes) roda nativamente via `NexusExecutor`:
+The `cp-full-dev` was **merged** into `cp-orchestrator`. The NEXUS pipeline (7
+phases, 39 agents) runs natively via `NexusExecutor`:
 
 ```
 Discovery → Strategy → Foundation → Build → Hardening → Launch → Operate
 ```
 
-Com detecção automática de modo (full/sprint/micro) e quality gates por fase.
+With automatic mode detection (full/sprint/micro) and per-phase quality gates.
 
-## Contrato de acionamento (metadado `invoke`)
+## Trigger contract (`invoke` metadata)
 
-Cada crew no orquestrador carrega metadado `invoke` que descreve como a skill é
-acionada via CLI:
+Each crew in the orchestrator carries `invoke` metadata that describes how the
+skill is triggered via CLI:
 
-- `briefing_arg`: `positional` (arg posicional), `goal` (`--goal`), ou `input` (`--input`)
-- `output`: `True` se a skill aceita `--output`, `False` caso contrário
+- `briefing_arg`: `positional` (positional arg), `goal` (`--goal`), or `input` (`--input`)
+- `output`: `True` if the skill accepts `--output`, `False` otherwise
 
-Isso garante que o orquestrador chame cada skill respeitando sua interface real.
+This ensures the orchestrator calls each skill respecting its real interface.
 
-## Portabilidade
+## Portability
 
-Todas as skills são portáveis:
-- **Zero paths de SO/máquina hardcoded** (C:\Windows, C:\Users, etc.)
-- **Zero valores pessoais fixos** (handles, nomes de máquina)
-- Paths de projeto usam env vars + defaults relativos
+All skills are portable:
+- **Zero hardcoded OS/machine paths** (C:\Windows, C:\Users, etc.)
+- **Zero fixed personal values** (handles, machine names)
+- Project paths use env vars + relative defaults

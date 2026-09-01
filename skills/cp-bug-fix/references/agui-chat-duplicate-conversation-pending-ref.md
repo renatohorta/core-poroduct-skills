@@ -1,44 +1,44 @@
-# AG-UI — Conversa duplicada vazia toma o topo da sidebar (pendingThreadIdRef nunca setado)
+# AG-UI — Empty duplicate conversation takes over the sidebar top (pendingThreadIdRef never set)
 
-## Sintoma
-Usuário reporta: "começo a conversar, o chat responde, mas ao dar refresh a última conversa some" — ou "a conversa real parece sumir e aparece uma vazia no topo da sidebar".
+## Symptom
+User reports: "I start chatting, the chat replies, but on refresh the last conversation disappears" — or "the real conversation seems to disappear and an empty one appears at the top of the sidebar".
 
-## Causa raiz
-O `pendingThreadIdRef` foi **projetado** para evitar duplicação de conversa na primeira mensagem, mas **nunca é setado** no `sendPrompt` do adapter. O interceptor `runAgent` já lê e limpa esse ref — mas como ele fica sempre `null`, o interceptor cai no fallback de criar conversa nova.
+## Root cause
+The `pendingThreadIdRef` was **designed** to prevent conversation duplication on the first message, but it is **never set** in the adapter's `sendPrompt`. The `runAgent` interceptor already reads and clears this ref — but since it is always `null`, the interceptor falls into the fallback of creating a new conversation.
 
-**Fluxo quebrado:**
-1. `sendPrompt` (AguiChatPage) → `adapter.sendPrompt(prompt)` cria a conversa e seta `activeId`.
-2. `runtime.thread.append()` dispara o interceptor `runAgent`.
-3. O interceptor lê `pendingThreadIdRef.current` (null) → `activeIdRef.current` (ainda null, pois `setActiveId` só reflete no próximo render).
-4. Cai no fallback que cria **OUTRA conversa duplicada** (vazia).
+**Broken flow:**
+1. `sendPrompt` (AguiChatPage) → `adapter.sendPrompt(prompt)` creates the conversation and sets `activeId`.
+2. `runtime.thread.append()` fires the `runAgent` interceptor.
+3. The interceptor reads `pendingThreadIdRef.current` (null) → `activeIdRef.current` (still null, since `setActiveId` only reflects on the next render).
+4. Falls into the fallback that creates **ANOTHER duplicate (empty) conversation**.
 
-A conversa duplicada vazia toma o topo da sidebar. Ao dar refresh, a conversa real com o histórico parece "sumir" (a duplicata vazia aparece como "última conversa"). Log do backend confirma: `GET /api/v1/chat/conversations/<uuid>/ 404` para a conversa que o interceptor tentou usar.
+The empty duplicate conversation takes over the sidebar top. On refresh, the real conversation with history seems to "disappear" (the empty duplicate appears as the "last conversation"). Backend log confirms: `GET /api/v1/chat/conversations/<uuid>/ 404` for the conversation the interceptor tried to use.
 
-## Correção
-O `sendPrompt` do adapter deve setar `pendingThreadIdRef.current = conv.uuid` **antes** de retornar:
+## Fix
+The adapter's `sendPrompt` must set `pendingThreadIdRef.current = conv.uuid` **before** returning:
 
 ```tsx
-// No adapter (useConversationThreadList.tsx):
+// In the adapter (useConversationThreadList.tsx):
 sendPrompt: async (prompt: string) => {
   const conv = await chatApi.createSession();
-  // Seta o ref ANTES de retornar — o interceptor runAgent lê e limpa.
-  // Sem isso, o append() dispara o runAgent com activeIdRef ainda null
-  // (setActiveId só reflete no próximo render) e cria conversa duplicada.
+  // Sets the ref BEFORE returning — the runAgent interceptor reads and clears it.
+  // Without this, append() fires runAgent with activeIdRef still null
+  // (setActiveId only reflects on the next render) and creates a duplicate conversation.
   pendingThreadIdRef.current = conv.uuid;
   setActiveId(conv.uuid);
   return { threadId: conv.uuid };
 },
 ```
 
-## Validação
-- Criar conversa nova + enviar primeira mensagem → `convCount` NÃO deve aumentar (sem duplicata).
-- Após refresh, a conversa e o histórico continuam na sidebar.
-- Verificar no browser (não só `bun run build`).
+## Validation
+- Create a new conversation + send the first message → `convCount` must NOT increase (no duplicate).
+- After refresh, the conversation and history remain in the sidebar.
+- Verify in the browser (not just `bun run build`).
 
-## NÃO fazer
-- Assumir que `setActiveId` reflete imediatamente no `activeIdRef.current` dentro do mesmo tick — React state só atualiza no próximo render.
-- Ignorar o `pendingThreadIdRef` existente: ele existe exatamente para cobrir a janela entre `createSession` e o próximo render. Se nunca é setado, o interceptor cai no fallback de criar conversa nova.
+## Do NOT
+- Assume `setActiveId` reflects immediately in `activeIdRef.current` within the same tick — React state only updates on the next render.
+- Ignore the existing `pendingThreadIdRef`: it exists precisely to cover the window between `createSession` and the next render. If it is never set, the interceptor falls into the fallback of creating a new conversation.
 
-## Diagnóstico rápido
-- Backend persiste corretamente (validar via API: conversa nova com web_search persistida com 2 mensagens e aparece na listagem) — o bug é quase sempre no frontend.
-- Log do backend: `GET /api/v1/chat/conversations/<uuid>/ 404` = o interceptor usou um UUID de conversa duplicada/inexistente.
+## Quick diagnosis
+- Backend persists correctly (validate via API: new conversation with web_search persisted with 2 messages and appears in the listing) — the bug is almost always in the frontend.
+- Backend log: `GET /api/v1/chat/conversations/<uuid>/ 404` = the interceptor used a duplicate/nonexistent conversation UUID.

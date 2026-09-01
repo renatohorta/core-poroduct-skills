@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 # =============================================================================
-# install.sh — Instala/atualiza as Core Product Skills nos agentes.
+# install.sh — Installs/updates the Core Product Skills in the agents.
 #
-# Instala as skills deste repositório (skills/) tanto no Hermes Agent quanto
-# no Claude Code. O repositório é a fonte única de verdade; este script propaga
-# as mudanças para os agentes.
+# Installs the skills of this repository (skills/) in both the Hermes Agent and
+# Claude Code. The repository is the single source of truth; this script
+# propagates the changes to the agents.
 #
-# Uso:
+# Usage:
 #   ./scripts/install.sh                 # Hermes + Claude
-#   ./scripts/install.sh --hermes        # apenas Hermes
-#   ./scripts/install.sh --claude        # apenas Claude
-#   ./scripts/install.sh --skill cp-requisitos   # apenas uma skill
-#   ./scripts/install.sh --dry-run       # mostra o que faria, sem copiar
+#   ./scripts/install.sh --hermes        # Hermes only
+#   ./scripts/install.sh --claude        # Claude only
+#   ./scripts/install.sh --skill cp-requirements   # one skill only
+#   ./scripts/install.sh --dry-run       # shows what it would do, without copying
 #
-# Portabilidade: usa env vars + defaults relativos. Nenhum path de SO/máquina
-# hardcoded. Os diretórios de destino podem ser sobrescritos via env vars:
-#   HERMES_SKILLS_DIR   (default: ~/AppData/Local/hermes/skills no Windows,
-#                        ~/.hermes/skills no Linux/macOS)
+# Portability: uses env vars + relative defaults. No hardcoded OS/machine path.
+# The destination directories can be overridden via env vars:
+#   HERMES_SKILLS_DIR   (default: ~/AppData/Local/hermes/skills on Windows,
+#                        ~/.hermes/skills on Linux/macOS)
 #   CLAUDE_SKILLS_DIR   (default: ~/.claude/skills)
 # =============================================================================
 set -euo pipefail
 
-# ── Resolve diretório raiz do repositório (independente de onde o script roda) ──
+# ── Resolves the repository root directory (independent of where the script runs) ──
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_SRC="$REPO_ROOT/skills"
@@ -44,12 +44,12 @@ while [[ $# -gt 0 ]]; do
     --skill) ONLY_SKILL="$2"; shift ;;
     --dry-run) DRY_RUN=1 ;;
     -h|--help) usage ;;
-    *) echo "❌ Argumento desconhecido: $1"; usage ;;
+    *) echo "❌ Unknown argument: $1"; usage ;;
   esac
   shift
 done
 
-# ── Resolve diretórios de destino ──
+# ── Resolves destination directories ──
 detect_os() {
   case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
@@ -71,26 +71,26 @@ fi
 # Claude
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 
-# ── Categoria no Hermes ──
-# As skills cp-* e de carrossel vivem na categoria "creative" no Hermes.
+# ── Category in Hermes ──
+# The cp-* and carousel skills live in the "creative" category in Hermes.
 HERMES_CATEGORY="creative"
 
-# ── Lista de skills (exclui _shared, que é helper compartilhado, não skill) ──
+# ── Skill list (excludes _shared, which is a shared helper, not a skill) ──
 mapfile -t SKILLS < <(ls -1 "$SKILLS_SRC" 2>/dev/null | grep -v '^\.' | grep -v '^_shared$' || true)
 if [[ ${#SKILLS[@]} -eq 0 ]]; then
-  echo "❌ Nenhuma skill encontrada em $SKILLS_SRC"
+  echo "❌ No skills found in $SKILLS_SRC"
   exit 1
 fi
 
 if [[ -n "$ONLY_SKILL" ]]; then
   if [[ ! -d "$SKILLS_SRC/$ONLY_SKILL" ]]; then
-    echo "❌ Skill '$ONLY_SKILL' não encontrada em $SKILLS_SRC"
+    echo "❌ Skill '$ONLY_SKILL' not found in $SKILLS_SRC"
     exit 1
   fi
   SKILLS=("$ONLY_SKILL")
 fi
 
-# ── Função de cópia ──
+# ── Copy function ──
 copy_skill() {
   local src="$1" dst="$2" name="$3"
   if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -100,21 +100,21 @@ copy_skill() {
   rm -rf "$dst"
   mkdir -p "$(dirname "$dst")"
   cp -R "$src" "$dst"
-  # Remove artefatos indesejados se houver
+  # Removes unwanted artifacts if any
   rm -rf "$dst/__pycache__" "$dst/outputs" 2>/dev/null || true
   echo "  ✅ $name → $dst"
 }
 
-# ── Executa ──
+# ── Runs ──
 echo "════════════════════════════════════════════════════════"
-echo "  Core Product Skills — Instalação"
-echo "  Origem: $SKILLS_SRC"
+echo "  Core Product Skills — Installation"
+echo "  Source: $SKILLS_SRC"
 echo "════════════════════════════════════════════════════════"
 echo ""
 
 if [[ "$DO_HERMES" -eq 1 ]]; then
   echo "📦 Hermes Agent → $HERMES_SKILLS_DIR/$HERMES_CATEGORY"
-  # Copia o helper compartilhado _shared para a raiz de skills (não é skill)
+  # Copies the shared helper _shared to the skills root (it is not a skill)
   if [[ -d "$SKILLS_SRC/_shared" ]]; then
     copy_skill "$SKILLS_SRC/_shared" "$HERMES_SKILLS_DIR/_shared" "_shared"
   fi
@@ -126,7 +126,7 @@ fi
 
 if [[ "$DO_CLAUDE" -eq 1 ]]; then
   echo "📦 Claude Code → $CLAUDE_SKILLS_DIR"
-  # Copia o helper compartilhado _shared para a raiz de skills (não é skill)
+  # Copies the shared helper _shared to the skills root (it is not a skill)
   if [[ -d "$SKILLS_SRC/_shared" ]]; then
     copy_skill "$SKILLS_SRC/_shared" "$CLAUDE_SKILLS_DIR/_shared" "_shared"
   fi
@@ -137,7 +137,7 @@ if [[ "$DO_CLAUDE" -eq 1 ]]; then
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "🧪 DRY RUN — nada foi copiado. Remova --dry-run para executar."
+  echo "🧪 DRY RUN — nothing was copied. Remove --dry-run to execute."
 else
-  echo "✅ Instalação concluída (${#SKILLS[@]} skills)."
+  echo "✅ Installation complete (${#SKILLS[@]} skills)."
 fi

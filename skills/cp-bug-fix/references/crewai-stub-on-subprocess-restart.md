@@ -1,26 +1,26 @@
-# Crew roda em STUB mesmo com Gemini configurado — causa: restart do backend via subprocess sem env do Windows
+# Crew runs in STUB even with Gemini configured — cause: backend restart via subprocess without the Windows env
 
-## Sintoma
-- A crew é acionada, o card mostra "Erro na execução" ou o run completa DONE mas todos os outputs são `[STUB — crewai ausente] Task 'X' por ...`.
-- O log do Daphne mostra `crew.kickoff stub (crewai ausente) crew=<nome>`.
-- **Contradição:** o Gemini ESTÁ configurado (`is_configured()` retorna `True`, `GEMINI_API_KEY` presente no `.env`, e o log mostra `LiteLLM completion() model= gemini-2.5-flash; provider = gemini`). As chamadas LiteLLM que aparecem são de OUTRAS partes (Copilot/chat), não da crew.
+## Symptom
+- The crew is fired, the card shows "Erro na execução" or the run completes DONE but all outputs are `[STUB — crewai ausente] Task 'X' por ...`.
+- The Daphne log shows `crew.kickoff stub (crewai ausente) crew=<nome>`.
+- **Contradiction:** Gemini IS configured (`is_configured()` returns `True`, `GEMINI_API_KEY` present in the `.env`, and the log shows `LiteLLM completion() model= gemini-2.5-flash; provider = gemini`). The LiteLLM calls that appear are from OTHER parts (Copilot/chat), not the crew.
 
-## Causa raiz
-O `run_pipeline_async` decide o stub por:
+## Root cause
+`run_pipeline_async` decides the stub by:
 ```python
 if not _crewai_available() or not llm_configured:
     reason = "crewai ausente" if not _crewai_available() else "LLM não configurado"
 ```
-`_crewai_available()` faz `import crewai` num try/except. Quando o backend é reiniciado via **subprocess** (ex.: `subprocess.Popen([py, "-m", "daphne", ...])`) com um `env` construído à mão, o `import crewai` (1.15.5) quebra silenciosamente porque o `chromadb` chama `Path.home()` e o `crewai_core` (telemetria) chama `Path(LOCALAPPDATA)`.
+`_crewai_available()` does `import crewai` in a try/except. When the backend is restarted via **subprocess** (e.g. `subprocess.Popen([py, "-m", "daphne", ...])`) with a hand-built `env`, the `import crewai` (1.15.5) breaks silently because `chromadb` calls `Path.home()` and `crewai_core` (telemetry) calls `Path(LOCALAPPDATA)`.
 
-Erros reais do import (sem as env vars do Windows):
+Real import errors (without the Windows env vars):
 ```
 RuntimeError: Could not determine home directory.   # chromadb → Path.home()
 TypeError: argument should be a str or an os.PathLike object ... not 'NoneType'  # crewai_core → Path(LOCALAPPDATA)
 ```
 
-## Correção
-Ao relançar o Daphne/ASGI via subprocess no Windows, o `env` DEVE incluir as variáveis de ambiente do Windows que o crewai/chromadb exigem:
+## Fix
+When relaunching Daphne/ASGI via subprocess on Windows, the `env` MUST include the Windows environment variables that crewai/chromadb require:
 ```python
 env = {
     "DJANGO_SETTINGS_MODULE": "config.settings",
@@ -39,16 +39,16 @@ env = {
     "APPDATA": os.environ.get("APPDATA", r"C:\Users\<user>\AppData\Roaming"),
 }
 ```
-Verificação rápida antes de subir:
+Quick verification before starting:
 ```bash
-python -c "import crewai; print(crewai.__version__)"   # com o MESMO env do Popen
+python -c "import crewai; print(crewai.__version__)"   # with the SAME env as the Popen
 ```
-Se imprimir a versão, o import funciona e a crew vai rodar de verdade.
+If it prints the version, the import works and the crew will run for real.
 
-## Nota importante
-Isso NÃO é um bug do código do projeto. Quando o backend é iniciado pelo fluxo normal (terminal do Windows), essas variáveis existem e o crewai importa sem erro. O problema só aparece quando o agente reinicia o backend via subprocess com um `env` incompleto. Sempre herde o `os.environ` do processo e só sobrescreva o que for necessário (PYTHONPATH, DJANGO_SETTINGS_MODULE), em vez de construir um env mínimo do zero.
+## Important note
+This is NOT a bug in the project code. When the backend is started by the normal flow (Windows terminal), these variables exist and crewai imports without error. The problem only appears when the agent restarts the backend via subprocess with an incomplete `env`. Always inherit the process's `os.environ` and only override what is necessary (PYTHONPATH, DJANGO_SETTINGS_MODULE), instead of building a minimal env from scratch.
 
-## Confirmação do fix
-Após relançar com o env completo, acionar a crew numa conversa NOVA e checar:
-- Run fica `RUNNING` (não stub, não ERROR) e completa `DONE` em ~1-2 min.
-- Outputs têm conteúdo real (len > 5KB) e o quality gate retorna `PASS` — não `[STUB — crewai ausente]`.
+## Fix confirmation
+After relaunching with the full env, fire the crew in a NEW conversation and check:
+- The run stays `RUNNING` (not stub, not ERROR) and completes `DONE` in ~1-2 min.
+- Outputs have real content (len > 5KB) and the quality gate returns `PASS` — not `[STUB — crewai ausente]`.

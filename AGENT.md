@@ -1,29 +1,29 @@
-# AGENT.md — Contexto do Projeto
+# AGENT.md — Project Context
 
-**Projeto**: Core Product Skills — repositório canônico das skills `cp-*` da
-Fábrica de Software (CrewAI), propagadas para o Hermes Agent e o Claude Code.
+**Project**: Core Product Skills — canonical repository of the `cp-*` skills of
+the Software Factory (CrewAI), propagated to the Hermes Agent and Claude Code.
 
-**Fonte de verdade: `.context/`**
+**Source of truth: `.context/`**
 
-Leia e escreva todo o contexto do projeto em `.context/`. **NÃO** crie nem use
-`.hermes/` ou `.claude/` para contexto.
+Read and write all project context in `.context/`. **DO NOT** create or use
+`.hermes/` or `.claude/` for context.
 
-- Visão geral: `.context/README.md`
-- Disciplinas de engenharia: `.context/docs/`
-- Entrada de trabalho: `.context/inbox/`
-- Rastreamento e ADRs: `.context/tracking/`
+- Overview: `.context/README.md`
+- Engineering disciplines: `.context/docs/`
+- Work intake: `.context/inbox/`
+- Tracking and ADRs: `.context/tracking/`
 
-## Regras essenciais deste repositório
+## Essential rules of this repository
 
-1. **Edite as skills aqui**, em `skills/` — a cópia instalada no agente é
-   descartada e reescrita a cada `./scripts/install.sh`.
-2. **`_shared` não é skill** — é helper compartilhado; vai para a raiz de skills
-   do agente, não para a categoria.
-3. **Nunca assuma o contrato CLI de uma skill** — `--output` não é universal e o
-   briefing nem sempre é posicional. Consulte
-   `skills/cp-orquestrador/references/skills-cli-inventory.md` e valide com
+1. **Edit the skills here**, in `skills/` — the installed copy in the agent is
+   discarded and rewritten on every `./scripts/install.sh`.
+2. **`_shared` is not a skill** — it is a shared helper; it goes to the agent's
+   skills root, not to the category.
+3. **Never assume a skill's CLI contract** — `--output` is not universal and the
+   briefing is not always positional. Consult
+   `skills/cp-orchestrator/references/skills-cli-inventory.md` and validate with
    `--dry-run`.
-4. **Windows**: rode as skills com `PYTHONUTF8=1 PYTHONIOENCODING=utf-8` até
-   `DT-01` ser corrigido.
-5. **Antes de commitar**: confira `git status --short` — commits parciais são o
-   erro mais comum aqui.
+4. **Windows**: run the skills with `PYTHONUTF8=1 PYTHONIOENCODING=utf-8` until
+   `DT-01` is fixed.
+5. **Before committing**: check `git status --short` — partial commits are the
+   most common mistake here.

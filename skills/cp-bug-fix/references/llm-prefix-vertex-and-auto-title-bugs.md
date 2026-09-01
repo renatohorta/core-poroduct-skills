@@ -1,24 +1,24 @@
-# Bug: LLM_MODEL sem prefixo → vertex_ai / ADC (produção)
+# Bug: LLM_MODEL without prefix → vertex_ai / ADC (production)
 
-## Sintoma
-Log de produção:
+## Symptom
+Production log:
 ```
-LiteLLM completion() model= gemini-2.5-flash; provider = vertex_ai   ← FALHA
-LiteLLM completion() model= gemini-2.5-flash; provider = gemini      ← FUNCIONA
+LiteLLM completion() model= gemini-2.5-flash; provider = vertex_ai   ← FAILS
+LiteLLM completion() model= gemini-2.5-flash; provider = gemini      ← WORKS
 google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found.
 ```
-O chat responde mas com ~15s de atraso por chamada (vertex falha → fallback → gemini). O erro é em TODAS as chamadas, inclusive `complete_json` e `astream_with_tools`.
+The chat responds but with ~15s delay per call (vertex fails → fallback → gemini). The error is in ALL calls, including `complete_json` and `astream_with_tools`.
 
-## Causa raiz
-O secret `LLM_MODEL` em produção está configurado como **`gemini-2.5-flash` sem o prefixo `gemini/`**. Quando o LiteLLM recebe um modelo sem barra, ele roteia para o provider `vertex_ai`, que exige **Application Default Credentials (ADC/service account)** — que NÃO existem no ECS. O fallback `gemini/gemini-2.5-flash` (com prefixo) usa `provider = gemini` (API key via `GEMINI_API_KEY`) e funciona.
+## Root cause
+The `LLM_MODEL` secret in production is configured as **`gemini-2.5-flash` without the `gemini/` prefix**. When LiteLLM receives a model without a slash, it routes to the `vertex_ai` provider, which requires **Application Default Credentials (ADC/service account)** — which do NOT exist on ECS. The `gemini/gemini-2.5-flash` fallback (with prefix) uses `provider = gemini` (API key via `GEMINI_API_KEY`) and works.
 
-## Fix (hardening no código)
-Em `chat/llm_client.py`, adicionar `_normalize_model()` que garante o formato `provider/model` e aplicar em `get_model()`, `_base_kwargs()` e no embedding:
+## Fix (hardening in code)
+In `chat/llm_client.py`, add `_normalize_model()` that guarantees the `provider/model` format and apply it in `get_model()`, `_base_kwargs()` and the embedding:
 
 ```python
 def _normalize_model(model: str) -> str:
-    """Garante o formato LiteLLM `provider/model`. Modelo sem barra (ex: gemini-2.5-flash)
-    é roteado pelo LiteLLM para vertex_ai (exige ADC), não gemini (API key)."""
+    """Guarantees the LiteLLM `provider/model` format. A model without a slash (e.g. gemini-2.5-flash)
+    is routed by LiteLLM to vertex_ai (requires ADC), not gemini (API key)."""
     if "/" in model:
         return model
     return f"gemini/{model}"
@@ -28,26 +28,26 @@ def get_model() -> str:
     return _normalize_model(raw)
 ```
 
-Também **corrigir o secret `LLM_MODEL` no AWS** para `gemini/gemini-2.5-flash` (o hardening só previne o sintoma; o secret certo é a correção definitiva). Mesmo padrão do bug anterior `gemini-3-flash` inexistente.
+Also **fix the `LLM_MODEL` secret in AWS** to `gemini/gemini-2.5-flash` (the hardening only prevents the symptom; the correct secret is the definitive fix). Same pattern as the previous nonexistent `gemini-3-flash` bug.
 
-## Testes
+## Tests
 `tests/chat/test_llm_model_fallback.py` → `ModelNormalizeTests`:
 - `_normalize_model("gemini-2.5-flash") == "gemini/gemini-2.5-flash"`
-- prefixos explícitos (`ollama_chat/...`, `openai/...`) preservados
-- `get_model()` com `LLM_MODEL` sem prefixo normaliza
-- `complete()` usa o modelo COM prefixo na chamada ao LiteLLM
+- explicit prefixes (`ollama_chat/...`, `openai/...`) preserved
+- `get_model()` with a prefix-less `LLM_MODEL` normalizes
+- `complete()` uses the model WITH prefix in the LiteLLM call
 
 ---
-# Bug: Título automático de conversa nunca é gerado (bug B)
+# Bug: Automatic conversation title is never generated (bug B)
 
-## Sintoma
-Conversas criadas via chat ficam com título vazio (mostram "Nova Conversa" na sidebar) mesmo após várias mensagens. O título automático nunca é gerado.
+## Symptom
+Conversations created via chat stay with an empty title (show "Nova Conversa" in the sidebar) even after several messages. The automatic title is never generated.
 
-## Causa raiz
-O frontend (`AguiChatPage.tsx` → `onSwitchToNewThread` → `createSession()`) cria a conversa **vazia** (sem título) ANTES de enviar a primeira mensagem. Quando a 1ª mensagem chega ao backend (`POST /chat/agui/` → `_build_task`), a conversa **já existe**, então `is_new=False` — e o `generate_session_title` só era disparado quando `is_new=True`. Resultado: a conversa nunca ganha título.
+## Root cause
+The frontend (`AguiChatPage.tsx` → `onSwitchToNewThread` → `createSession()`) creates the **empty** conversation (without a title) BEFORE sending the first message. When the 1st message reaches the backend (`POST /chat/agui/` → `_build_task`), the conversation **already exists**, so `is_new=False` — and `generate_session_title` was only fired when `is_new=True`. Result: the conversation never gets a title.
 
 ## Fix
-Em `chat/agui/views.py`, o `_build_task` retorna `needs_title` (não só `is_new`):
+In `chat/agui/views.py`, `_build_task` returns `needs_title` (not just `is_new`):
 
 ```python
 needs_title = is_new or (
@@ -55,14 +55,14 @@ needs_title = is_new or (
 )
 return task, is_new, str(conversation.id), needs_title
 ```
-E o `post()` dispara o título quando `needs_title` (não `is_new`). Atualizar o unpacking do caller: `task, is_new, conv_id, needs_title = await sync_to_async(self._build_task)(...)`.
+And the `post()` fires the title when `needs_title` (not `is_new`). Update the caller unpacking: `task, is_new, conv_id, needs_title = await sync_to_async(self._build_task)(...)`.
 
-## Teste
+## Test
 `tests/chat/test_agui.py::test_agui_generates_title_for_existing_empty_conversation`:
-- cria conversa com `title=""`
-- POSTa a 1ª mensagem com `conversationId`
-- a task de título roda em daemon thread (TaskQueue sem workers em teste) → **aguardar com loop `for _ in range(20): refresh + sleep(0.2)`** antes de assertar o título
-- asserta `conv.title` não vazio e != "Nova Conversa"
+- creates a conversation with `title=""`
+- POSTs the 1st message with `conversationId`
+- the title task runs in a daemon thread (TaskQueue without workers in tests) → **wait with a `for _ in range(20): refresh + sleep(0.2)` loop** before asserting the title
+- asserts `conv.title` is not empty and != "Nova Conversa"
 
-## Pitfall: TaskQueue "workers nao rodando" no Daphne
-Ao reiniciar o Daphne local e observar o log, tasks de background logam `TaskQueue workers nao rodando — executando task 'generate_session_title' inline`. Isso indica que o lifespan ASGI (que chama `startup()` → `get_queue().start()`) pode não ter disparado. Funciona inline para tasks rápidas (título), mas é GRAVE para tasks longas (`run_crew`) que devem rodar em thread separada — se rodarem inline, travam o SSE. Ao reiniciar o Daphne, confirmar no log `ASGI startup: TaskQueue + Scheduler started`; se não aparecer, o lifespan não rodou e o fluxo de crews pode regredir.
+## Pitfall: TaskQueue "workers nao rodando" in Daphne
+When restarting the local Daphne and observing the log, background tasks log `TaskQueue workers nao rodando — executando task 'generate_session_title' inline`. This indicates that the ASGI lifespan (which calls `startup()` → `get_queue().start()`) may not have fired. It works inline for fast tasks (title), but is SERIOUS for long tasks (`run_crew`) that must run in a separate thread — if they run inline, they block the SSE. When restarting Daphne, confirm in the log `ASGI startup: TaskQueue + Scheduler started`; if it does not appear, the lifespan did not run and the crews flow may regress.

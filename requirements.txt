@@ -1,15 +1,15 @@
-# Core Product Skills — dependências de runtime das skills cp-*
+# Core Product Skills — runtime dependencies of the cp-* skills
 #
-# Instalação:
+# Installation:
 #   python -m venv .venv && .venv/bin/pip install -r requirements.txt
-#   # ou, com uv (bem mais rápido):
+#   # or, with uv (much faster):
 #   uv venv --python 3.12 .venv && uv pip install --python .venv -r requirements.txt
 #
-# Python: 3.11–3.14. O resolvedor do pip em 3.14 pode travar `crewai` numa
-# versão antiga (0.11.x) por causa de metadados de wheels transitivos; se isso
-# acontecer, use `uv` (resolve 1.15.x normalmente) ou um Python 3.12/3.13.
+# Python: 3.11–3.14. The pip resolver on 3.14 may pin `crewai` to an old
+# version (0.11.x) because of transitive wheel metadata; if that happens, use
+# `uv` (resolves 1.15.x normally) or a Python 3.12/3.13.
 #
-# Só dependências DIRETAS ficam aqui. As ~135 transitivas (chromadb, litellm,
-# openai, pydantic, onnxruntime, numpy…) vêm por resolução.
+# Only DIRECT dependencies go here. The ~135 transitive ones (chromadb, litellm,
+# openai, pydantic, onnxruntime, numpy…) come via resolution.
 
 crewai>=1.15,<2

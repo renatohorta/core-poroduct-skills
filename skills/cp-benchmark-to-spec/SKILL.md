@@ -1,150 +1,150 @@
 ---
 name: cp-benchmark-to-spec
-description: "Benchmark para Especificação Técnica — transforma um produto de referência (concorrente ou benchmark) em documentação técnica completa e replicável. Recebe insumos (URLs, pesquisa web, screenshots), faz crawler da documentação, extrai o design system das telas e gera a especificação RUP (Inception → Elaboration → Construction → Transition) + gestão de projeto (épicos/histórias/tasks) para o time de desenvolvimento reconstruir o produto. Use quando o usuário disser 'replicar produto', 'engenharia reversa', 'benchmark para spec', 'gerar documentação técnica de um produto', 'crawler + documentação', 'especificação para reconstruir', 'transformar produto em spec', ou precisar transformar um produto de referência em documentação técnica."
+description: "Benchmark to Technical Specification — transforms a reference product (competitor or benchmark) into complete, replicable technical documentation. Receives inputs (URLs, web research, screenshots), crawls the documentation, extracts the design system from the screens and generates the RUP specification (Inception → Elaboration → Construction → Transition) + project management (epics/stories/tasks) for the development team to rebuild the product. Use when the user says 'replicate product', 'reverse engineering', 'benchmark to spec', 'generate technical documentation of a product', 'crawler + documentation', 'specification to rebuild', 'transform product into spec', or needs to turn a reference product into technical documentation."
 ---
 
-# cp-benchmark-to-spec — Benchmark para Especificação Técnica
+# cp-benchmark-to-spec — Benchmark to Technical Specification
 
-Transforma um **produto de referência** (concorrente, benchmark, ou produto que se quer
-replicar) em **documentação técnica completa e replicável**, pronta para o time de
-desenvolvimento reconstruir o produto. O processo combina **crawler de documentação**,
-**análise de design system a partir de screenshots** e **geração de especificação RUP**.
+Transforms a **reference product** (competitor, benchmark, or a product you want to
+replicate) into **complete, replicable technical documentation**, ready for the
+development team to rebuild the product. The process combines **documentation crawler**,
+**design system analysis from screenshots** and **RUP specification generation**.
 
 ## Pipeline
 
 ```
-[Insumos] ──► [Crawler] ──► [Design System] ──► [Spec RUP] ──► [Gestão de Projeto]
+[Inputs] ──► [Crawler] ──► [Design System] ──► [RUP Spec] ──► [Project Management]
    │             │               │                 │                │
-  URLs,        docs em        screenshots      4 fases RUP      épicos/histórias/
-  pesquisa,    texto/md       → tokens de UI    (Inception →     tasks/roadmap
-  screenshots  (llms.txt)     (cores, fontes,   Transition)
-                              espaçamento)
+  URLs,        docs in        screenshots      4 RUP phases      epics/stories/
+  research,    text/md       → UI tokens       (Inception →     tasks/roadmap
+  screenshots  (llms.txt)     (colors, fonts,   Transition)
+                              spacing)
 ```
 
-## Agentes
+## Agents
 
-| Agente | Função |
-|--------|--------|
-| **Analista de Documentação** | Faz crawler da documentação do produto de referência e extrai o conteúdo-fonte |
-| **Analista de Design** | Analisa screenshots e extrai o design system (cores, tipografia, componentes) |
-| **Especificador Técnico** | Gera a especificação RUP completa (4 fases) a partir do conteúdo-fonte |
-| **Gestor de Projeto** | Gera épicos, histórias, tasks e roadmap referenciando a spec |
+| Agent | Function |
+|-------|----------|
+| **Documentation Analyst** | Crawls the reference product's documentation and extracts the source content |
+| **Design Analyst** | Analyzes screenshots and extracts the design system (colors, typography, components) |
+| **Technical Specifier** | Generates the complete RUP specification (4 phases) from the source content |
+| **Project Manager** | Generates epics, stories, tasks and roadmap referencing the spec |
 
-## Entrada
+## Input
 
-Insumos sobre o produto de referência. Pode ser:
-- **URLs** da documentação (ex: `https://produto.com/help/reference`).
-- **Pesquisa web** (pedido para pesquisar o produto na internet).
-- **Screenshots** (pasta com imagens das telas).
-- **Arquivo de contexto** (`--input contexto.txt`).
+Inputs about the reference product. Can be:
+- **Documentation URLs** (e.g. `https://product.com/help/reference`).
+- **Web research** (a request to research the product on the internet).
+- **Screenshots** (a folder with screen images).
+- **Context file** (`--input context.txt`).
 
-## Saída
+## Output
 
-Documentação técnica completa em `doc_dev/` (ou pasta indicada), organizada por fases RUP:
+Complete technical documentation in `doc_dev/` (or the indicated folder), organized by RUP phases:
 
-### Fase 1 — Inception (`01-inception/`)
-- `00-visao-do-produto.md` — visão, problema, solução, público-alvo, diferenciais
-- `01-atores.md` — atores e papéis
-- `02-requisitos-gerais.md` — requisitos funcionais e não funcionais
-- `03-glossario.md` — terminologia do domínio
+### Phase 1 — Inception (`01-inception/`)
+- `00-product-vision.md` — vision, problem, solution, target audience, differentiators
+- `01-actors.md` — actors and roles
+- `02-general-requirements.md` — functional and non-functional requirements
+- `03-glossary.md` — domain terminology
 
-### Fase 2 — Elaboration (`02-elaboration/`)
-- `04-arquitetura-de-sistema.md` — arquitetura (backend/frontend/banco)
-- `casos-de-uso/` — casos de uso detalhados por domínio
+### Phase 2 — Elaboration (`02-elaboration/`)
+- `04-system-architecture.md` — architecture (backend/frontend/database)
+- `use-cases/` — detailed use cases per domain
 
-### Fase 3 — Construction (`03-construction/`)
-- `schema/` — modelo de dados PostgreSQL + migrations
-- `especificacao/` — detalhamento técnico por módulo
-- `api/` — especificação REST + WebSocket
-- `frontend/` — componentes React, páginas, tipos
+### Phase 3 — Construction (`03-construction/`)
+- `schema/` — PostgreSQL data model + migrations
+- `specification/` — technical detail per module
+- `api/` — REST + WebSocket specification
+- `frontend/` — React components, pages, types
 
-### Fase 4 — Transition (`04-transition/`)
-- `05-plano-de-testes.md` — testes por nível
-- `06-deploy-e-infra.md` — deploy, CI/CD, infraestrutura
-- `07-treinamento.md` — treinamento
+### Phase 4 — Transition (`04-transition/`)
+- `05-test-plan.md` — tests per level
+- `06-deploy-and-infra.md` — deploy, CI/CD, infrastructure
+- `07-training.md` — training
 
-### Gestão de Projeto (`05-project-management/`)
-- `01-epicos.md` — épicos por domínio
-- `02-historias.md` — histórias com critérios de aceite
-- `03-tasks.md` — tasks com referências técnicas
-- `04-roadmap.md` — fases de entrega e marcos
+### Project Management (`05-project-management/`)
+- `01-epics.md` — epics per domain
+- `02-stories.md` — stories with acceptance criteria
+- `03-tasks.md` — tasks with technical references
+- `04-roadmap.md` — delivery phases and milestones
 
-### Design System (raiz)
-- `design-system.md` — especificação de UI/UX (cores, tipografia, componentes)
+### Design System (root)
+- `design-system.md` — UI/UX specification (colors, typography, components)
 
 ## Quality Gate
 
-O Especificador Técnico emite veredito PASS/FAIL sobre a completude da spec. Se FAIL,
-a spec precisa de correções antes de ser considerada concluída. Critérios:
-- Todas as 4 fases RUP presentes.
-- Casos de uso cobrindo os domínios principais.
-- Design system extraído das telas.
-- Gestão de projeto (épicos/histórias/tasks) referenciando a spec.
+The Technical Specifier issues a PASS/FAIL verdict on the spec's completeness. If FAIL,
+the spec needs corrections before being considered complete. Criteria:
+- All 4 RUP phases present.
+- Use cases covering the main domains.
+- Design system extracted from the screens.
+- Project management (epics/stories/tasks) referencing the spec.
 
-## Uso
+## Usage
 
 ```bash
-# Insumos diretos (URLs + pedido)
-python .hermes/skills/cp-benchmark-to-spec/scripts/run.py "produto: Attio; URL: https://attio.com/help/reference; gere a spec completa"
+# Direct inputs (URLs + request)
+python .hermes/skills/cp-benchmark-to-spec/scripts/run.py "product: Attio; URL: https://attio.com/help/reference; generate the complete spec"
 
-# Contexto de arquivo
-python .hermes/skills/cp-benchmark-to-spec/scripts/run.py --input contexto.txt
+# File context
+python .hermes/skills/cp-benchmark-to-spec/scripts/run.py --input context.txt
 
-# Salvar saída em pasta específica
-python .hermes/skills/cp-benchmark-to-spec/scripts/run.py "produto X" --output ./spec
+# Save output to a specific folder
+python .hermes/skills/cp-benchmark-to-spec/scripts/run.py "product X" --output ./spec
 
-# Apenas ver a estrutura da crew
-python .hermes/skills/cp-benchmark-to-spec/scripts/run.py "teste" --dry-run
+# Only see the crew structure
+python .hermes/skills/cp-benchmark-to-spec/scripts/run.py "test" --dry-run
 ```
 
-## Exemplo
+## Example
 
 ```bash
 python .hermes/skills/cp-benchmark-to-spec/scripts/run.py \
-  "Quero replicar o produto Fibery. \
-   URL da documentação: https://the.fibery.io/@public/User_Guide/Start-6568 \
-   Screenshots em: design/ \
-   Gere a especificação técnica completa para meu time reconstruir."
+  "I want to replicate the Fibery product. \
+   Documentation URL: https://the.fibery.io/@public/User_Guide/Start-6568 \
+   Screenshots in: design/ \
+   Generate the complete technical specification for my team to rebuild."
 ```
 
-## Caminho manual (alternativa ao script)
+## Manual path (alternative to the script)
 
-Quando o alvo é um produto específico e o agente tem acesso a browser/ferramentas, o
-caminho manual costuma render melhor que a crew — o agente executa o crawler e a geração
-diretamente. Fluxo validado (usado para Attio e Fibery):
+When the target is a specific product and the agent has browser/tools access, the
+manual path usually yields better results than the crew — the agent runs the crawler and
+the generation directly. Validated flow (used for Attio and Fibery):
 
-1. **Crawler da documentação** — acessar a URL de referência. Se o produto oferecer um
-   arquivo `llms.txt`/`llms-full.txt` (ex: `https://produto.com/llms-full.txt`), baixá-lo
-   via `curl` — é muito mais eficiente que raspar página por página. Caso contrário, usar
-   `browser_navigate` + `browser_console` com `document.body.innerText` para extrair o texto.
-2. **Mapear a estrutura** — listar as seções principais do conteúdo-fonte para entender o
-   escopo do produto (features, módulos, integrações).
-3. **Analisar screenshots** — usar `vision_analyze` em telas representativas para extrair o
-   design system (cores hex, fontes, espaçamentos, componentes). **Evitar loop**: analisar
-   poucas telas-chave e consolidar, não analisar imagem por imagem.
-4. **Gerar a spec RUP** — criar os documentos das 4 fases em `doc_dev/`, referenciando o
-   conteúdo-fonte. **Não duplicar** conteúdo — cada documento referencia os demais.
-5. **Gerar o design system** — `design-system.md` com tokens de UI.
-6. **Gerar a gestão de projeto** — épicos/histórias/tasks/roadmap em `05-project-management/`.
-7. **Revisar com as telas** — cruzar a spec com os screenshots para identificar lacunas
-   (features que ficaram de fora) e questões avançadas.
+1. **Documentation crawler** — access the reference URL. If the product offers an
+   `llms.txt`/`llms-full.txt` file (e.g. `https://product.com/llms-full.txt`), download it
+   via `curl` — it is much more efficient than scraping page by page. Otherwise, use
+   `browser_navigate` + `browser_console` with `document.body.innerText` to extract the text.
+2. **Map the structure** — list the main sections of the source content to understand the
+   product scope (features, modules, integrations).
+3. **Analyze screenshots** — use `vision_analyze` on representative screens to extract the
+   design system (hex colors, fonts, spacing, components). **Avoid loops**: analyze
+   a few key screens and consolidate, not image by image.
+4. **Generate the RUP spec** — create the 4-phase documents in `doc_dev/`, referencing the
+   source content. **Do not duplicate** content — each document references the others.
+5. **Generate the design system** — `design-system.md` with UI tokens.
+6. **Generate the project management** — epics/stories/tasks/roadmap in `05-project-management/`.
+7. **Review against the screens** — cross-check the spec with the screenshots to identify gaps
+   (features that were left out) and advanced questions.
 
 ## Pitfalls
 
-| Pitfall | Solução |
-|---------|---------|
-| Analisar screenshot por screenshot entra em loop | Analisar poucas telas-chave e consolidar; usar `llms.txt` para o conteúdo textual |
-| `llms-full.txt` é grande (1.6MB+) | Baixar via `curl` e ler seções-chave, não o arquivo inteiro |
-| Screenshots misturam landing page de marketing com o app | Focar nas telas do app real (workspace), não nas de marketing |
-| Gerar docs em diretório errado | Confirmar o caminho de saída antes de escrever |
-| Duplicar conteúdo entre docs | Cada documento referencia os demais, não reescreve |
+| Pitfall | Solution |
+|---------|----------|
+| Analyzing screenshot by screenshot enters a loop | Analyze a few key screens and consolidate; use `llms.txt` for the textual content |
+| `llms-full.txt` is large (1.6MB+) | Download via `curl` and read key sections, not the whole file |
+| Screenshots mix the marketing landing page with the app | Focus on the real app screens (workspace), not the marketing ones |
+| Generating docs in the wrong directory | Confirm the output path before writing |
+| Duplicating content between docs | Each document references the others, does not rewrite |
 
 ## Script
 
-O script `scripts/run.py` é self-contained — todos os agentes estão embutidos no próprio
-código Python. Não depende de diretório externo.
+The `scripts/run.py` script is self-contained — all agents are embedded in the Python
+code itself. It does not depend on an external directory.
 
-## Referências
+## References
 
-- `cp-skill-craft` — padrão de criação de skills cp-* neste repositório.
-- `cp-competitive-analysis` — skill complementar (análise competitiva, comparação de concorrentes).
+- `cp-skill-craft` — pattern for creating cp-* skills in this repository.
+- `cp-competitive-analysis` — complementary skill (competitive analysis, competitor comparison).

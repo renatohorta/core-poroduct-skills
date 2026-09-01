@@ -1,39 +1,39 @@
-# Teste E2E do Card de Execução de Crew no Chat (AG-UI)
+# E2E Test of the Crew Run Card in Chat (AG-UI)
 
-Receita de loop de teste browser para o bug do card de crew run no chat
-(BUG-20260807). Passa de ponta a ponta no ambiente local (backend :8000,
-frontend :8080) e valida todos os critérios: progresso real, resultado no
-card, história preservada após refresh, conversa única, quality gate.
+Browser test-loop recipe for the crew run card bug in chat
+(BUG-20260807). Passes end-to-end in the local environment (backend :8000,
+frontend :8080) and validates all criteria: real progress, result in the
+card, history preserved after refresh, single conversation, quality gate.
 
-## Pré-requisitos
+## Prerequisites
 
-- Backend e frontend rodando (verificar: `urllib` em `http://localhost:8000/api/`
-  e `http://localhost:8080`).
-- O terminal bash pode estar quebrado (WSL relay) — usar `execute_code` (Python)
-  para git/subprocess e `browser_*` para a UI. Para arquivos usar Python
-  (`open(p,'w',encoding='utf-8').write(...)`) — o `write_file`/`patch` do Hermes
-  falha no Windows quando o bash relay está quebrado.
+- Backend and frontend running (check: `urllib` on `http://localhost:8000/api/`
+  and `http://localhost:8080`).
+- The bash terminal may be broken (WSL relay) — use `execute_code` (Python)
+  for git/subprocess and `browser_*` for the UI. For files use Python
+  (`open(p,'w',encoding='utf-8').write(...)`) — Hermes' `write_file`/`patch`
+  fails on Windows when the bash relay is broken.
 
-## Cenário (conversa real do bug)
+## Scenario (real bug conversation)
 
-1. Login em `http://localhost:8080/chat` (renato.horta@gmail.com / teste123).
-2. Digitar e enviar: `acione o time de presenca digital`.
-3. Copilot responde pedindo contexto (profissão, instagram, serviços).
-4. Enviar: `eu quero criar uma academia de ia, onde ensino lideres de tecnologia
+1. Log in at `http://localhost:8080/chat` (renato.horta@gmail.com / teste123).
+2. Type and send: `acione o time de presenca digital`.
+3. Copilot replies asking for context (profession, instagram, services).
+4. Send: `eu quero criar uma academia de ia, onde ensino lideres de tecnologia
    a trabalhar com agentes de ia e criar automacoes de processos. meu perfil atual é novo`.
-   - Se o Copilot tiver memória da conversa anterior (FAIL na proposta genérica),
-     ele pergunta os serviços específicos — fornecer a lista de consultoria em IA.
-5. Crew dispara. Aguardar 1-3 min (7 tasks com LLM, execução em thread separada).
+   - If Copilot has memory of the previous conversation (FAIL on the generic
+     proposal), it asks for the specific services — provide the AI consulting list.
+5. Crew fires. Wait 1-3 min (7 tasks with LLM, execution in a separate thread).
 
-## Verificações (via browser_console)
+## Checks (via browser_console)
 
-Ler as bolhas do chat (o snapshot NÃO mostra o texto delas):
+Read the chat bubbles (the snapshot does NOT show their text):
 ```js
 Array.from(document.querySelectorAll('.msg__bubble')).map(b => b.innerText).join('\n---\n')
 ```
 
-### Critério 1 — progresso real
-Durante a execução, o card deve mostrar:
+### Criterion 1 — real progress
+During execution, the card must show:
 ```
 Crew acionada: <nome>
 Executando…
@@ -43,64 +43,64 @@ Y%
 🎨 Agent B
 ...
 ```
-(antes do fix: só "Executando…" + imagem genérica, sem lista de tasks).
+(before the fix: only "Executando…" + generic image, without the task list).
 
-### Critério 2 — resultado no card
-Quando DONE, o card exibe `finalOutput.content` no próprio card + botões
-"Aprovar entrega" / "Rejeitar". (antes: card pedia aprovação sem mostrar o
-resultado).
+### Criterion 2 — result in the card
+When DONE, the card displays `finalOutput.content` in the card itself + buttons
+"Aprovar entrega" / "Rejeitar". (before: the card asked for approval without
+showing the result).
 
-### Critério 3 — refresh preserva história
-Dar F5. A conversa mais recente deve carregar e o card deve CONTINUAR visível
-com o resultado (reconstruído via `toThreadMessage` a partir do `runStatus`).
+### Criterion 3 — refresh preserves history
+Press F5. The most recent conversation must load and the card must REMAIN visible
+with the result (rebuilt via `toThreadMessage` from the `runStatus`).
 
-### Critério 4 — conversa única
+### Criterion 4 — single conversation
 ```js
 window.__chatDebug ? JSON.stringify({activeId: window.__chatDebug.activeId, convCount: (window.__chatDebug.conversations||[]).length}) : "sem debug"
 ```
-Esperado: `convCount: 1` e `activeId` == thread da conversa.
+Expected: `convCount: 1` and `activeId` == the conversation thread.
 
-### Critério 5 — quality gate
-Se a crew se auto-avaliou, o card mostra `PASS`/`FAIL`. Com PASS, gate passou.
-Com FAIL persistente, deveria haver retry/escalation (ver `run_pipeline_async`).
+### Criterion 5 — quality gate
+If the crew self-evaluated, the card shows `PASS`/`FAIL`. With PASS, the gate passed.
+With persistent FAIL, there should be retry/escalation (see `run_pipeline_async`).
 
-### Critério 6 — markdown do resultado renderizado
-O `finalOutput.content` no card deve renderizar markdown (negritos, listas,
-títulos), não texto plano com `**`/`*` literais. Verificar contando elementos
-HTML no card da entrega:
+### Criterion 6 — result markdown rendered
+The `finalOutput.content` in the card must render markdown (bold, lists,
+headings), not plain text with literal `**`/`*`. Verify by counting HTML
+elements in the delivery card:
 ```js
 (() => { const els = document.querySelectorAll('.msg__bubble .markdown-body');
   const res = []; els.forEach((c,i) => { const strong=c.querySelectorAll('strong').length;
   const li=c.querySelectorAll('li').length; res.push(i+': strong='+strong+' li='+li); });
   return res.join('\n'); })()
 ```
-Card da entrega esperado com `strong>0` e `li>0` (ex.: `strong=26 li=25` p/ um
-PASS longo). Fix: `CrewRunCard.tsx` usa `ReactMarkdown` + `remarkGfm` com classe
-`markdown-body` (antes: `whitespace-pre-wrap` = texto plano).
+Delivery card expected with `strong>0` and `li>0` (e.g. `strong=26 li=25` for a
+long PASS). Fix: `CrewRunCard.tsx` uses `ReactMarkdown` + `remarkGfm` with the
+`markdown-body` class (before: `whitespace-pre-wrap` = plain text).
 
-## Resultado esperado (tentativa 1 do loop real)
+## Expected result (real loop attempt 1)
 
-Todos os critérios passaram de primeira. O card mostrou "0 de 7 etapas" com a
-lista das 7 tasks; terminou com PASS (Reality Checker); após F5 o card continuou
-visível com o resultado e botões; `convCount: 1`.
+All criteria passed on the first try. The card showed "0 de 7 etapas" with the
+list of the 7 tasks; ended with PASS (Reality Checker); after F5 the card remained
+visible with the result and buttons; `convCount: 1`.
 
-## Backend/frontend tocados para o fix
+## Backend/frontend touched for the fix
 
 - `crews/crew_runner_async.py` — quality gate (FAIL→retry→escalation) + handoff_template
-- `crews/services.py` (hire_crew) e `chat/skills/cp_base_skill.py` — copiam
-  quality_gate/max_retries/handoff_template das tasks do template
-- `crews/tasks_async.py` — `on_task_done` síncrono grava progresso ao vivo
-- `chat/run_status.py` — `crewName` no runStatus
-- `useConversationThreadList.tsx` — `toThreadMessage` reconstrói card a partir do runStatus
-- `CrewRunCard.tsx` — barra de progresso + resultado final no card
-- `src/lib/api/types.ts` — ChatMessage.runStatus tipado
+- `crews/services.py` (hire_crew) and `chat/skills/cp_base_skill.py` — copy
+  quality_gate/max_retries/handoff_template from the template tasks
+- `crews/tasks_async.py` — synchronous `on_task_done` writes live progress
+- `chat/run_status.py` — `crewName` in runStatus
+- `useConversationThreadList.tsx` — `toThreadMessage` rebuilds the card from runStatus
+- `CrewRunCard.tsx` — progress bar + final result in the card
+- `src/lib/api/types.ts` — typed ChatMessage.runStatus
 
-## Testes automatizados criados
+## Automated tests created
 
-- `tests/crews/test_quality_gate_async.py` — quality gate no async (mock crewai)
-- `tests/chat/test_run_status_message.py` — runStatus com crewName + finalOutput
+- `tests/crews/test_quality_gate_async.py` — quality gate in async (mock crewai)
+- `tests/chat/test_run_status_message.py` — runStatus with crewName + finalOutput
 
-## Documentação do loop
+## Loop documentation
 
-`.hermes/docs/testes-de-loop/LOOP-<data>-crew-run-card.md` — template com
-critérios + tabela de resultados por tentativa.
+`.hermes/docs/testes-de-loop/LOOP-<data>-crew-run-card.md` — template with
+criteria + results table per attempt.

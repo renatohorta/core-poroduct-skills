@@ -1,118 +1,118 @@
-# Catálogo de Skills
+# Skills Catalog
 
-Catálogo detalhado de cada skill do repositório, com gatilhos de uso, agentes e
-saídas. Para o conteúdo completo, veja o `SKILL.md` de cada skill.
+Detailed catalog of each skill in the repository, with usage triggers, agents and
+outputs. For the full content, see each skill's `SKILL.md`.
 
-## Fábrica de Software (CrewAI)
+## Software Factory (CrewAI)
 
-### cp-orquestrador
-**Gerente da Fábrica de Software.** Coordena todas as crews em sequência, gerencia
-artefatos entre fases e aplica quality gates. Inclui o pipeline NEXUS nativo.
+### cp-orchestrator
+**Software Factory Manager.** Coordinates all crews in sequence, manages
+artifacts between phases and applies quality gates. Includes the native NEXUS pipeline.
 
-- **Gatilho**: "executar pipeline completo", "fazer fábrica de software", "entregar produto"
-- **Agentes**: Orquestrador de Pipeline, Gestor de Artefatos, Tomador de Decisão, Relator de Progresso
-- **Modos**: full, sprint, micro, security-audit, documentation, bugfix, competitive, full-dev, goal-loop, manutencao
+- **Trigger**: "run full pipeline", "run software factory", "deliver product"
+- **Agents**: Pipeline Orchestrator, Artifact Manager, Decision Maker, Progress Reporter
+- **Modes**: full, sprint, micro, security-audit, documentation, bugfix, competitive, full-dev, goal-loop, maintenance
 - **Script**: `scripts/run.py`
 
-### cp-requisitos
-**Engenharia de Requisitos.** Elicita, especifica, valida e prioriza requisitos.
+### cp-requirements
+**Requirements Engineering.** Elicits, specifies, validates and prioritizes requirements.
 
-- **Gatilho**: "levantar requisitos", "especificar", "criar user stories"
-- **Agentes**: Analista de Negócios, Especificador, Validador, PO Proxy
-- **Saída**: Documento de Requisitos, Backlog Priorizado (MoSCoW)
+- **Trigger**: "gather requirements", "specify", "create user stories"
+- **Agents**: Business Analyst, Specifier, Validator, PO Proxy
+- **Output**: Requirements Document, Prioritized Backlog (MoSCoW)
 
-### cp-arquitetura
-**Arquitetura e Design de Software.** Projeta arquitetura, modela dados, desenha APIs.
+### cp-architecture
+**Software Architecture and Design.** Designs architecture, models data, designs APIs.
 
-- **Gatilho**: "definir arquitetura", "modelar dados", "desenhar API", "criar ADR"
-- **Agentes**: Arquiteto de Software, Dados, API, UX, Revisor Técnico
-- **Saída**: Documento de Arquitetura, ADRs, Modelagem de Dados, Contratos de API
+- **Trigger**: "define architecture", "model data", "design API", "create ADR"
+- **Agents**: Software, Data, API, UX Architect, Technical Reviewer
+- **Output**: Architecture Document, ADRs, Data Modeling, API Contracts
 
-### cp-implementacao
-**Implementação de Software.** Codifica features backend/frontend/mobile com code review.
+### cp-implementation
+**Software Implementation.** Codes backend/frontend/mobile features with code review.
 
-- **Gatilho**: "implementar", "codificar", "desenvolver", "fazer code review"
-- **Agentes**: Dev Backend, Frontend, Mobile, Revisor, Integrador
-- **Saída**: Código Fonte, Relatório de Code Review, Relatório de Integração
+- **Trigger**: "implement", "code", "develop", "do code review"
+- **Agents**: Backend, Frontend, Mobile Dev, Reviewer, Integrator
+- **Output**: Source Code, Code Review Report, Integration Report
 
-### cp-testes
-**Testes de Software.** Executa testes unitários, integração, E2E e performance.
+### cp-testing
+**Software Testing.** Runs unit, integration, E2E and performance tests.
 
-- **Gatilho**: "testar", "criar testes", "validar qualidade", "aumentar cobertura"
-- **Agentes**: Eng. Testes Unitários, Integração, E2E, Performance, Analista
-- **Saída**: Relatório de Testes, Evidências, Cobertura
+- **Trigger**: "test", "create tests", "validate quality", "increase coverage"
+- **Agents**: Unit, Integration, E2E, Performance Test Eng., Analyst
+- **Output**: Test Report, Evidence, Coverage
 
-### cp-seguranca
-**Segurança de Software.** Análise de vulnerabilidades, pentest, compliance.
+### cp-security
+**Software Security.** Vulnerability analysis, pentest, compliance.
 
-- **Gatilho**: "auditar segurança", "fazer pentest", "verificar vulnerabilidades", "OWASP"
-- **Agentes**: Analista de Segurança, Pentester, Compliance, Engenheiro de Correção
-- **Saída**: Relatório de Segurança, Correções Implementadas
+- **Trigger**: "audit security", "run pentest", "check vulnerabilities", "OWASP"
+- **Agents**: Security Analyst, Pentester, Compliance, Fix Engineer
+- **Output**: Security Report, Implemented Fixes
 
 ### cp-devops
-**DevOps e Infraestrutura.** CI/CD, infraestrutura como código, monitoramento, deploy.
+**DevOps and Infrastructure.** CI/CD, infrastructure as code, monitoring, deploy.
 
-- **Gatilho**: "fazer deploy", "configurar CI/CD", "provisionar infraestrutura"
-- **Agentes**: Eng. CI/CD, Infra, Monitoramento, Segurança de Infra
-- **Saída**: Pipeline CI/CD, Infraestrutura Provisionada, Monitoramento Ativo
+- **Trigger**: "deploy", "set up CI/CD", "provision infrastructure"
+- **Agents**: CI/CD, Infra, Monitoring, Infra Security Eng.
+- **Output**: CI/CD Pipeline, Provisioned Infrastructure, Active Monitoring
 
-### cp-documentacao
-**Documentação de Software.** Gera documentação técnica, de API, de usuário e diagramas.
+### cp-documentation
+**Software Documentation.** Generates technical, API, user documentation and diagrams.
 
-- **Gatilho**: "documentar", "criar documentação", "escrever README", "gerar docs da API"
-- **Agentes**: Redator Técnico, Usuário, Diagramador, Revisor
-- **Saída**: README.md, Documentação de API, Manual do Usuário, Diagramas
+- **Trigger**: "document", "create documentation", "write README", "generate API docs"
+- **Agents**: Technical Writer, User, Diagrammer, Reviewer
+- **Output**: README.md, API Documentation, User Manual, Diagrams
 
-### cp-qualidade
-**Qualidade de Software.** Auditoria final: métricas, artefatos, melhoria contínua.
+### cp-quality
+**Software Quality.** Final audit: metrics, artifacts, continuous improvement.
 
-- **Gatilho**: "auditar qualidade", "medir métricas", "garantir qualidade"
-- **Agentes**: Auditor, Analista de Métricas, Melhoria Contínua, Validador
-- **Saída**: Relatório de Qualidade, Certificado de Qualidade
+- **Trigger**: "audit quality", "measure metrics", "ensure quality"
+- **Agents**: Auditor, Metrics Analyst, Continuous Improvement, Validator
+- **Output**: Quality Report, Quality Certificate
 
 ### cp-bug-fix
-**Correção de Bug (NEXUS-Micro).** Corrige bugs com Developer → QA → Evidence Collector.
+**Bug Fix (NEXUS-Micro).** Fixes bugs with Developer → QA → Evidence Collector.
 
-- **Gatilho**: "corrigir bug", "consertar erro", "fix"
-- **Agentes**: Developer, QA (API Tester), Test Automation Engineer, Evidence Collector
-- **Saída**: Correção implementada, Testes automatizados, Evidências
-- **Limite**: máx. 3 retries
+- **Trigger**: "fix bug", "fix error", "fix"
+- **Agents**: Developer, QA (API Tester), Test Automation Engineer, Evidence Collector
+- **Output**: Implemented fix, Automated tests, Evidence
+- **Limit**: max. 3 retries
 
 ### cp-competitive-analysis
-**Análise Competitiva.** Compara produtos, features, preços, posicionamento e estratégia.
+**Competitive Analysis.** Compares products, features, prices, positioning and strategy.
 
-- **Gatilho**: "analisar concorrentes", "análise competitiva", "battle card", "SWOT"
-- **Agentes**: Analista de Mercado, Competidores, Pricing/Posicionamento, Estrategista
-- **Saída**: Relatório de Inteligência Competitiva, Battle Cards, SWOT
+- **Trigger**: "analyze competitors", "competitive analysis", "battle card", "SWOT"
+- **Agents**: Market Analyst, Competitors, Pricing/Positioning, Strategist
+- **Output**: Competitive Intelligence Report, Battle Cards, SWOT
 
 ### cp-goal-loop
-**Loop Autônomo de Tentativa-e-Correção.** Executa um processo até atingir sucesso.
+**Autonomous Try-and-Correct Loop.** Runs a process until success is reached.
 
-- **Gatilho**: "realizar processo completo", "testar de ponta a ponta", "validar fluxo"
-- **Entrada**: `--goal` (obrigatório), `--steps`
-- **Saída**: Processo concluído, Log de tentativas
+- **Trigger**: "run complete process", "test end to end", "validate flow"
+- **Input**: `--goal` (required), `--steps`
+- **Output**: Completed process, Attempt log
 
-### cp-manutencao
-**Manutenção e Evolução de Software.** Diagnostica bugs, refatora código, avalia impacto.
+### cp-maintenance
+**Software Maintenance and Evolution.** Diagnoses bugs, refactors code, assesses impact.
 
-- **Gatilho**: "corrigir bug", "refatorar", "melhorar código", "fazer manutenção"
-- **Agentes**: Analista de Bugs, Desenvolvedor de Correção, Refatoração, Analista de Impacto
-- **Modos**: bug-fix, refactor, improvement, full
+- **Trigger**: "fix bug", "refactor", "improve code", "do maintenance"
+- **Agents**: Bug Analyst, Fix Developer, Refactoring, Impact Analyst
+- **Modes**: bug-fix, refactor, improvement, full
 
-### cp-agilista
-**Esteira de Execução.** Monitora o backlog (local `.kanban/` ou Trello), despacha
-tarefas prontas para a `cp-orquestrador` e gerencia o loop bidirecional de feedback.
+### cp-agile
+**Execution Pipeline.** Monitors the backlog (local `.kanban/` or Trello), dispatches
+ready tasks to the `cp-orchestrator` and manages the bidirectional feedback loop.
 
-- **Gatilho**: "agilista", "esteira de tarefas", "kanban", "monitorar backlog", "dúvida", "impedimento"
-- **Componentes**: CPAgilistaDaemon (polling), CPAgilistaFeedbackLoop (dúvidas/impedimentos/retomada), TrelloIntegration, LocalIntegration
-- **Eventos**: TASK_DISPATCHED, DUVIDA, IMPEDIMENTO, HUMAN_CLARIFICATION_RECEIVED
-- **Script**: `scripts/run.py` (`--daemon`, `--duvida`, `--impedimento`, `--resume`, `--init`, `--doc`)
+- **Trigger**: "agile", "task pipeline", "kanban", "monitor backlog", "question", "blocker"
+- **Components**: CPAgileDaemon (polling), CPAgileFeedbackLoop (questions/blockers/resume), TrelloIntegration, LocalIntegration
+- **Events**: TASK_DISPATCHED, QUESTION, BLOCKER, HUMAN_CLARIFICATION_RECEIVED
+- **Script**: `scripts/run.py` (`--daemon`, `--question`, `--blocker`, `--resume`, `--init`, `--doc`)
 
-### cp-inicializador-doc
-**Inicializador de Documentação.** Centraliza o contexto do projeto em `.context/`
-como fonte de verdade única, cria ponteiros `CLAUDE.md`/`AGENT.md` na raiz e gera
-a estrutura de documentação por disciplina.
+### cp-doc-initializer
+**Documentation Initializer.** Centralizes the project context in `.context/`
+as a single source of truth, creates `CLAUDE.md`/`AGENT.md` pointers at the root and
+generates the per-discipline documentation structure.
 
-- **Gatilho**: "inicializar documentação", "iniciar projeto", "setup de docs", "criar estrutura de contexto"
-- **Estrutura**: `.context/docs/` (disciplinas), `.context/inbox/` (iniciativas, tasks, bugs, débitos), `.context/tracking/` (progresso, decisões)
+- **Trigger**: "initialize documentation", "start project", "docs setup", "create context structure"
+- **Structure**: `.context/docs/` (disciplines), `.context/inbox/` (initiatives, tasks, bugs, tech-debt), `.context/tracking/` (progress, decisions)
 - **Script**: `scripts/run.py` (`--dir`, `--dry-run`)

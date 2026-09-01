@@ -6,8 +6,8 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A suíte não usa credencial de LLM (ver tests/conftest.py): nenhum segredo é
-# necessário, e nenhum teste chama a API de um provedor.
+# The suite does not use an LLM credential (see tests/conftest.py): no secret is
+# needed, and no test calls a provider's API.
 env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: utf-8
@@ -18,40 +18,40 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.12 é o alvo do .venv de desenvolvimento; 3.13 pega regressão cedo.
+        # 3.12 is the target of the development .venv; 3.13 catches regressions early.
         python-version: ["3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
-      - name: Instalar Python ${{ matrix.python-version }}
+      - name: Install Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
-      - name: Instalar dependências
+      - name: Install dependencies
         run: |
           uv venv --python ${{ matrix.python-version }} .venv
           uv pip install --python .venv -r requirements-dev.txt
 
-      - name: Sintaxe do install.sh
+      - name: install.sh syntax
         run: bash -n scripts/install.sh
 
-      - name: Propagação a seco (não escreve nos diretórios reais)
+      - name: Dry-run propagation (does not write to the real directories)
         env:
           HERMES_SKILLS_DIR: ${{ runner.temp }}/hermes-skills
           CLAUDE_SKILLS_DIR: ${{ runner.temp }}/claude-skills
         run: bash scripts/install.sh --dry-run
 
-      - name: Suíte de testes
+      - name: Test suite
         run: .venv/bin/python -m pytest -v
 
-  # Roda a suíte no SO onde as skills são realmente usadas. Não bloqueia o
-  # merge: o runner Windows é mais lento e instável que o Linux, e o valor aqui
-  # é sinal precoce de quebra específica de plataforma (encoding, Git Bash).
+  # Runs the suite on the OS where the skills are actually used. Does not block
+  # the merge: the Windows runner is slower and less stable than Linux, and the
+  # value here is an early signal of platform-specific breakage (encoding, Git Bash).
   test-windows:
     runs-on: windows-latest
     continue-on-error: true
@@ -59,15 +59,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
-      - name: Instalar dependências
+      - name: Install dependencies
         run: |
           uv venv --python 3.12 .venv
           uv pip install --python .venv -r requirements-dev.txt
 
-      - name: Suíte de testes
+      - name: Test suite
         run: .venv/Scripts/python.exe -m pytest -v

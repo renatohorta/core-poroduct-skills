@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-llm.py — Resolução do LLM do agente para as skills cp-* (self-contained).
+llm.py — Agent LLM resolution for the cp-* skills (self-contained).
 
-As skills CrewAI precisam de um `llm=` nos Agent() para não caírem no default
-OpenAI do CrewAI. Este helper resolve o LLM do AGENTE onde a skill está sendo
-chamada, com fallback para um `.env` local.
+The CrewAI skills need an `llm=` on the Agent() to avoid falling into the CrewAI
+OpenAI default. This helper resolves the LLM of the AGENT where the skill is
+being called, with a fallback to a local `.env`.
 
-Ordem de resolução (provider-agnostic):
-  1. Env vars do agente (Hermes/Claude): LLM_MODEL, LLM_API_KEY, LLM_API_BASE,
+Resolution order (provider-agnostic):
+  1. Agent env vars (Hermes/Claude): LLM_MODEL, LLM_API_KEY, LLM_API_BASE,
      LLM_TEMPERATURE, LLM_PROVIDER.
-  2. `.env` na raiz do projeto (mesma convenção do crewbotics-back).
-  3. Detecção de chave por provider (GEMINI_API_KEY, OPENAI_API_KEY,
-     ANTHROPIC_API_KEY, OLLAMA_API_KEY, etc.) + mapeamento do modelo.
-  4. Default: gemini/gemini-2.5-flash (sem chave → CrewAI cai em stub/erro claro).
+  2. `.env` at the project root (same convention as crewbotics-back).
+  3. Per-provider key detection (GEMINI_API_KEY, OPENAI_API_KEY,
+     ANTHROPIC_API_KEY, OLLAMA_API_KEY, etc.) + model mapping.
+  4. Default: gemini/gemini-2.5-flash (no key → CrewAI falls into a stub/clear error).
 
-Uso:
+Usage:
   from llm import build_crew_llm, get_llm_config
-  llm = build_crew_llm()          # retorna crewai.LLM ou None
-  cfg = get_llm_config()          # dict com model/api_key/api_base/temperature
+  llm = build_crew_llm()          # returns crewai.LLM or None
+  cfg = get_llm_config()          # dict with model/api_key/api_base/temperature
 """
 
 import os
@@ -25,14 +25,14 @@ import sys
 from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CONFIGURAÇÃO
+# CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
 DEFAULT_MODEL = "gemini/gemini-2.5-flash"
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_TIMEOUT = 120
 
-# Mapeia provider -> (env var da chave, prefixo do modelo)
+# Maps provider -> (key env var, model prefix)
 PROVIDER_KEY_MAP = {
     "gemini": ("GEMINI_API_KEY", "gemini/"),
     "google": ("GEMINI_API_KEY", "gemini/"),
@@ -53,7 +53,7 @@ PROVIDER_KEY_MAP = {
 
 
 def _load_dotenv(root: Path = None) -> dict:
-    """Carrega variáveis de um .env na raiz do projeto (sem dependência externa)."""
+    """Loads variables from a .env at the project root (no external dependency)."""
     base = Path(root) if root else Path.cwd()
     env_file = base / ".env"
     if not env_file.exists():
@@ -69,7 +69,7 @@ def _load_dotenv(root: Path = None) -> dict:
 
 
 def _detect_provider_from_key(env: dict) -> str:
-    """Detecta o provider a partir da chave disponível no ambiente."""
+    """Detects the provider from the key available in the environment."""
     for provider, (key_var, _) in PROVIDER_KEY_MAP.items():
         if env.get(key_var):
             return provider
@@ -77,7 +77,7 @@ def _detect_provider_from_key(env: dict) -> str:
 
 
 def _normalize_model(model: str, provider: str) -> str:
-    """Garante o formato provider/model (evita o CrewAI cair no default OpenAI)."""
+    """Ensures the provider/model format (avoids CrewAI falling into the OpenAI default)."""
     if "/" in model:
         return model
     prefix = PROVIDER_KEY_MAP.get(provider, ("", ""))[1]
@@ -87,15 +87,15 @@ def _normalize_model(model: str, provider: str) -> str:
 
 
 def get_llm_config(root: Path = None) -> dict:
-    """Retorna a config de LLM resolvida (env do agente > .env > detecção > default)."""
-    # 1. Env vars do agente (Hermes/Claude)
+    """Returns the resolved LLM config (agent env > .env > detection > default)."""
+    # 1. Agent env vars (Hermes/Claude)
     model = os.environ.get("LLM_MODEL", "")
     api_key = os.environ.get("LLM_API_KEY", "")
     api_base = os.environ.get("LLM_API_BASE", "")
     temperature = os.environ.get("LLM_TEMPERATURE", "")
     provider = os.environ.get("LLM_PROVIDER", "")
 
-    # 2. .env local
+    # 2. Local .env
     dotenv = _load_dotenv(root)
     model = model or dotenv.get("LLM_MODEL", "")
     api_key = api_key or dotenv.get("LLM_API_KEY", "")
@@ -103,7 +103,7 @@ def get_llm_config(root: Path = None) -> dict:
     temperature = temperature or dotenv.get("LLM_TEMPERATURE", "")
     provider = provider or dotenv.get("LLM_PROVIDER", "")
 
-    # 3. Detecção de chave por provider (se ainda não há chave)
+    # 3. Per-provider key detection (if there is still no key)
     if not api_key:
         detected = _detect_provider_from_key({**os.environ, **dotenv})
         if detected:
@@ -111,7 +111,7 @@ def get_llm_config(root: Path = None) -> dict:
             key_var = PROVIDER_KEY_MAP[detected][0]
             api_key = os.environ.get(key_var, "") or dotenv.get(key_var, "")
 
-    # 4. Normaliza o modelo com o prefixo do provider
+    # 4. Normalizes the model with the provider prefix
     if model and provider:
         model = _normalize_model(model, provider)
 
@@ -133,10 +133,10 @@ def get_llm_config(root: Path = None) -> dict:
 
 
 def build_crew_llm(root: Path = None):
-    """Constrói um crewai.LLM a partir da config resolvida.
+    """Builds a crewai.LLM from the resolved config.
 
-    Retorna None se o crewai não estiver instalado ou se não houver chave
-    configurada (a skill pode então avisar em vez de cair no default OpenAI).
+    Returns None if crewai is not installed or if there is no configured key
+    (the skill can then warn instead of falling into the OpenAI default).
     """
     cfg = get_llm_config(root)
     if not cfg["configured"]:
@@ -158,65 +158,65 @@ def build_crew_llm(root: Path = None):
         kwargs["base_url"] = cfg["api_base"]
     if cfg["provider"]:
         kwargs["provider"] = cfg["provider"]
-        # Quando passamos provider= explícito ao CrewAI, o modelo deve vir SEM
-        # o prefixo do provider (ex: 'gemini-2.5-flash', não 'gemini/gemini-2.5-flash').
-        # Com prefixo + provider explícito, o CrewAI envia o nome errado à API → 404.
+        # When we pass an explicit provider= to CrewAI, the model must come WITHOUT
+        # the provider prefix (e.g. 'gemini-2.5-flash', not 'gemini/gemini-2.5-flash').
+        # With a prefix + explicit provider, CrewAI sends the wrong name to the API → 404.
         if "/" in kwargs["model"]:
             kwargs["model"] = kwargs["model"].split("/", 1)[1]
 
     try:
         return LLM(**kwargs)
     except Exception as e:
-        print(f"  ⚠️  Falha ao construir LLM: {e}")
+        print(f"  ⚠️  Failed to build LLM: {e}")
         return None
 
 
 def require_crewai(exit_code: int = 3):
-    """Garante que o crewai esteja instalado; caso contrario sai com mensagem clara.
+    """Ensures crewai is installed; otherwise exits with a clear message.
 
-    Chamar DEPOIS de parse_args(), para que `--help` continue funcionando sem a lib.
+    Call AFTER parse_args(), so that `--help` keeps working without the lib.
     """
     try:
         import crewai  # noqa: F401
     except ImportError:
         print()
-        print("[X] crewai nao instalado - necessario para executar esta skill.")
-        print("    Instale com:  pip install crewai")
-        print("    (--help continua funcionando sem a lib.)")
+        print("[X] crewai not installed - required to run this skill.")
+        print("    Install with:  pip install crewai")
+        print("    (--help still works without the lib.)")
         sys.exit(exit_code)
 
 
 def require_llm(root: Path = None, exit_code: int = 2):
-    """Retorna um crewai.LLM configurado, ou sai com mensagem acionavel.
+    """Returns a configured crewai.LLM, or exits with an actionable message.
 
-    Existe porque `build_crew_llm()` retorna None quando nao ha chave: repassar
-    esse None ao Agent faz o CrewAI cair no default OpenAI e falhar mais adiante
-    com `OPENAI_API_KEY is required`. Chamar imediatamente antes do
-    `crew.kickoff()` - nunca no caminho de `--dry-run`, que deve continuar
-    funcionando sem credencial.
+    Exists because `build_crew_llm()` returns None when there is no key: passing
+    that None to the Agent makes CrewAI fall into the OpenAI default and fail later
+    with `OPENAI_API_KEY is required`. Call it immediately before the
+    `crew.kickoff()` - never on the `--dry-run` path, which must keep working
+    without a credential.
     """
     llm = build_crew_llm(root)
     if llm is None:
         cfg = get_llm_config(root)
         print()
-        print("[X] Nenhum LLM configurado - esta skill precisa de um para executar.")
-        print(f"    Modelo resolvido: {cfg['model']} (sem chave)")
-        print("    Configure uma das opcoes:")
-        print("      - Env vars: LLM_MODEL, LLM_API_KEY (e LLM_API_BASE se aplicavel)")
-        print("      - Arquivo .env na raiz do projeto (veja .env.example)")
-        print("      - Chave de provider: GEMINI_API_KEY, OPENAI_API_KEY,")
+        print("[X] No LLM configured - this skill needs one to run.")
+        print(f"    Resolved model: {cfg['model']} (no key)")
+        print("    Configure one of the options:")
+        print("      - Env vars: LLM_MODEL, LLM_API_KEY (and LLM_API_BASE if applicable)")
+        print("      - .env file at the project root (see .env.example)")
+        print("      - Provider key: GEMINI_API_KEY, OPENAI_API_KEY,")
         print("        ANTHROPIC_API_KEY, GROQ_API_KEY, ...")
-        print("    Para inspecionar a skill sem LLM, use --dry-run.")
+        print("    To inspect the skill without an LLM, use --dry-run.")
         sys.exit(exit_code)
     return llm
 
 
 def setup_console():
-    """Forca UTF-8 no stdout/stderr.
+    """Forces UTF-8 on stdout/stderr.
 
-    O console do Windows usa cp1252 e derruba a skill com UnicodeEncodeError ao
-    imprimir emoji ou box-drawing. `errors="replace"` garante que nenhum ambiente
-    exotico interrompa a execucao.
+    The Windows console uses cp1252 and breaks the skill with UnicodeEncodeError
+    when printing emoji or box-drawing. `errors="replace"` ensures no exotic
+    environment interrupts execution.
     """
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -227,16 +227,16 @@ def setup_console():
 
 
 def get_agent_llm():
-    """Retorna o LLM do agente (Hermes/Claude) via CLI, se disponível.
+    """Returns the agent's LLM (Hermes/Claude) via CLI, if available.
 
-    Usa `hermes -z` (Hermes) para delegar ao LLM do agente. Retorna None se
-    não for possível.
+    Uses `hermes -z` (Hermes) to delegate to the agent's LLM. Returns None if
+    not possible.
     """
     hermes = os.environ.get("HERMES_BIN", "hermes")
     try:
         import subprocess
         r = subprocess.run(
-            [hermes, "-z", "responda apenas com a palavra OK"],
+            [hermes, "-z", "respond only with the word OK"],
             capture_output=True, text=True, timeout=30,
         )
         if r.returncode == 0 and r.stdout.strip():
@@ -248,10 +248,10 @@ def get_agent_llm():
 
 if __name__ == "__main__":
     cfg = get_llm_config()
-    print("=== Config de LLM resolvida ===")
+    print("=== Resolved LLM config ===")
     print(f"  model: {cfg['model']}")
-    print(f"  api_key: {'<REDACTED>' if cfg['api_key'] else '(vazio)'}")
-    print(f"  api_base: {cfg['api_base'] or '(vazio)'}")
+    print(f"  api_key: {'<REDACTED>' if cfg['api_key'] else '(empty)'}")
+    print(f"  api_base: {cfg['api_base'] or '(empty)'}")
     print(f"  temperature: {cfg['temperature']}")
     print(f"  provider: {cfg['provider'] or '(auto)'}")
     print(f"  configured: {cfg['configured']}")
