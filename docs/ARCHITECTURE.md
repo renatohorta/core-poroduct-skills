@@ -24,7 +24,7 @@ delivery — with quality gates between phases.
    cp-testing                                  carousel-
    cp-security                               generator
    cp-devops
-   cp-documentation
+   cp-software-spec
    cp-quality
 ```
 
@@ -33,7 +33,7 @@ delivery — with quality gates between phases.
 ```
 [Requirements] → [Architecture] → [Implementation] → [Testing] → [Security] → [DevOps] → [Documentation] → [Quality] → [Delivery]
      │              │                │              │           │            │             │              │
- cp-requirements  cp-architecture  cp-implementation cp-testing  cp-security cp-devops  cp-documentation cp-quality
+ cp-requirements  cp-architecture  cp-implementation cp-testing  cp-security cp-devops  cp-software-spec cp-quality
      │              │                │              │           │            │             │              │
  [Quality Gate] [Quality Gate]  [Quality Gate] [Quality Gate][Quality Gate][Quality Gate][Quality Gate][Quality Gate]
 ```

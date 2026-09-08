@@ -10,25 +10,30 @@ agents must read and write context here, **never** in `.hermes/` or `.claude/`.
 
 | I want to… | Read |
 |------------|------|
-| Understand the product | `docs/00-vision.md` |
-| Know what the system does and what is missing | `docs/01-requirements.md` |
-| Understand how it works internally | `docs/02-architecture.md` |
-| Install/operate/debug | `docs/05-devops-operations.md` |
+| Understand the product | `docs/01-inception/vision-and-scope.md` |
+| Know what the system does and what is missing | `docs/01-inception/requirements.md` |
+| Understand how it works internally | `docs/02-elaboration/architecture.md` |
+| See the API/CLI contracts | `docs/03-construction/api-contracts.md` |
+| Install/operate/debug | `docs/04-transition/devops-infra.md` |
 | See what is in the queue | `docs/06-kanban.md`, `kanban/` |
 | Know why something is the way it is | `tracking/decisions.md` |
 
 ## Structure
 
-### docs/ — Engineering disciplines
-| File | Discipline | Skill that writes |
-|------|-----------|-------------------|
-| `00-vision.md` | Product vision | `cp-doc-initializer` |
-| `01-requirements.md` | Requirements | `cp-requirements`, `cp-competitive-analysis` |
-| `02-architecture.md` | Architecture | `cp-architecture`, `cp-implementation`, `cp-maintenance` |
-| `03-security-lgpd.md` | Security/LGPD | `cp-security` |
-| `04-quality-qa.md` | Quality/QA | `cp-testing`, `cp-documentation`, `cp-quality`, `cp-bug-fix` |
-| `05-devops-operations.md` | DevOps/Operations | `cp-devops`, `cp-goal-loop` |
-| `06-kanban.md` | Kanban/pipeline | `cp-agile` |
+### docs/ — RUP Operational (4 phases)
+
+| Phase | File | Content | Skill that writes |
+|-------|------|---------|-------------------|
+| `01-inception/` | `vision-and-scope.md` | Product vision, actors, business goals | `cp-software-spec` |
+| `01-inception/` | `requirements.md` | FR + NFR (incl. security/LGPD) | `cp-requirements`, `cp-competitive-analysis`, `cp-security` |
+| `02-elaboration/` | `architecture.md` | Stack, C4/Mermaid, structural decisions | `cp-architecture`, `cp-implementation`, `cp-maintenance` |
+| `02-elaboration/` | `domain-model.md` | Domain entities, aggregates, use cases | `cp-software-spec` |
+| `03-construction/` | `api-contracts.md` | OpenAPI/CLI contracts, endpoints, schemas | `cp-software-spec` |
+| `03-construction/` | `ui-spec.md` | Routes, Design System, AppShell, Generative UI | `cp-software-spec` |
+| `03-construction/` | `data-dictionary.md` | DB models, migrations, persistence rules | `cp-software-spec` |
+| `04-transition/` | `test-strategy.md` | Test pyramid, coverage, commands | `cp-testing`, `cp-quality`, `cp-bug-fix` |
+| `04-transition/` | `devops-infra.md` | Docker, CI/CD, variables, runbooks | `cp-devops`, `cp-goal-loop` |
+| `06-kanban.md` | — | Kanban/pipeline state | `cp-agile` |
 
 ### inbox/ — Work intake
 One `.md` file per item.
@@ -49,7 +54,9 @@ mirror. A task is a `.md` with YAML frontmatter and the column is the folder:
 `6-staging/` → `7-done/`, plus `blocked/` for questions and blockers.
 
 Raw items enter `inbox/`; after triage, they become tasks in `kanban/1-backlog/`.
-Details in `kanban/README.md`.
+When a card is promoted to `2-todo/`, it is refined into an **executable issue**
+(Ready for Dev) with DoR, API contracts, schemas and target files — see
+`kanban/2-todo/{ID}.md`. Details in `kanban/README.md`.
 
 ## Rules
 

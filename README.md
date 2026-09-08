@@ -24,17 +24,15 @@ Complete development pipeline orchestrated by crews of CrewAI agents.
 | `cp-testing` | Testing (Unit, Integration, E2E, Performance, Analyst) |
 | `cp-security` | Security (Analyst, Pentester, Compliance, Fix Engineer) |
 | `cp-devops` | DevOps and Infra (CI/CD, Infra, Monitoring, Infra Security) |
-| `cp-documentation` | Documentation (Technical Writer, User, Diagrammer, Reviewer) |
+| `cp-software-spec` | Software Spec & Knowledge Base — unifies initialization, reverse engineering and card refinement (Backlog → ToDo) in a concise RUP model (`.context/`) |
 | `cp-quality` | Quality (Auditor, Metrics, Continuous Improvement, Validator) |
 | `cp-bug-fix` | Bug fixing (Developer → QA → Evidence Collector, max. 3 retries) |
 | `cp-competitive-analysis` | Competitive intelligence (Market, Competitors, Pricing, Strategist) |
 | `cp-goal-loop` | Autonomous try-and-correct loop until success is reached |
 | `cp-maintenance` | Maintenance and evolution (bug-fix, refactor, improvement, full) |
 | `cp-agile` | Execution pipeline — monitors backlog, dispatches tasks and manages bidirectional feedback (questions, blockers, resume) |
-| `cp-doc-initializer` | Documentation initializer — centralizes context in `.context/` (single source of truth) and creates CLAUDE.md/AGENT.md pointers |
 
 ## Repository structure
-
 ```
 core-poroduct-skills/
 ├── README.md                 # This file

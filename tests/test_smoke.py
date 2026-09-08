@@ -22,17 +22,17 @@ SKILLS = skill_names()
 BRIEFING_ARGS = {
     "cp-goal-loop": ["--goal", "test goal"],
     "cp-agile": [],
-    "cp-doc-initializer": [],
+    "cp-software-spec": ["--init"],
 }
 DEFAULT_BRIEFING = ["test briefing"]
 
 # Skills that do not use an LLM: they are pure Python and run fully without a credential.
-NO_LLM_SKILLS = {"cp-agile", "cp-doc-initializer"}
+NO_LLM_SKILLS = {"cp-agile", "cp-software-spec"}
 
 
 def briefing_for(skill: str, tmp_path=None):
-    if skill == "cp-doc-initializer":
-        return ["--dir", str(tmp_path or tempfile.mkdtemp())]
+    if skill == "cp-software-spec":
+        return ["--init", "--dir", str(tmp_path or tempfile.mkdtemp())]
     return BRIEFING_ARGS.get(skill, DEFAULT_BRIEFING)
 
 
@@ -111,7 +111,7 @@ def test_without_crewai_fails_with_actionable_message(skill, clean_env, python_c
 
 @pytest.mark.parametrize("skill", sorted(NO_LLM_SKILLS))
 def test_skills_without_llm_run_fully(skill, clean_env, python_cmd, tmp_path):
-    """cp-agile and cp-doc-initializer are pure Python: run without a credential."""
+    """cp-agile and cp-software-spec are pure Python: run without a credential."""
     args = briefing_for(skill, tmp_path) + ["--dry-run"]
     r = run_skill(skill, args, clean_env, python_cmd)
     assert r.returncode == EXIT_OK, f"{skill} failed without an LLM:\n{r.stdout}\n{r.stderr}"
@@ -124,7 +124,7 @@ def test_initializer_creates_kanban_from_the_start(clean_env, python_cmd, tmp_pa
     `.context/kanban/`, but only the agile `--init` created the columns — in a
     new project the pointer was orphaned.
     """
-    r = run_skill("cp-doc-initializer", ["--dir", str(tmp_path)],
+    r = run_skill("cp-software-spec", ["--init", "--dir", str(tmp_path)],
                   clean_env, python_cmd)
     assert r.returncode == EXIT_OK, f"initializer failed: {r.stdout} {r.stderr}"
 
@@ -140,7 +140,7 @@ def test_initializer_creates_kanban_from_the_start(clean_env, python_cmd, tmp_pa
         assert (kanban / col / ".gitkeep").is_file(), f"{col}/.gitkeep missing"
 
 
-def test_kanban_columns_match_between_agile_and_initializer():
+def test_kanban_columns_match_between_agile_and_spec():
     """The two skills declare the columns separately — they cannot diverge."""
     import re
 
@@ -150,11 +150,11 @@ def test_kanban_columns_match_between_agile_and_initializer():
         assert block, f"{const} not found in {skill}"
         return re.findall(r'"([^"]+)"', block.group(1))
 
-    assert columns("cp-agile", "KANBAN_COLUMNS") ==         columns("cp-doc-initializer", "KANBAN_COLUMNS")
+    assert columns("cp-agile", "KANBAN_COLUMNS") ==         columns("cp-software-spec", "KANBAN_COLUMNS")
 
 
 def test_install_sh_dry_run_lists_all_skills(clean_env, tmp_path, bash_cmd):
-    """`install.sh --dry-run` must list the 15 skills and the _shared helper."""
+    """`install.sh --dry-run` must list all skills and the _shared helper."""
     env = dict(clean_env)
     env["HERMES_SKILLS_DIR"] = str(tmp_path / "hermes")
     env["CLAUDE_SKILLS_DIR"] = str(tmp_path / "claude")

@@ -58,6 +58,7 @@ FLAG_PER_BRIEFING_ARG = {
     "daemon": "--daemon",
     "dir": "--dir",
     "input": "--input",
+    "inspect": "--inspect",
     "positional": None,  # positional does not appear as a flag
 }
 

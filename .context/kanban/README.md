@@ -14,13 +14,24 @@ filled in — move it with `git mv` to preserve history.
 | Folder | Meaning |
 |--------|---------|
 | `1-backlog/` | Intake. The daemon scans here for tasks with `status: ready` |
-| `2-todo/` | Prioritized, waiting for execution |
+| `2-todo/` | Prioritized, waiting for execution. **Cards here are executable issues (Ready for Dev)** |
 | `3-doing/` | In execution (dispatched to the `cp-orchestrator`) |
 | `4-review/` | Waiting for review |
 | `5-testing/` | In testing |
 | `6-staging/` | Staging |
 | `7-done/` | Done |
 | `blocked/` | Question or blocker waiting for a human answer |
+
+## Backlog → ToDo promotion (executable issue)
+
+When a card is promoted from `1-backlog/` to `2-todo/`, it is transformed and
+validated as an **Issue Executável (Ready for Dev)** with Definition of Ready
+(DoR), API contracts, schemas and target files. Use the `cp-software-spec`
+skill:
+
+```bash
+python <skills>/cp-software-spec/scripts/run.py --refine-card TASK-001
+```
 
 ## Task format
 

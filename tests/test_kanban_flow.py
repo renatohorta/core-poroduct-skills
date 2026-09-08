@@ -53,8 +53,8 @@ def kanban_env(clean_env, python_cmd, tmp_path):
     """Creates a complete environment: .context/ + kanban + inbox with items."""
     # 1. Initializes the .context/ structure (kanban is born here)
     rc, out, err = run(
-        SKILLS_DIR / "cp-doc-initializer" / "scripts" / "run.py",
-        ["--dir", str(tmp_path)], clean_env, python_cmd, tmp_path,
+        SKILLS_DIR / "cp-software-spec" / "scripts" / "run.py",
+        ["--init", "--dir", str(tmp_path)], clean_env, python_cmd, tmp_path,
     )
     assert rc == EXIT_OK, f"initializer failed:\n{out}\n{err}"
 

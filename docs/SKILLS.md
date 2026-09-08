@@ -56,12 +56,20 @@ artifacts between phases and applies quality gates. Includes the native NEXUS pi
 - **Agents**: CI/CD, Infra, Monitoring, Infra Security Eng.
 - **Output**: CI/CD Pipeline, Provisioned Infrastructure, Active Monitoring
 
-### cp-documentation
-**Software Documentation.** Generates technical, API, user documentation and diagrams.
+### cp-software-spec
+**Software Spec & Knowledge Base.** Unifies initialization, reverse engineering
+and card refinement (Backlog → ToDo) in a concise RUP model (`.context/`),
+generating actionable inputs for code replication by agents.
 
-- **Trigger**: "document", "create documentation", "write README", "generate API docs"
-- **Agents**: Technical Writer, User, Diagrammer, Reviewer
-- **Output**: README.md, API Documentation, User Manual, Diagrams
+- **Trigger**: "initialize documentation", "start project", "docs setup",
+  "reverse engineer", "inspect codebase", "specify screens", "refine card",
+  "backlog to todo", "ready for dev"
+- **Modes**: `--init` (scaffold), `--inspect <path>` (reverse engineering),
+  `--refine-card <ID>` (Backlog → ToDo executable issue)
+- **Structure**: `.context/docs/` (RUP 4 phases), `.context/inbox/`,
+  `.context/tracking/`, `.context/kanban/`
+- **Script**: `scripts/run.py` (`--init`, `--inspect`, `--refine-card`, `--dir`, `--force`, `--dry-run`)
+- **Replaces**: `cp-doc-initializer` and `cp-documentation`
 
 ### cp-quality
 **Software Quality.** Final audit: metrics, artifacts, continuous improvement.
@@ -107,12 +115,3 @@ ready tasks to the `cp-orchestrator` and manages the bidirectional feedback loop
 - **Components**: CPAgileDaemon (polling), CPAgileFeedbackLoop (questions/blockers/resume), TrelloIntegration, LocalIntegration
 - **Events**: TASK_DISPATCHED, QUESTION, BLOCKER, HUMAN_CLARIFICATION_RECEIVED
 - **Script**: `scripts/run.py` (`--daemon`, `--question`, `--blocker`, `--resume`, `--init`, `--doc`)
-
-### cp-doc-initializer
-**Documentation Initializer.** Centralizes the project context in `.context/`
-as a single source of truth, creates `CLAUDE.md`/`AGENT.md` pointers at the root and
-generates the per-discipline documentation structure.
-
-- **Trigger**: "initialize documentation", "start project", "docs setup", "create context structure"
-- **Structure**: `.context/docs/` (disciplines), `.context/inbox/` (initiatives, tasks, bugs, tech-debt), `.context/tracking/` (progress, decisions)
-- **Script**: `scripts/run.py` (`--dir`, `--dry-run`)

@@ -6,12 +6,14 @@ the Software Factory (CrewAI), propagated to the Hermes Agent and Claude Code.
 **Source of truth: `.context/`**
 
 Read and write all project context in `.context/`. **DO NOT** create or use
-`.hermes/` or `.claude/` for context.
+`.hermes/` or `.claude/` for context — the `.context/` directory is the single
+source of truth and the only place agents read/write project context.
 
 - Overview: `.context/README.md`
-- Engineering disciplines: `.context/docs/`
+- RUP specification: `.context/docs/`
 - Work intake: `.context/inbox/`
 - Tracking and ADRs: `.context/tracking/`
+- Task pipeline: `.context/kanban/`
 
 ## Essential rules of this repository
 
@@ -27,3 +29,6 @@ Read and write all project context in `.context/`. **DO NOT** create or use
    `DT-01` is fixed.
 5. **Before committing**: check `git status --short` — partial commits are the
    most common mistake here.
+6. **Documentation skill**: `cp-software-spec` unifies initialization,
+   reverse engineering and card refinement (Backlog → ToDo). It replaces the
+   legacy `cp-doc-initializer` and `cp-documentation`.

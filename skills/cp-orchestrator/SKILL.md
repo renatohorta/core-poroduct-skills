@@ -12,7 +12,7 @@ Central orchestrator of the NEXUS pipeline. Coordinates the execution of all spe
 ```
 [Requirements] ──► [Architecture] ──► [Implementation] ──► [Testing] ──► [Security] ──► [DevOps] ──► [Documentation] ──► [Quality] ──► [Delivery]
       │                │                  │               │             │             │              │                │              │
-  cp-requirements   cp-architecture    cp-implementation   cp-testing   cp-security  cp-devops   cp-documentation  cp-quality   Delivery
+  cp-requirements   cp-architecture    cp-implementation   cp-testing   cp-security  cp-devops   cp-software-spec  cp-quality   Delivery
       │                │                  │               │             │             │              │                │              │
   [Quality Gate]  [Quality Gate]    [Quality Gate]   [Quality Gate] [Quality Gate] [Quality Gate] [Quality Gate] [Quality Gate]  [Delivery]
 ```
@@ -30,7 +30,7 @@ pipeline phases, it triggers the 6 complementary skills via dedicated modes:
 | `goal-loop` | `cp-goal-loop` | Autonomous trial-and-correction loop until success is reached |
 | `maintenance` | `cp-maintenance` | Maintenance/evolution (bug-fix, refactor, improvement, full) |
 | `agile` | `cp-agile` | Execution pipeline: monitors backlog, dispatches tasks and manages bidirectional feedback (questions, blockers, resume) |
-| `doc-initializer` | `cp-doc-initializer` | Initializes documentation: centralizes context in `.context/` (single source of truth) and creates CLAUDE.md/AGENT.md pointers |
+| `software-spec` | `cp-software-spec` | Initializes documentation: centralizes context in `.context/` (single source of truth, RUP 4 phases) and creates CLAUDE.md/AGENT.md pointers |
 
 > **Note:** `cp-full-dev` was **merged** into the orchestrator. The NEXUS pipeline (7 phases,
 > 39 agents) now runs natively via `NexusExecutor` — it no longer depends on the
@@ -40,8 +40,8 @@ pipeline phases, it triggers the 6 complementary skills via dedicated modes:
 Each skill is triggered respecting its CLI interface (`invoke` metadata in `CREWS`):
 - `briefing_arg`: `positional` (positional arg), `goal` (`--goal`, e.g. goal-loop),
   `input` (`--input`, pipeline phases), `daemon` (no positional briefing —
-  builds `--daemon`, e.g. agile) or `dir` (builds `--dir <cwd>`, e.g. doc-initializer)
-- `output`: `True` if the skill accepts `--output`, `False` otherwise
+  builds `--daemon`, e.g. agile), `dir` (builds `--init --dir <cwd>`, e.g.
+  software-spec) or `inspect` (builds `--inspect <cwd>`, e.g. documentation)
 
 > ⚠️ Do NOT assume every skill accepts `--output` nor that the briefing enters as a
 > positional — each skill has its own CLI contract. See
@@ -49,21 +49,22 @@ Each skill is triggered respecting its CLI interface (`invoke` metadata in `CREW
 > verification snippet. Pitfalls: `cp-goal-loop` only receives briefing via `--goal`;
 > `cp-bug-fix`/`cp-goal-loop`/`cp-agile` reject `--output`; `cp-agile` has no
 > positional argument (only `--daemon`/`--question`/`--blocker`/`--resume`);
-> `cp-doc-initializer` has no positional (only `--dir`/`--dry-run`).
+> `cp-software-spec` has no positional (only `--init`/`--inspect`/`--refine-card`/`--dir`/`--dry-run`).
 
 ## Documentation rule in `.context/`
 
 Every `cp-*` skill documents its artifacts in the **`.context/`** structure (the
-project's single source of truth). The `cp-doc-initializer` creates the structure; the orchestrator
+project's single source of truth). The `cp-software-spec` creates the structure; the orchestrator
 automatically writes each phase's artifact to the correct discipline file:
 
 | Crew | File in `.context/docs/` |
 |------|--------------------------|
-| requirements, competitive-analysis | `01-requirements.md` |
-| architecture, implementation, maintenance | `02-architecture.md` |
-| security | `03-security-lgpd.md` |
-| testing, documentation, quality, bug-fix | `04-quality-qa.md` |
-| devops, goal-loop | `05-devops-operations.md` |
+| requirements, competitive-analysis | `01-inception/requirements.md` |
+| architecture, implementation, maintenance | `02-elaboration/architecture.md` |
+| security | `01-inception/requirements.md` |
+| testing, quality, bug-fix | `04-transition/test-strategy.md` |
+| devops, goal-loop | `04-transition/devops-infra.md` |
+| documentation | `03-construction/api-contracts.md` |
 | agile | `06-kanban.md` |
 
 `cp-agile` also generates `.context/docs/06-kanban.md` with the kanban state

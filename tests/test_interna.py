@@ -3,7 +3,7 @@
 Unlike the smoke tests (which call the script via subprocess), these tests
 import the code directly to test internal functions and classes:
   - cp-agile: LocalIntegration, parse_frontmatter, build_task_template
-  - cp-doc-initializer: DocInitializer, KANBAN_COLUMNS, ingest_vision
+  - cp-software-spec: SoftwareSpec, KANBAN_COLUMNS, ingest_vision
   - cp-orchestrator: PipelineExecutor._build_cli_args, nexus_detect_mode
 
 NO test requires crewai or an LLM — they only test pure Python logic.
@@ -23,7 +23,7 @@ from conftest import REPO_ROOT, SKILLS_DIR, clean_env
 # ═══════════════════════════════════════════════════════════════════════
 
 AGILE_PY = SKILLS_DIR / "cp-agile" / "scripts" / "run.py"
-INITIALIZER_PY = SKILLS_DIR / "cp-doc-initializer" / "scripts" / "run.py"
+SPEC_PY = SKILLS_DIR / "cp-software-spec" / "scripts" / "run.py"
 ORCHESTRATOR_PY = SKILLS_DIR / "cp-orchestrator" / "scripts" / "run.py"
 
 
@@ -356,91 +356,128 @@ class TestAgileFeedbackLoop:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# cp-doc-initializer — pure logic
+# cp-software-spec — pure logic
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.fixture(scope="module")
-def inic():
-    return import_skill(INITIALIZER_PY, "cp_doc_initializer")
+def spec():
+    return import_skill(SPEC_PY, "cp_software_spec")
 
 
-class TestDocInitializerCore:
-    """DocInitializer: structure creation and vision ingestion."""
+class TestSoftwareSpecCore:
+    """SoftwareSpec: structure creation and vision ingestion."""
 
-    def test_build_creates_entire_structure(self, inic, tmp_path):
-        init = inic.DocInitializer(project_dir=tmp_path)
+    def test_build_creates_entire_structure(self, spec, tmp_path):
+        init = spec.SoftwareSpec(project_dir=tmp_path)
         summary = init.build()
         assert summary["files_created"] > 0
         # Verifies key pieces
         context = tmp_path / ".context"
         assert (context / "README.md").is_file()
-        # docs
-        for fname in inic.DOC_FILES:
-            assert (context / "docs" / fname).is_file(), f"{fname} missing"
+        # docs — RUP 4 phases
+        for phase, files in spec.RUP_PHASES.items():
+            for fname in files:
+                assert (context / "docs" / phase / fname).is_file(), f"{phase}/{fname} missing"
         # inbox
-        for name in inic.INBOX_DIRS:
+        for name in spec.INBOX_DIRS:
             assert (context / "inbox" / name / "README.md").is_file(), f"inbox/{name} missing"
         # tracking
         assert (context / "tracking" / "progress.md").is_file()
         assert (context / "tracking" / "decisions.md").is_file()
         # kanban
         assert (context / "kanban" / "README.md").is_file()
-        for col in inic.KANBAN_COLUMNS + [inic.KANBAN_BLOCKED_DIR]:
+        for col in spec.KANBAN_COLUMNS + [spec.KANBAN_BLOCKED_DIR]:
             assert (context / "kanban" / col / ".gitkeep").is_file(), f"kanban/{col}/.gitkeep missing"
         # Pointers at the root
         assert (tmp_path / "CLAUDE.md").is_file()
         assert (tmp_path / "AGENT.md").is_file()
 
-    def test_build_dry_run_does_not_create_files(self, inic, tmp_path):
-        init = inic.DocInitializer(project_dir=tmp_path, dry_run=True)
+    def test_build_dry_run_does_not_create_files(self, spec, tmp_path):
+        init = spec.SoftwareSpec(project_dir=tmp_path, dry_run=True)
         summary = init.build()
         assert summary["dry_run"] is True
         # Nothing was actually created
         assert not (tmp_path / ".context").exists()
         assert "dry-run" in init.created[0]
 
-    def test_ingest_vision_moves_file(self, inic, tmp_path):
+    def test_ingest_vision_moves_file(self, spec, tmp_path):
         # Creates vision.md at the root
         vision_src = tmp_path / "vision.md"
         vision_src.write_text("# Product Vision\n", encoding="utf-8")
 
-        init = inic.DocInitializer(project_dir=tmp_path)
+        init = spec.SoftwareSpec(project_dir=tmp_path)
         ingested = init.ingest_vision()
         assert ingested is True
-        # vision.md was moved to .context/docs/
-        dest = tmp_path / ".context" / "docs" / "00-vision.md"
+        # vision.md was moved to .context/docs/01-inception/
+        dest = tmp_path / ".context" / "docs" / "01-inception" / "vision-and-scope.md"
         assert dest.is_file()
         assert not vision_src.exists()
         assert "Product Vision" in dest.read_text(encoding="utf-8")
 
-    def test_ingest_vision_without_vision_returns_false(self, inic, tmp_path):
-        init = inic.DocInitializer(project_dir=tmp_path)
+    def test_ingest_vision_without_vision_returns_false(self, spec, tmp_path):
+        init = spec.SoftwareSpec(project_dir=tmp_path)
         assert init.ingest_vision() is False
 
-    def test_ingest_vision_dry_run_does_not_move(self, inic, tmp_path):
+    def test_ingest_vision_dry_run_does_not_move(self, spec, tmp_path):
         vision_src = tmp_path / "vision.md"
         vision_src.write_text("# Vision\n", encoding="utf-8")
 
-        init = inic.DocInitializer(project_dir=tmp_path, dry_run=True)
+        init = spec.SoftwareSpec(project_dir=tmp_path, dry_run=True)
         ingested = init.ingest_vision()
         assert ingested is True
         # Original file still exists
         assert vision_src.exists()
 
-    def test_kanban_columns_match_agile(self, inic):
-        """The columns declared in the initializer match those of cp-agile."""
+    def test_kanban_columns_match_agile(self, spec):
+        """The columns declared in the spec match those of cp-agile."""
         agile = import_skill(AGILE_PY, "cp_agile")
-        assert inic.KANBAN_COLUMNS == agile.KANBAN_COLUMNS
-        assert inic.KANBAN_BLOCKED_DIR == agile.BLOCKED_DIR
+        assert spec.KANBAN_COLUMNS == agile.KANBAN_COLUMNS
+        assert spec.KANBAN_BLOCKED_DIR == agile.BLOCKED_DIR
 
-    def test_report_gaps_does_not_break(self, inic, tmp_path, capsys):
-        init = inic.DocInitializer(project_dir=tmp_path)
+    def test_report_gaps_does_not_break(self, spec, tmp_path, capsys):
+        init = spec.SoftwareSpec(project_dir=tmp_path)
         init.build()
         init.report_gaps()
         captured = capsys.readouterr().out
         assert "EXECUTIVE SUMMARY" in captured
-        assert "Kanban/pipeline (06)" in captured
+        assert "Inception (01)" in captured
+
+    def test_refine_card_moves_backlog_to_todo(self, spec, tmp_path):
+        """--refine-card transforms a backlog card into an executable issue."""
+        init = spec.SoftwareSpec(project_dir=tmp_path)
+        init.build()
+        backlog = tmp_path / ".context" / "kanban" / "1-backlog"
+        card = backlog / "TASK-042.md"
+        card.write_text("""---
+id: TASK-042
+title: "Implementar autenticação via Magic Link"
+type: feature
+status: ready
+---
+
+# Implementar autenticação via Magic Link
+
+## Description
+
+Implementar login por magic link com token de uso único.
+
+## Acceptance Criteria
+
+- [ ] Endpoint POST /auth/magic-link retorna 200
+""", encoding="utf-8")
+
+        dest = init.refine_card("TASK-042")
+        assert dest.parent.name == "2-todo"
+        assert dest.is_file()
+        # Original backlog card removed
+        assert not card.exists()
+        content = dest.read_text(encoding="utf-8")
+        assert "### 1. Contexto & Objetivo" in content
+        assert "### 2. Arquivos Alvo" in content
+        assert "### 3. Critérios de Aceite (DoR / DoD)" in content
+        assert "### 4. Insumos Técnicos e Contratos de Dados" in content
+        assert "### 5. Passos de Validação e Execução" in content
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -605,7 +642,7 @@ class TestOrchestratorPipelineExecutor:
             "competitive-analysis": None,
             "goal-loop": None,
             "maintenance": None,
-            "doc-initializer": None,
+            "software-spec": None,
             "agile": None,
         }
         # Tests via _get_previous_artifact (indirectly)

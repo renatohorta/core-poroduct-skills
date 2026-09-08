@@ -44,7 +44,7 @@ CHAT_SKILLS = {
     "cp-testing": "briefing",
     "cp-security": "briefing",
     "cp-devops": "briefing",
-    "cp-documentation": "briefing",
+    "cp-software-spec": "briefing",
     "cp-quality": "briefing",
     "cp-bug-fix": "bug_description",
     "cp-competitive-analysis": "context",

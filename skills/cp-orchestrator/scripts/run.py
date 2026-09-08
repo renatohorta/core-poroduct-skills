@@ -74,7 +74,7 @@ SKILL_PATHS = {
     "testing": SKILLS_DIR / "cp-testing" / "scripts" / "run.py",
     "security": SKILLS_DIR / "cp-security" / "scripts" / "run.py",
     "devops": SKILLS_DIR / "cp-devops" / "scripts" / "run.py",
-    "documentation": SKILLS_DIR / "cp-documentation" / "scripts" / "run.py",
+    "documentation": SKILLS_DIR / "cp-software-spec" / "scripts" / "run.py",
     "quality": SKILLS_DIR / "cp-quality" / "scripts" / "run.py",
     # Complementary skills — triggerable by the orchestrator
     "bug-fix": SKILLS_DIR / "cp-bug-fix" / "scripts" / "run.py",
@@ -82,7 +82,7 @@ SKILL_PATHS = {
     "goal-loop": SKILLS_DIR / "cp-goal-loop" / "scripts" / "run.py",
     "maintenance": SKILLS_DIR / "cp-maintenance" / "scripts" / "run.py",
     "agile": SKILLS_DIR / "cp-agile" / "scripts" / "run.py",
-    "doc-initializer": SKILLS_DIR / "cp-doc-initializer" / "scripts" / "run.py",
+    "software-spec": SKILLS_DIR / "cp-software-spec" / "scripts" / "run.py",
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -157,14 +157,15 @@ CREWS = {
         "cli_args": ["--input"],
     },
     "documentation": {
-        "name": "Software Documentation",
-        "skill": "cp-documentation",
-        "description": "Generates technical, API, user documentation and diagrams.",
-        "agents": ["Technical Writer", "User Writer", "Diagrammer", "Reviewer"],
+        "name": "Software Spec & Documentation",
+        "skill": "cp-software-spec",
+        "description": "Reverse-engineers the codebase into concise RUP docs (.context/docs/) — architecture, API contracts, data dictionary and devops infra.",
+        "agents": ["Spec Analyst"],
         "inputs": ["Source Code", "Architecture Document", "API Contracts"],
-        "outputs": ["README.md", "API Documentation", "User Manual", "Diagrams"],
-        "quality_gate": "Complete, clear documentation consistent with the implemented code",
-        "cli_args": ["--input"],
+        "outputs": [".context/docs/ (RUP 4 phases)", "API Contracts", "Data Dictionary"],
+        "quality_gate": "Complete, concise RUP docs consistent with the implemented code",
+        "cli_args": ["--inspect"],
+        "invoke": {"briefing_arg": "inspect", "output": False},
     },
     "quality": {
         "name": "Software Quality",
@@ -235,15 +236,15 @@ CREWS = {
         "cli_args": ["--daemon", "--source", "--question", "--blocker", "--resume"],
         "invoke": {"briefing_arg": "daemon", "output": False},
     },
-    "doc-initializer": {
-        "name": "Documentation Initializer",
-        "skill": "cp-doc-initializer",
-        "description": "Centralizes the project context in .context/ (single source of truth), creates CLAUDE.md/AGENT.md pointers and generates the documentation structure by discipline.",
-        "agents": ["DocInitializer"],
+    "software-spec": {
+        "name": "Software Spec Initializer",
+        "skill": "cp-software-spec",
+        "description": "Centralizes the project context in .context/ (single source of truth), creates CLAUDE.md/AGENT.md pointers and generates the RUP documentation structure (4 phases).",
+        "agents": ["SoftwareSpec"],
         "inputs": ["Project directory"],
-        "outputs": [".context/ (docs, inbox, tracking)", "CLAUDE.md", "AGENT.md"],
+        "outputs": [".context/ (docs RUP, inbox, tracking)", "CLAUDE.md", "AGENT.md"],
         "quality_gate": ".context/ structure created, root pointers, vision.md ingested",
-        "cli_args": ["--dir", "--dry-run"],
+        "cli_args": ["--init", "--dir", "--dry-run"],
         "invoke": {"briefing_arg": "dir", "output": False},
     },
 }
@@ -309,10 +310,10 @@ MODOS = {
         "description": "Runs the cp-agile skill (polling daemon + feedback loop)",
         "crews": ["agile"],
     },
-    "doc-initializer": {
-        "name": "Documentation Initializer",
-        "description": "Runs the cp-doc-initializer skill (.context/ structure + pointers)",
-        "crews": ["doc-initializer"],
+    "software-spec": {
+        "name": "Software Spec Initializer",
+        "description": "Runs the cp-software-spec skill (.context/ RUP structure + pointers)",
+        "crews": ["software-spec"],
     },
 }
 
@@ -1056,6 +1057,13 @@ class PipelineExecutor:
 
         args = [str(self.python_cmd), str(skill_path)]
 
+        # `inspect` (cp-software-spec reverse engineering): always targets the
+        # current project directory, never receives a briefing or previous
+        # artifact via --input.
+        if briefing_arg == "inspect":
+            args.extend(["--inspect", str(Path.cwd())])
+            return args
+
         # Briefing or previous artifact as input
         prev_artifact = self._get_previous_artifact(crew_key)
         if prev_artifact:
@@ -1076,8 +1084,8 @@ class PipelineExecutor:
                 # Agile: starts the polling daemon (always reads from local)
                 args.extend(["--daemon"])
             elif briefing_arg == "dir":
-                # Doc-initializer: uses the current directory (no positional briefing)
-                args.extend(["--dir", str(Path.cwd())])
+                # Software-spec initializer: uses the current directory (no positional briefing)
+                args.extend(["--init", "--dir", str(Path.cwd())])
             elif briefing_arg == "positional":
                 args.append(self.briefing)
             else:  # "input"
@@ -1136,20 +1144,20 @@ class PipelineExecutor:
         else:
             return {"status": "WARN", "detail": "Could not determine the result — review manually"}
 
-    # Maps crew -> discipline file in .context/docs/
+    # Maps crew -> RUP doc file in .context/docs/ (4-phase structure)
     CONTEXT_DOC_MAP = {
-        "requirements": "01-requirements.md",
-        "architecture": "02-architecture.md",
-        "implementation": "02-architecture.md",
-        "testing": "04-quality-qa.md",
-        "security": "03-security-lgpd.md",
-        "devops": "05-devops-operations.md",
-        "documentation": "04-quality-qa.md",
-        "quality": "04-quality-qa.md",
-        "bug-fix": "04-quality-qa.md",
-        "competitive-analysis": "01-requirements.md",
-        "goal-loop": "05-devops-operations.md",
-        "maintenance": "02-architecture.md",
+        "requirements": "01-inception/requirements.md",
+        "architecture": "02-elaboration/architecture.md",
+        "implementation": "02-elaboration/architecture.md",
+        "testing": "04-transition/test-strategy.md",
+        "security": "01-inception/requirements.md",
+        "devops": "04-transition/devops-infra.md",
+        "documentation": "03-construction/api-contracts.md",
+        "quality": "04-transition/test-strategy.md",
+        "bug-fix": "04-transition/test-strategy.md",
+        "competitive-analysis": "01-inception/requirements.md",
+        "goal-loop": "04-transition/devops-infra.md",
+        "maintenance": "02-elaboration/architecture.md",
         "agile": "06-kanban.md",
     }
 
@@ -1167,6 +1175,7 @@ class PipelineExecutor:
         context_dir = Path.cwd() / ".context" / "docs"
         context_dir.mkdir(parents=True, exist_ok=True)
         dest = context_dir / doc_file
+        dest.parent.mkdir(parents=True, exist_ok=True)  # RUP subdirs (e.g. 01-inception/)
 
         crew = CREWS[crew_key]
         now = datetime.now().strftime("%Y-%m-%d %H:%M")

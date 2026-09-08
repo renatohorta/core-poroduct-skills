@@ -446,7 +446,7 @@ class LocalIntegration:
 
         The kanban is documented in the .context/ structure (the project's
         source of truth). If .context/ does not exist, the file is created
-        anyway (the cp-doc-initializer guarantees the full structure).
+        anyway (the cp-software-spec guarantees the full structure).
         """
         tasks = self.all_tasks()
         now = datetime.now().strftime("%Y-%m-%d %H:%M")

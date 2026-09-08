@@ -26,7 +26,6 @@ skills that don't accept `--output` (argparse rejects the unknown flag).
 | cp-testing | positional / `--input` | YES (+ `--source`, `--acceptance`, `--mode`) |
 | cp-security | positional / `--input` | YES (+ `--mode`) |
 | cp-devops | positional / `--input` | YES (+ `--mode`) |
-| cp-documentation | positional / `--input` | YES (+ `--mode`) |
 | cp-quality | positional / `--input` | YES (+ `--mode`) |
 
 ### Complementary skills (dedicated modes)
@@ -37,7 +36,7 @@ skills that don't accept `--output` (argparse rejects the unknown flag).
 | cp-goal-loop | **`--goal` (required)** | **NO** | `--steps`, `--steps-file`, `--max-attempts`, `--max-time` |
 | cp-maintenance | positional (`description`) / `--input` | YES | `--mode bug-fix/refactor/improvement/full` |
 | cp-agile | **`--daemon` (no positional)** | **NO** | `--sync-trello`, `--question`, `--blocker`, `--resume`, `--init`, `--doc` |
-| cp-doc-initializer | **`--dir` (no positional)** | **NO** | `--dry-run` |
+| cp-software-spec | **`--init` / `--inspect <path>` / `--refine-card <ID>` (no positional)** | **NO** | `--dir`, `--force`, `--dry-run` |
 
 > **`cp-full-dev` was merged into the orchestrator (removed).** The NEXUS pipeline (7 phases,
 > 39 agents) now runs natively via `NexusExecutor` in the orchestrator's `run.py`.
