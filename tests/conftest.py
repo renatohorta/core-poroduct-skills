@@ -12,7 +12,10 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = REPO_ROOT / "skills"
+# Legacy cp-* skills live in DEPRECATED mode under skills/deprecated/ (see README).
+SKILLS_DIR = REPO_ROOT / "skills" / "deprecated"
+# Active family: the Rational Unified Process skills under skills/rup/.
+RUP_SKILLS_DIR = REPO_ROOT / "skills" / "rup"
 
 # Every variable capable of configuring an LLM — removed in all tests.
 LLM_ENV_VARS = (
@@ -37,6 +40,16 @@ def skill_script(name: str) -> Path:
     return SKILLS_DIR / name / "scripts" / "run.py"
 
 
+def rup_skill_names():
+    """Names of the RUP (rup-*) skills present in the repository."""
+    return sorted(d.name for d in RUP_SKILLS_DIR.glob("rup-*")
+                  if (d / "scripts" / "run.py").is_file())
+
+
+def rup_skill_script(name: str) -> Path:
+    return RUP_SKILLS_DIR / name / "scripts" / "run.py"
+
+
 @pytest.fixture(scope="session")
 def clean_env():
     """Environment without any LLM credential, with UTF-8 stdout."""
@@ -58,7 +71,7 @@ def bash_cmd():
 
     On Windows, `bash` on the PATH resolves to the WSL relay, which fails
     intermittently with `execvpe(/bin/bash) failed`. Git Bash is the real target
-    of install.sh — see skills/cp-orchestrator/references/windows-wsl-bash-relay-workaround.md
+    of install.sh — see skills/deprecated/cp-orchestrator/references/windows-wsl-bash-relay-workaround.md
     """
     import shutil
     import subprocess

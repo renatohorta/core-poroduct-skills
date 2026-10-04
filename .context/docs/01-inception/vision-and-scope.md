@@ -17,6 +17,13 @@ This repository is the **single source code**: any change is made here and
 propagated to the consuming agents (**Hermes Agent** and **Claude Code**) via
 `scripts/install.sh`.
 
+## Status: deprecated (2026-10-04)
+
+> ⚠️ All `cp-*` skills now live in **`skills/deprecated/`** and are in
+> **deprecated mode** — `./scripts/install.sh` installs nothing unless given the
+> `--deprecated` flag. They are kept for historical reference; the `cp-*` pipeline
+> is no longer an active product (ADR-0007).
+
 ## Problem it solves
 
 Without this repository, each agent would have its own divergent copy of the
@@ -34,7 +41,7 @@ caused:
 |--------|---------------------|
 | **Single source of truth** | Skills edited in `skills/`, propagated by `install.sh` |
 | **Single entry point** | `cp-orchestrator` triggers all other skills by mode |
-| **Provider-agnostic** | `skills/_shared/llm.py` resolves the host agent's LLM |
+| **Provider-agnostic** | `skills/deprecated/_shared/llm.py` resolves the host agent's LLM |
 | **Portability** | Zero OS/machine paths and zero hardcoded personal values |
 | **Quality gates** | Each phase only advances with PASS/WARN; FAIL stops the pipeline |
 
@@ -50,8 +57,9 @@ caused:
 ## Scope
 
 **In scope**
-- Source code of the 15 `cp-*` skills (SKILL.md + `scripts/run.py` + `references/`)
-- Shared LLM helper (`skills/_shared/llm.py`)
+- Source code of the 15 `cp-*` skills (SKILL.md + `scripts/run.py` + `references/`),
+  now under `skills/deprecated/`
+- Shared LLM helper (`skills/deprecated/_shared/llm.py`)
 - Install/propagation script (`scripts/install.sh`)
 - Support tools: direct chat (`scripts/chat.py`) and OpenAI-compatible proxy
   to use Claude Code as the LLM (`scripts/claude_proxy.py`)
@@ -78,4 +86,4 @@ caused:
 
 - **ADR-0001** — Source of truth in `.context/` (see `.context/tracking/decisions.md`).
 - **ADR-0002** — `cp-full-dev` merged into `cp-orchestrator` (native NEXUS pipeline).
-- **ADR-0003** — Provider-agnostic LLM via `skills/_shared/llm.py`.
+- **ADR-0003** — Provider-agnostic LLM via `skills/deprecated/_shared/llm.py`.

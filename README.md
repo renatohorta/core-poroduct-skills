@@ -1,8 +1,46 @@
 # Core Product Skills
 
-Central repository for the **Software Factory** skills (CrewAI). This is the
-**canonical source code** of the `cp-*` skills — from here you install/update
-the skills in both the **Hermes Agent** and **Claude Code**.
+Central repository for the **skills** propagated to the **Hermes Agent** and
+**Claude Code**. It hosts two families under `skills/`:
+
+| Family | Path | Status | Installed by default? |
+|--------|------|--------|-----------------------|
+| **RUP** (`rup-*`) | `skills/rup/` | ✅ Active | ✅ Yes |
+| **Software Factory** (`cp-*`) | `skills/deprecated/` | ⚠️ Deprecated | ❌ Only with `--deprecated` |
+
+## Active family — RUP (`skills/rup/`)
+
+A family of CrewAI skills implementing the **Rational Unified Process** as an
+autonomous team of agents, grounded in *The Rational Unified Process: An
+Introduction* (3rd ed.), Philippe Kruchten.
+
+The user interacts exclusively with `rup-orchestrator`, which governs the
+lifecycle (Inception → Elaboration → Construction → Transition) and dispatches
+the 8 discipline skills — **9 RUP disciplines, 21 agents**.
+
+| Skill | Discipline | Agents |
+|-------|------------|--------|
+| `rup-orchestrator` | Project Management (governance) | 1 |
+| `rup-environment` | Environment | 1 |
+| `rup-business-modeling` | Business Modeling | 2 |
+| `rup-requirements` | Requirements | 2 |
+| `rup-analysis-design` | Analysis & Design | 5 |
+| `rup-implementation` | Implementation | 2 |
+| `rup-test` | Test | 4 |
+| `rup-ccm` | Configuration & Change Management | 2 |
+| `rup-deployment` | Deployment | 2 |
+
+Full details: [`skills/rup/README.md`](skills/rup/README.md) and
+[`docs/SKILLS.md`](docs/SKILLS.md).
+
+## Deprecated family — Software Factory (`skills/deprecated/`)
+
+> ⚠️ The `cp-*` skills live in **`skills/deprecated/`** and are **not** installed
+> or used by default. They are kept for historical reference only. Add
+> `--deprecated` to `./scripts/install.sh` to install them anyway.
+
+This is the **canonical source code** of the `cp-*` skills — from here you
+install/update the skills in both the **Hermes Agent** and **Claude Code**.
 
 ## What it is
 
@@ -12,6 +50,10 @@ truth**: any change is made here and then propagated to the agents (Hermes and
 Claude) via the install script.
 
 ## Included skills
+
+> **Deprecated:** every skill below lives in `skills/deprecated/`. They are no
+> longer installed or orchestrated by default — see the banner at the top and
+> `docs/INSTALLATION.md`.
 
 Complete development pipeline orchestrated by crews of CrewAI agents.
 
@@ -43,34 +85,44 @@ core-poroduct-skills/
 ├── tests/                    # Suite (does not use LLM credentials)
 ├── docs/
 │   ├── INSTALLATION.md       # How to install/update in Hermes and Claude
-│   ├── ARCHITECTURE.md       # Software Factory architecture
+│   ├── ARCHITECTURE.md       # Architecture of both skill families
 │   └── SKILLS.md             # Detailed catalog of each skill
 ├── scripts/
 │   └── install.sh            # Installs/updates the skills in the agents
 └── skills/
-    ├── cp-orchestrator/
-    │   ├── SKILL.md
-    │   ├── scripts/run.py
-    │   └── references/*.md
-    ├── cp-requirements/
-    ├── ... (all cp-* skills)
-    └── cp-testing/
+    ├── rup/                  # ACTIVE family — Rational Unified Process
+    │   ├── README.md         # Family overview
+    │   ├── _shared/llm.py    # shared LLM helper (not a skill)
+    │   ├── rup-orchestrator/ # governance + dispatcher
+    │   │   ├── SKILL.md
+    │   │   ├── scripts/run.py
+    │   │   └── references/lifecycle.md
+    │   └── rup-<discipline>/ # 8 discipline skills (environment … deployment)
+    └── deprecated/           # DEPRECATED family — the legacy cp-* skills
+        ├── cp-orchestrator/
+        ├── ...
+        ├── _shared/
+        └── cp-testing/
 ```
 
 ## Quick install
 
 ```bash
-# Installs/updates all skills in Hermes and Claude
+# Default: installs/updates the ACTIVE RUP family in Hermes and Claude
 ./scripts/install.sh
 
-# Only in Hermes
+# Only in Hermes / only in Claude
 ./scripts/install.sh --hermes
-
-# Only in Claude
 ./scripts/install.sh --claude
 
-# Only one specific skill
-./scripts/install.sh --skill cp-requirements
+# One specific skill
+./scripts/install.sh --skill rup-requirements
+
+# Simulation (shows what it would do, without copying)
+./scripts/install.sh --dry-run
+
+# ALSO install the deprecated cp-* family (adds it on top of the rup family)
+./scripts/install.sh --deprecated
 ```
 
 See [docs/INSTALLATION.md](docs/INSTALLATION.md) for details.
@@ -87,13 +139,14 @@ uv pip install --python .venv -r requirements-dev.txt
 .venv/bin/python -m pytest                # Linux/macOS
 ```
 
-The suite (158 tests) **never calls an LLM**: testing the model is expensive,
-slow and non-deterministic, and does not catch the bugs that actually occur
-here — which are about CLI contract and error handling.
+The suite **never calls an LLM**: testing the model is expensive, slow and
+non-deterministic, and does not catch the bugs that actually occur here — which
+are about CLI contract and error handling.
 
 | File | What it guarantees |
 |------|--------------------|
-| `tests/test_smoke.py` | `--help` works in every skill (even without `crewai`); `--dry-run` runs without credentials; missing LLM/lib exits with code and actionable message |
+| `tests/test_rup_smoke.py` | The active RUP family: `--help`/`--dry-run` without credentials, exit codes 2/3, orchestrator registry == discipline skills |
+| `tests/test_smoke.py` | The cp-* smoke guarantees + the install contract (default installs `rup`, `--deprecated` adds `cp-*`) |
 | `tests/test_contrato_invoke.py` | The orchestrator's `invoke` metadata matches the real `argparse` — including running the command line the orchestrator would build |
 | `tests/test_quality_gate.py` | The quality gate fails on exit code and does not approve by substring |
 | `tests/test_claude_proxy_auth.py` | Proxy authentication and bind restricted to localhost |
@@ -121,8 +174,8 @@ fixed personal values. Project paths use env vars + relative defaults.
 ## Skill LLM (provider-agnostic)
 
 The CrewAI skills use the **LLM of the agent where they are being called**
-(Hermes/Claude), with a fallback to a local `.env`. The `skills/_shared/llm.py`
-helper resolves the LLM in this order:
+(Hermes/Claude), with a fallback to a local `.env`. The `skills/rup/_shared/llm.py`
+helper (identical to the deprecated family's) resolves the LLM in this order:
 
 1. Agent env vars (`LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_PROVIDER`)
 2. `.env` at the project root (same convention as crewbotics-back)

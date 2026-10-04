@@ -1,7 +1,14 @@
 # Installation and Update
 
-This repository is the **single source of truth** for the Core Product Skills. The
-`scripts/install.sh` script propagates the skills to the agents (Hermes and Claude).
+The repository hosts two skill families under `skills/`:
+
+- **Active**: `skills/rup/` (Rational Unified Process) — **installed by default**.
+- **Deprecated**: `skills/deprecated/` (the legacy `cp-*` Software Factory) —
+  installed **only** with `--deprecated`.
+
+The `scripts/install.sh` script propagates the skills to the agents (Hermes and
+Claude). A plain run installs the active `rup` family; `--deprecated` adds the
+legacy `cp-*` family on top.
 
 ## Prerequisites
 
@@ -29,20 +36,21 @@ uv pip install --python .venv -r requirements-dev.txt
 ## Installation
 
 ```bash
-# Installs/updates ALL skills in Hermes and Claude
+# Default: installs/updates the ACTIVE RUP family in Hermes and Claude
 ./scripts/install.sh
 
-# Only in Hermes
+# Only in Hermes / only in Claude
 ./scripts/install.sh --hermes
-
-# Only in Claude
 ./scripts/install.sh --claude
 
-# Only one specific skill
-./scripts/install.sh --skill cp-requirements
+# One specific skill
+./scripts/install.sh --skill rup-requirements
 
 # Simulation (shows what it would do, without copying)
 ./scripts/install.sh --dry-run
+
+# ALSO install the deprecated cp-* family (adds it on top of the rup family)
+./scripts/install.sh --deprecated
 ```
 
 ## Destination directories
@@ -80,7 +88,9 @@ The script detects the destination automatically, but you can override it via en
 
 ## Troubleshooting
 
-- **"No skill found"**: confirm that `skills/` exists in the repository.
+- **"No skill found"**: confirm that `skills/rup/` exists in the repository.
+- **The cp-* skills are not installed**: that is intended — they are deprecated;
+  pass `--deprecated` to include them.
 - **Permission denied**: on Linux/macOS, run `chmod +x scripts/install.sh`.
 - **Claude does not see the skill**: confirm that `~/.claude/skills/<skill>/SKILL.md`
   exists and that Claude was restarted.

@@ -51,7 +51,7 @@ When a card is promoted to `2-todo/`, it is refined into an executable issue
 with: Contexto & Objetivo, Arquivos Alvo, Critérios de Aceite (DoR/DoD),
 Insumos Técnicos e Contratos de Dados, and Passos de Validação e Execução.
 
-### Pipeline outputs (`skills/cp-orchestrator/outputs/`)
+### Pipeline outputs (`skills/deprecated/cp-orchestrator/outputs/`)
 
 | Path | Content |
 |------|---------|

@@ -1,6 +1,10 @@
 # Kanban / Pipeline — Core Product Skills
 
-> Discipline: Execution pipeline (`cp-agile`). Updated 2026-08-18.
+> ⚠️ **DEPRECATED MODE** — all `cp-*` skills live in **`skills/deprecated/`** and
+> are no longer installed or orchestrated by default (ADR-0007). The kanban flow
+> below is historical.
+
+> Discipline: Execution pipeline (`cp-agile`). Updated 2026-10-04.
 
 ## Status
 

@@ -34,7 +34,8 @@ for _stream in (sys.stdout, sys.stderr):
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+# Skills live in DEPRECATED mode under skills/deprecated/ (see README).
+SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills" / "deprecated"
 
 # Skills that accept a positional briefing (direct conversation)
 CHAT_SKILLS = {

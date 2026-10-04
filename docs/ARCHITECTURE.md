@@ -1,10 +1,64 @@
-# Software Factory Architecture
+# Architecture
+
+The repository hosts two skill families under `skills/`:
+
+| Family | Path | Status | Installed by default? |
+|--------|------|--------|-----------------------|
+| **RUP** (`rup-*`) | `skills/rup/` | ✅ Active | ✅ Yes |
+| **Software Factory** (`cp-*`) | `skills/deprecated/` | ⚠️ Deprecated | ❌ Only with `--deprecated` |
+
+## Active family — RUP (`skills/rup/`)
+
+A family of CrewAI skills implementing the **Rational Unified Process** as an
+autonomous team of agents (Kruchten, 3rd ed.). The user interacts exclusively
+with `rup-orchestrator`, which governs the lifecycle and dispatches the 8
+discipline skills. **9 disciplines, 21 agents** (1 orchestrator + 20 specialists).
+
+```
+                    ┌─────────────────────────────┐
+                    │   rup-orchestrator          │
+                    │   (Project Manager)         │
+                    │   - plans phases/iterations  │
+                    │   - maintains SDP/Risk/Case │
+                    │   - emits Work Orders       │
+                    └─────────────┬───────────────┘
+                                  │ Work Orders → subprocess dispatch
+   ┌───────────┬───────────┬──────┴────┬───────────┬───────────┬──────────┐
+   ▼           ▼           ▼           ▼           ▼           ▼          ▼
+rup-env  rup-business  rup-req  rup-analysis  rup-impl   rup-test  rup-ccm  rup-deploy
+(1)      -modeling(2)  (2)      -design(5)    (2)        (4)       (2)      (2)
+```
+
+Each discipline skill is self-contained: `SKILL.md` + `scripts/run.py` (embedded
+agents + argparse) + `references/agents.md` (agent → artifact mapping). The
+orchestrator dispatches a discipline by its `scripts/run.py` via `subprocess`,
+respecting the shared CLI: `run.py "<briefing>" --phase <P> [--input] [--output]`.
+
+The `_shared/llm.py` helper resolves the LLM provider-agnostically (same
+resolution order as the deprecated family below). The orchestrator also ships a
+deterministic **Use Case Points** estimator (`compute_ucp`, CLI `--estimate` /
+`--sizing-template`) that runs with no LLM or crewai, producing the *Software
+Sizing & Effort Estimation* artifact (see
+`rup-orchestrator/references/sizing-estimation.md`).
+
+Structure and provenance: [`skills/rup/README.md`](../skills/rup/README.md).
+
+---
+
+## Deprecated family — Software Factory (`skills/deprecated/`)
+
+> ⚠️ **DEPRECATED MODE** — the `cp-*` skills described here live in
+> **`skills/deprecated/`** and are no longer installed or orchestrated by default.
+> This section records the historical architecture; it is not an active pipeline.
 
 The Software Factory is a set of CrewAI skills that orchestrate specialized
 agents to run the complete software development cycle — from requirement to
 delivery — with quality gates between phases.
 
 ## Overview
+
+> All `cp-*` skills referenced below are in **deprecated mode** under
+> `skills/deprecated/`. The diagram records the historical wiring.
 
 ```
                     ┌─────────────────────────────┐

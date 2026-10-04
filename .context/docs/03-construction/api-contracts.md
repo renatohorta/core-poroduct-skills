@@ -32,7 +32,7 @@ contract that matters for replication.
 | `cp-software-spec` | **`--init` / `--inspect <path>` / `--refine-card <ID>`** | **NO** | `--dir`, `--force`, `--dry-run` |
 
 > Full inventory and verification snippet:
-> `skills/cp-orchestrator/references/skills-cli-inventory.md`.
+> `skills/deprecated/cp-orchestrator/references/skills-cli-inventory.md`.
 
 ## Orchestrator `invoke` metadata
 

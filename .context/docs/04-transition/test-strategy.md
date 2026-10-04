@@ -1,7 +1,10 @@
 # Quality and QA — Core Product Skills
 
+> ⚠️ **DEPRECATED MODE** — all `cp-*` skills live in **`skills/deprecated/`** and
+> are no longer installed or orchestrated by default (ADR-0007).
+
 > Disciplines: Testing (`cp-testing`), Quality (`cp-quality`), Documentation
-> (`cp-documentation`), Bug-fix (`cp-bug-fix`). Updated 2026-08-18.
+> (`cp-software-spec`), Bug-fix (`cp-bug-fix`). Updated 2026-10-04.
 
 ## Status
 
@@ -45,7 +48,7 @@ bug class (a skill called with a flag it rejects).
 
 | Level | Scope | How |
 |-------|-------|-----|
-| **Smoke (P0)** | Each skill responds to `--help` and `--dry-run` with exit 0 | `pytest` parametrized over `skills/*/scripts/run.py` |
+| **Smoke (P0)** | Each skill responds to `--help` and `--dry-run` with exit 0 | `pytest` parametrized over `skills/deprecated/*/scripts/run.py` |
 | **Contract (P0)** | The `invoke` declared in the orchestrator matches the skill's real `argparse` | Parse `add_argument` of each `run.py` and compare with `CREWS[...]['invoke']` |
 | **Integration (P1)** | `install.sh --dry-run` lists all skills and `_shared` | Assert on the output |
 | **Unit (P1)** | `_shared/llm.py`: resolution order and provider mapping | `pytest` with `monkeypatch` of env |
@@ -55,7 +58,7 @@ bug class (a skill called with a flag it rejects).
 
 Before considering a skill change complete:
 
-- [ ] `python skills/cp-<name>/scripts/run.py --help` returns 0
+- [ ] `python skills/deprecated/cp-<name>/scripts/run.py --help` returns 0
 - [ ] `python .../run.py "<briefing>" --dry-run` shows the expected plan
 - [ ] If the CLI contract changed, `CREWS[...]['invoke']` was updated in the orchestrator
 - [ ] `./scripts/install.sh --dry-run` still lists the skill
@@ -127,7 +130,7 @@ Resolved items in `.context/inbox/processed/`; open ones in `.context/inbox/`.
 
 1. **Never assume a skill's CLI contract** — `--output` is not universal; the
    briefing is not always positional. Consult
-   `skills/cp-orchestrator/references/skills-cli-inventory.md`.
+   `skills/deprecated/cp-orchestrator/references/skills-cli-inventory.md`.
 2. **`git status --short` before committing** — commits come out incomplete when
    not all files were staged.
 3. **Do not rely on an optional flag the LLM must remember to set** — the correct

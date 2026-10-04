@@ -1,6 +1,32 @@
 # Project Progress — Core Product Skills
 
-> Updated by the orchestrator after each completed phase. Last update: 2026-08-18.
+> Updated by the orchestrator after each completed phase. Last update: 2026-10-04.
+
+## New active family — RUP (2026-10-04)
+
+| Change | Status | Date |
+|--------|--------|------|
+| `skills/rup/` created: 9 skills (orchestrator + 8 disciplines), 21 agents | ✅ Done | 2026-10-04 |
+| `install.sh` installs the active `rup` family by default | ✅ Done | 2026-10-04 |
+| `--deprecated` adds the legacy `cp-*` family | ✅ Done | 2026-10-04 |
+| `tests/test_rup_smoke.py` + conftest RUP helpers | ✅ Done | 2026-10-04 |
+| Software Sizing & Effort Estimation (Use Case Points) + `--estimate` CLI | ✅ Done | 2026-10-04 |
+| Docs updated (README, docs/, .context) | ✅ Done | 2026-10-04 |
+
+ADRs: `.context/tracking/decisions.md` (ADR-0008, ADR-0009).
+Specified by `~/Downloads/especificacao_agentes_rup.md` (Kruchten, RUP 3rd ed.).
+
+## Deprecation (2026-10-04)
+
+| Change | Status | Date |
+|--------|--------|------|
+| All 15 `cp-*` skills moved to `skills/deprecated/` | ✅ Done | 2026-10-04 |
+| `install.sh` no-op by default; `--deprecated` opt-in | ✅ Done | 2026-10-04 |
+| Tests + `chat.py` repointed to `skills/deprecated/` | ✅ Done | 2026-10-04 |
+| Documentation updated to deprecated mode | ✅ Done | 2026-10-04 |
+| Suite green after the move | ✅ 232 passed, 1 skipped | 2026-10-04 |
+
+ADR: `.context/tracking/decisions.md` (ADR-0007).
 
 ## Documentation initialization
 

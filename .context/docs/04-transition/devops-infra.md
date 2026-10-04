@@ -1,7 +1,11 @@
 # DevOps and Operations — Core Product Skills
 
+> ⚠️ **DEPRECATED MODE** — all `cp-*` skills live in **`skills/deprecated/`** and
+> are no longer installed by default (ADR-0007). "Deploy" now requires
+> `./scripts/install.sh --deprecated`.
+
 > Discipline: DevOps/Infra (`cp-devops`), Autonomous loop (`cp-goal-loop`).
-> Updated 2026-08-18.
+> Updated 2026-10-04.
 
 ## Status
 
@@ -14,19 +18,20 @@ There is no server: the "deploy" is the **propagation of the skills** from this
 repository to the agents' skills directories.
 
 ```
-skills/  ──[ scripts/install.sh ]──►  Hermes:  $HERMES_SKILLS_DIR/creative/<skill>/
-                                  └─►  Claude:  $CLAUDE_SKILLS_DIR/<skill>/
-                                       (+ _shared at the skills root, in both)
+skills/deprecated/  ──[ scripts/install.sh --deprecated ]──►  Hermes:  $HERMES_SKILLS_DIR/creative/<skill>/
+                                                            └─►  Claude:  $CLAUDE_SKILLS_DIR/<skill>/
+                                                                 (+ _shared at the skills root, in both)
 ```
 
 ### Commands
 
 ```bash
-./scripts/install.sh                        # Hermes + Claude
-./scripts/install.sh --hermes               # only Hermes
-./scripts/install.sh --claude               # only Claude
-./scripts/install.sh --skill cp-requirements  # only one skill
-./scripts/install.sh --dry-run              # simulates, does not copy
+./scripts/install.sh                          # no-op (deprecated mode)
+./scripts/install.sh --deprecated             # Hermes + Claude
+./scripts/install.sh --deprecated --hermes    # only Hermes
+./scripts/install.sh --deprecated --claude    # only Claude
+./scripts/install.sh --deprecated --skill cp-requirements  # only one skill
+./scripts/install.sh --deprecated --dry-run   # simulates, does not copy
 ```
 
 ### Destinations and overrides
@@ -60,7 +65,7 @@ After copying, `__pycache__/` and `outputs/` are removed from the destination.
 The Windows console uses cp1252 and breaks on the skills' UTF-8 output. Run with:
 
 ```bash
-PYTHONUTF8=1 PYTHONIOENCODING=utf-8 python skills/cp-orchestrator/scripts/run.py ...
+PYTHONUTF8=1 PYTHONIOENCODING=utf-8 python skills/deprecated/cp-orchestrator/scripts/run.py ...
 ```
 
 Definitive fix pending: DT-01.
@@ -70,11 +75,11 @@ Definitive fix pending: DT-01.
 `terminal`/`write_file` may fail with
 `execvpe(/bin/bash) failed: No such file or directory`. Work around it using pure
 Python (`subprocess`/`open`) via `execute_code`. See
-`skills/cp-orchestrator/references/windows-wsl-bash-relay-workaround.md`.
+`skills/deprecated/cp-orchestrator/references/windows-wsl-bash-relay-workaround.md`.
 
 ## LLM configuration
 
-Provider-agnostic resolution (`skills/_shared/llm.py`), in this order:
+Provider-agnostic resolution (`skills/deprecated/_shared/llm.py`), in this order:
 
 1. Agent env vars: `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_TEMPERATURE`, `LLM_PROVIDER`
 2. `.env` at the project root
@@ -104,7 +109,7 @@ LLM_PROVIDER=openai
 | Signal | Where |
 |--------|-------|
 | Pipeline execution log | stdout of `run.py` (phase, quality gate, time) |
-| Per-phase artifacts | `skills/cp-orchestrator/outputs/pipeline_<timestamp>/<phase>.md` |
+| Per-phase artifacts | `skills/deprecated/cp-orchestrator/outputs/pipeline_<timestamp>/<phase>.md` |
 | Structured report | `.../pipeline_<timestamp>/pipeline_report.json` |
 | Project progress | `.context/tracking/progress.md` |
 

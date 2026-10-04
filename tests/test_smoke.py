@@ -153,8 +153,14 @@ def test_kanban_columns_match_between_agile_and_spec():
     assert columns("cp-agile", "KANBAN_COLUMNS") ==         columns("cp-software-spec", "KANBAN_COLUMNS")
 
 
-def test_install_sh_dry_run_lists_all_skills(clean_env, tmp_path, bash_cmd):
-    """`install.sh --dry-run` must list all skills and the _shared helper."""
+def test_install_sh_default_installs_active_rup_family(clean_env, tmp_path, bash_cmd):
+    """The default run installs the active rup family and omits the deprecated cp-* family.
+
+    The repository hosts two families: the default install propagates the ACTIVE
+    family (skills/rup/) and leaves the deprecated cp-* family behind --deprecated.
+    """
+    from conftest import rup_skill_names
+
     env = dict(clean_env)
     env["HERMES_SKILLS_DIR"] = str(tmp_path / "hermes")
     env["CLAUDE_SKILLS_DIR"] = str(tmp_path / "claude")
@@ -165,6 +171,27 @@ def test_install_sh_dry_run_lists_all_skills(clean_env, tmp_path, bash_cmd):
         cwd=str(REPO_ROOT), env=env, encoding="utf-8", errors="replace",
     )
     assert r.returncode == EXIT_OK, f"install.sh failed:\n{r.stdout}\n{r.stderr}"
-    for skill in SKILLS:
+    for skill in rup_skill_names():
+        assert skill in r.stdout, f"active skill {skill} did not appear in the install plan"
+    assert "_shared" in r.stdout, "_shared must be propagated (it is not a skill)"
+    for skill in SKILLS:  # deprecated cp-* skills
+        assert skill not in r.stdout, f"deprecated {skill} must NOT be installed by default"
+
+
+def test_install_sh_deprecated_flag_adds_cp_skills(clean_env, tmp_path, bash_cmd):
+    """`--deprecated` adds the legacy cp-* family on top of the active rup family."""
+    from conftest import rup_skill_names
+
+    env = dict(clean_env)
+    env["HERMES_SKILLS_DIR"] = str(tmp_path / "hermes")
+    env["CLAUDE_SKILLS_DIR"] = str(tmp_path / "claude")
+
+    r = subprocess.run(
+        [bash_cmd, "scripts/install.sh", "--deprecated", "--dry-run"],
+        capture_output=True, text=True, timeout=120,
+        cwd=str(REPO_ROOT), env=env, encoding="utf-8", errors="replace",
+    )
+    assert r.returncode == EXIT_OK, f"install.sh failed:\n{r.stdout}\n{r.stderr}"
+    for skill in SKILLS + rup_skill_names():
         assert skill in r.stdout, f"{skill} did not appear in the install plan"
     assert "_shared" in r.stdout, "_shared must be propagated (it is not a skill)"

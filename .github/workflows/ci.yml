@@ -40,11 +40,11 @@ jobs:
       - name: install.sh syntax
         run: bash -n scripts/install.sh
 
-      - name: Dry-run propagation (does not write to the real directories)
+      - name: Dry-run propagation (deprecated, does not write to the real directories)
         env:
           HERMES_SKILLS_DIR: ${{ runner.temp }}/hermes-skills
           CLAUDE_SKILLS_DIR: ${{ runner.temp }}/claude-skills
-        run: bash scripts/install.sh --dry-run
+        run: bash scripts/install.sh --deprecated --dry-run
 
       - name: Test suite
         run: .venv/bin/python -m pytest -v
