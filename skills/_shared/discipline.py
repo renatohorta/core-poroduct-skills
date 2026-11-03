@@ -204,6 +204,7 @@ def read_document(source):
             encoding="utf-8", errors="replace")
     except OSError as e:
         fail(f"cannot read --record source: {e}")
+    text = (text[1:] if text.startswith("\ufeff") else text).replace("\r\n", "\n")
     if not text.strip():
         fail("the recorded document is empty")
     return text

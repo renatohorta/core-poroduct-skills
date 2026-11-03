@@ -1,6 +1,6 @@
 ---
 name: rup-backlog
-description: "Create and inspect kanban cards (epics, stories, tasks) in the project's .context/kanban/. Use when the user wants to add backlog items, break an epic into stories or a story into tasks, or list/show cards."
+description: "Create and inspect kanban cards (epics, stories, tasks) in the project's .context/kanban/. Use when the user wants to add backlog items or cards, break an epic into stories or a story into tasks, move a card, plan an iteration, manage releases or the roadmap, derive epics/stories from requirements, or list/show cards."
 ---
 
 # rup-backlog — kanban cards

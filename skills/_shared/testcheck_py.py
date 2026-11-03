@@ -107,6 +107,9 @@ class _Analysis:
             if isinstance(node.op, ast.Or) and any(self.truthy_constant(v) for v in node.values):
                 return True
             return all(self.trivial(v) for v in node.values)
+        if isinstance(node, (ast.Tuple, ast.List, ast.Set, ast.Dict)) and (
+                node.elts if not isinstance(node, ast.Dict) else node.keys):
+            return True  # a non-empty literal container is always truthy
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
             return self.trivial(node.operand)
         if isinstance(node, ast.Compare) and len(node.ops) == 1 and _same(node.left,

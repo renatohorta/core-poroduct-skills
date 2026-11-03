@@ -30,7 +30,7 @@ for _root in (_SKILL_DIR.parent, _SKILL_DIR.parent.parent):
 
 from _shared import cards, context, roadmap  # noqa: E402
 from _shared.discipline import artifact_body, cmdline, fail, read_document  # noqa: E402
-from _shared.rup import EXIT_OK, setup_console  # noqa: E402
+from _shared.rup import EXIT_OK, PHASES, setup_console  # noqa: E402
 
 
 def print_list(context_dir, column=None, type=None) -> None:
@@ -99,7 +99,7 @@ def main(argv=None) -> int:
     p.add_argument("--iteration-new", action="store_true",
                    help="create an iteration (needs --release --phase --goal)")
     p.add_argument("--release", help="release ID (with --iteration-new)")
-    p.add_argument("--phase", help="RUP phase of the iteration (with --iteration-new)")
+    p.add_argument("--phase", choices=PHASES, help="RUP phase of the iteration (with --iteration-new)")
     p.add_argument("--start", default="", help="iteration start date")
     p.add_argument("--end", default="", help="iteration end date")
     p.add_argument("--plan", metavar="EPIC", help="plan an epic into --iteration")

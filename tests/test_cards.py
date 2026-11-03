@@ -436,3 +436,42 @@ def test_derive_never_modifies_existing_cards(ctx_env, python_cmd, tmp_path):
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
     assert card.path.read_bytes() == before
     assert sorted(p.name for p in (ctx / "kanban" / "1-backlog").iterdir()) == ["EP-001.md"]
+
+
+def test_no_skipped_warning_on_normal_flows(ctx):
+    cards.create(ctx, "epic", "A", EPIC)
+    cards.move(ctx, "EP-001", "3-doing", "start")  # 1-backlog -> 3-doing
+    cards.move(ctx, "EP-001", "2-todo", "back")
+    cards.move(ctx, "EP-001", "3-doing", "again")  # 2-todo -> 3-doing
+    cards.move(ctx, "EP-001", "7-done", "roll-up", actor="rup-backlog")
+    assert "⚠️" not in cards.get(ctx, "EP-001").path.read_text(encoding="utf-8")
+    cards.create(ctx, "epic", "B", EPIC)
+    cards.move(ctx, "EP-002", "4-review", "jump")  # still warns
+    assert "⚠️ skipped" in cards.get(ctx, "EP-002").path.read_text(encoding="utf-8")
+
+
+def test_branch_name_is_shared_and_stable(ctx):
+    cards.create(ctx, "epic", "A", EPIC)
+    card = cards.create(ctx, "story", "Book a visit", STORY, parent="EP-001")
+    assert cards.branch_name(card) == "st-001-book-a-visit"
+    long = cards.create(ctx, "epic", "x" * 80, EPIC)
+    assert cards.branch_name(long) == "ep-002-" + "x" * 40
+
+
+def test_derive_with_unknown_phase_is_an_argparse_error(ctx_env, python_cmd):
+    for args in (["--derive", "--phase", "Foo"],
+                 ["--iteration-new", "--release", "R1", "--phase", "Foo", "--goal", "g"]):
+        r = run_skill(SKILL, args, ctx_env, python_cmd)
+        assert r.returncode == 2 and "invalid choice" in r.stderr
+        assert "Traceback" not in r.stderr
+
+
+def test_new_accepts_a_bom_crlf_document(ctx_env, python_cmd, tmp_path):
+    doc = tmp_path / "epic.md"
+    doc.write_bytes(b"\xef\xbb\xbf" + EPIC.replace("\n", "\r\n").encode("utf-8"))
+    r = run_skill(SKILL, ["--new", "epic", "--title", "Booking", "--doc", str(doc)],
+                  ctx_env, python_cmd)
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    assert r.stdout.strip() == "EP-001"
+    body = cards.get(Path(ctx_env["RUP_CONTEXT_DIR"]), "EP-001").body
+    assert "\r" not in body and "﻿" not in body

@@ -18,7 +18,7 @@ Required sections: `What was done`, `Files changed`, `Tests`, `Red evidence`.
 Each test is one line `- <path>::<test> — covers <ID>[, <ID>]`; red evidence is
 one `### <path>::<test>` block with a fenced output per test.
 
-```markdown
+````markdown
 ## What was done
 
 Booking endpoint that returns the booked slot.
@@ -39,4 +39,4 @@ Booking endpoint that returns the booked slot.
 ```
 E   ImportError: cannot import name 'book' from 'app.booking'
 ```
-```
+````

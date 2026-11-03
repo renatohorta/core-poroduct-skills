@@ -36,5 +36,5 @@ It never overwrites or deletes existing files.
 - `--record-import FILE|-` — validate and write the import document (exit 1 on unknown target or missing `Source:`).
 - `--context-dir D` — target another `.context/` (default: auto-detect or `RUP_CONTEXT_DIR`).
 
-Exit codes: 0 ok · 1 usage (e.g. `--init` without `--authorized-by`, or project root missing).
+Exit codes: 0 ok · 1 usage (e.g. `--init` without `--authorized-by`, or project root missing) · 4 not writable · 5 not authorized.
 The standard tree is listed in `references/standard.md`.

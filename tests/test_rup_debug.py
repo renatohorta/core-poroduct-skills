@@ -179,3 +179,21 @@ def test_delivery_section_accessor_is_tolerant():
     d = testcheck.parse_delivery("## What was done (summary)\n\nText\n\n## Tests\n\n- x\n")
     assert d.section("what was done") == "Text"
     assert d.section("Missing") == ""
+
+
+def test_diagnose_sets_the_branch(ctx_env, python_cmd):
+    ctx = Path(ctx_env["RUP_CONTEXT_DIR"])
+    cards.create(ctx, "bug", "Double booking!", BUG_DOC)
+    r = run_skill("rup-debug", ["--diagnose", "BUG-001", "--doc", "-"], ctx_env, python_cmd, stdin=DIAG)
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    card = cards.get(ctx, "BUG-001")
+    assert card.status == "3-doing" and card.meta["branch"] == "bug-001-double-booking"
+    assert cards.branch_name(card) == card.meta["branch"]
+    again = run_skill("rup-debug", ["--diagnose", "BUG-001", "--doc", "-"], ctx_env, python_cmd, stdin=DIAG)
+    assert again.returncode == EXIT_OK
+    assert cards.get(ctx, "BUG-001").meta["branch"] == "bug-001-double-booking"
+
+
+def test_open_protocol_says_start_only_when_not_diagnosed(ctx_env, python_cmd):
+    r = run_skill("rup-debug", ["--open", "--title", "T", "--doc", "-"], ctx_env, python_cmd, stdin=BUG_DOC)
+    assert "(only if not diagnosed)" in r.stdout

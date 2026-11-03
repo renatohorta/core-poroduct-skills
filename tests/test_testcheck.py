@@ -300,3 +300,18 @@ def test_declared_ids_are_normalised(tmp_path):
                                     ("test_st_001_ac_2", ["ST001-AC2"])]) == []
     bug = "from app import book\n\n\ndef test_bug_007():\n    assert book('a') == 1\n"
     assert one_file(tmp_path, bug, [("test_bug_007", ["bug_007"])], task=BUG, story=None) == []
+
+
+def _py_value(body, tmp_path):
+    src = f"from app.booking import add\n\n\ndef test_x():\n    {body}\n"
+    from _shared import testcheck_py
+    return testcheck_py.find(src, "test_x")
+
+
+def test_assert_on_a_non_empty_literal_container_is_trivial(tmp_path):
+    for body in ('assert (add(1, 2) == 4, "msg")', "assert [add(1, 2) == 4]",
+                 "assert {add(1, 2) == 4}", "assert {'k': add(1, 2) == 4}"):
+        _, has_assert, trivial, _ = _py_value(body, tmp_path)
+        assert has_assert and trivial, body
+    _, _, trivial, _ = _py_value("assert add(1, 2) == 3", tmp_path)
+    assert not trivial
