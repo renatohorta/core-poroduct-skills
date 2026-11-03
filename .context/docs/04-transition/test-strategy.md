@@ -76,14 +76,13 @@ Every test runs with `RUP_CONTEXT_DIR` pointing to a temp dir (`clean_env`).
 | Artifact | Location |
 |----------|----------|
 | Overview and quick install | `README.md` |
-| Detailed install | `docs/INSTALLATION.md` |
-| Architecture | `docs/ARCHITECTURE.md` |
-| Skills catalog | `docs/SKILLS.md`, `skills/README.md` |
+| Install and operation | `.context/docs/04-transition/devops-infra.md` |
+| Architecture | `.context/docs/02-elaboration/architecture.md` |
+| Skills catalog | `skills/README.md` and each `SKILL.md` |
 | Canonical context | `.context/` |
 | Agent pointers | `CLAUDE.md`, `AGENT.md` |
 
-> `docs/` is aimed at humans; `.context/` is the source of truth for agents and
-> prevails in case of divergence.
+> `.context/` is the single source of documentation (ADR-0015).
 
 ## Decisions
 

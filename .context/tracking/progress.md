@@ -9,6 +9,7 @@
 | 15 skill dirs, registry, SKILL.md, artifact names, docs and tests renamed (ADR-0014) | ✅ Done | 2026-11-03 |
 | This repository's `.context/` authorized (`cp-context --init`) | ✅ Done | 2026-11-03 |
 | Skills installed in Claude Code (`install.sh --claude`) | ✅ Done | 2026-11-03 |
+| Root `docs/` removed; `.context/` is the only documentation (ADR-0015) | ✅ Done | 2026-11-03 |
 
 ## Execution skills — INIT-03 (2026-11-03)
 

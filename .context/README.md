@@ -62,7 +62,7 @@ One `.md` file per item.
 ### tracking/ — Tracking
 - `progress.md` — Overall progress and next steps
 - `rup-log.md` — One line per artifact written by the `cp-*` skills (created on first run)
-- `decisions.md` — Decision log (ADR-0001 … ADR-0014)
+- `decisions.md` — Decision log (ADR-0001 … ADR-0015)
 
 ### kanban/ — Execution pipeline (cards managed by `cp-backlog`)
 Source of truth for the task flow; Trello, when connected, is only a
@@ -93,11 +93,6 @@ show releases → iterations → epics → story progress.
    it becomes a card in `kanban/1-backlog/` (`cp-backlog --new`).
 3. A relevant decision becomes an ADR in `tracking/decisions.md` — with context
    and consequences, not just the conclusion.
-4. In a divergence between `.context/` and `docs/` (the repository's human
-   documentation), **`.context/` prevails**.
-
-## Relationship with `docs/` at the root
-
-`docs/` (`ARCHITECTURE.md`, `INSTALLATION.md`, `SKILLS.md`) is presentation
-documentation, aimed at human readers. `.context/` is the operational context,
-aimed at agents — it includes real state, gaps and pending items.
+4. `.context/` is the only documentation of the project (the root `docs/`
+   was removed, ADR-0015). Human-facing entry points are `README.md` and
+   `skills/README.md`; everything else lives here.

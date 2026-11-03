@@ -463,3 +463,24 @@ not a skill). Historical records (ADR-0001…0013, `inbox/processed/`,
 - Artifacts recorded before the rename (`rup-<skill>.md`) are not migrated.
 - Older ADRs mention `cp-*` meaning the legacy Software Factory; from ADR-0014
   on, `cp-*` means the RUP skills.
+
+---
+
+## ADR-0015 — Root `docs/` removed; `.context/` is the only documentation
+
+**Date**: 2026-11-03 · **Status**: Accepted
+
+**Context**: The repository kept two documentation trees: `.context/` (source
+of truth for agents, ADR-0001) and a root `docs/` (`ARCHITECTURE.md`,
+`INSTALLATION.md`, `SKILLS.md`) as a human-facing presentation copy. Every
+change had to be written twice, and the copies drifted.
+
+**Decision**: Delete the root `docs/`. `.context/` is the only documentation
+of the project; the human entry points are `README.md` (overview, install,
+tests) and `skills/README.md` + each `SKILL.md` (catalog). The content of the
+removed files already lived in `.context/docs/02-elaboration/architecture.md`,
+`.context/docs/04-transition/devops-infra.md` and the skill READMEs.
+
+**Consequences**: Links now point into `.context/docs/`. `cp-context --status`
+no longer reports `docs` as another documentation directory in this repository.
+The removed files remain in the git history.

@@ -51,7 +51,8 @@ that move between kanban columns.
 
 15 skills in total: 9 document skills + 6 execution skills.
 
-Full details: [`skills/README.md`](skills/README.md) and [`docs/SKILLS.md`](docs/SKILLS.md).
+Full details: [`skills/README.md`](skills/README.md) and each skill's `SKILL.md`; architecture and
+operation in [`.context/docs/`](.context/docs/).
 
 ## How a skill runs
 
@@ -96,7 +97,6 @@ core-poroduct-skills/
 ├── .github/workflows/ci.yml  # CI
 ├── .context/                 # Operational context (source of truth for agents)
 ├── tests/                    # Suite (no LLM, 268 tests, ~5 s)
-├── docs/                     # INSTALLATION, ARCHITECTURE, SKILLS
 ├── scripts/install.sh        # Installs/updates the skills in the agents
 └── skills/
     ├── README.md
@@ -123,7 +123,7 @@ core-poroduct-skills/
 ./scripts/install.sh --dry-run
 ```
 
-See [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Destinations, overrides and runbook: [`.context/docs/04-transition/devops-infra.md`](.context/docs/04-transition/devops-infra.md).
 
 ## Development and testing
 
