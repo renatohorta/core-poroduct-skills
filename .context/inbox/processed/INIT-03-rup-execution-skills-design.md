@@ -1,6 +1,6 @@
-# INIT-03 — RUP execution skills: replace the superpowers plugin
+# [Done] INIT-03 — RUP execution skills: replace the superpowers plugin
 
-**Type**: initiative · **Status**: design approved by the owner (2026-11-03) · **Raised**: 2026-11-03
+**Type**: initiative · **Status**: implemented (ADR-0013) · **Raised**: 2026-11-03
 **Reviewed**: independent builder check done; its 7 open points resolved below and marked *(my call)*
 **Approach chosen**: B (keep the 9 document skills, add focused execution skills)
 

@@ -2,6 +2,22 @@
 
 > Last update: 2026-11-03.
 
+## Execution skills — INIT-03 (2026-11-03)
+
+| Change | Status | Date |
+|--------|--------|------|
+| Authorization gate: marker `.context/.rup-standard`, exit code 5 on every writing command | ✅ Done | 2026-11-03 |
+| `rup-context`: `--status`, `--init`, `--import`, `--record-import`; pointer note in `CLAUDE.md`/`AGENT.md` | ✅ Done | 2026-11-03 |
+| `rup-discover`: discovery conversation recorded as `rup-discover.md`, embedded first in later packets | ✅ Done | 2026-11-03 |
+| `rup-backlog`: cards EP/ST/TK/BUG, moves with roll-up, derivation, releases/iterations, generated `06-roadmap.md`/`06-board.md` | ✅ Done | 2026-11-03 |
+| `rup-build`, `rup-debug`, `rup-review`: TDD start/finish with test-value checks, bug flow, review verdict | ✅ Done | 2026-11-03 |
+| Shared modules: `consent`, `frontmatter`, `cards`, `roadmap`, `testcheck{,_py,_js}` | ✅ Done | 2026-11-03 |
+| Docs, ADR-0013, this `.context/` updated | ✅ Done | 2026-11-03 |
+| Suite (no LLM, stdlib only, ~5 s) | ✅ 268 passed | 2026-11-03 |
+| **Pending (owner)**: authorize this repository's `.context/` (`rup-context --init`), then uninstall superpowers if satisfied | ⏳ Open | — |
+
+ADR: `.context/tracking/decisions.md` (ADR-0013). Closes INIT-03.
+
 ## Host agent is the LLM (2026-11-03)
 
 | Change | Status | Date |
@@ -84,13 +100,15 @@ ADR: `.context/tracking/decisions.md` (ADR-0007).
 
 | Area | State |
 |------|-------|
-| `rup-*` skills | ✅ 9 skills (orchestrator + 8 disciplines), 21 agents |
+| `rup-*` skills | ✅ 15 skills: 9 document (orchestrator + 8 disciplines, 21 agents) + 6 execution |
+| Authorization | ✅ Marker `.rup-standard` gates every write (exit 5); this repo's `.context/` not yet authorized |
+| Cards / roadmap | ✅ `EP/ST/TK/BUG-NNN`, `.context/roadmap/`, generated views |
 | Execution model | ✅ The host agent is the LLM: work packet → document → `--record` |
 | Orchestration | ✅ Governance packet, `--discipline`, `--auto` protocol, `--status` |
 | Sizing | ✅ UCP deterministic (`--estimate`); FPA/COCOMO II estimated by the agent |
 | Dependencies | ✅ None at runtime (stdlib only) |
 | Distribution | ✅ `install.sh` (Hermes + Claude), tested in both layouts |
-| Automated tests | ✅ 138 tests, ~3 s, end to end through `.context/` |
+| Automated tests | ✅ 268 tests, ~5 s, end to end through `.context/` |
 | Persistence | ✅ Every artifact written to `.context/` (ADR-0011) |
 | CI/CD | ✅ GitHub Actions on `main` + PRs: Linux 3.12/3.13 + Windows informative |
 

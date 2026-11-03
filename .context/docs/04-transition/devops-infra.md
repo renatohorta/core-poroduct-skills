@@ -86,6 +86,8 @@ There are no aggregated metrics, alerts or log retention — appropriate for loc
 | Skill does not appear in Hermes | Confirm `$HERMES_SKILLS_DIR/creative/<skill>/`; reloads on the next turn |
 | `--record` says artifacts are missing | Add a `## <Artifact>` section for each listed artifact and record again |
 | Exit 4 | `.context/` not writable — fix permissions or set `--context-dir` / `RUP_CONTEXT_DIR` |
+| Exit 5 | `.context/` has no `.rup-standard` marker — ask the user; on approval `rup-context --init --authorized-by "<name>"` |
+| `Delivery rejected:` (exit 1) | Fix each listed problem (missing test, no criterion link, trivial test, missing red evidence) and rerun `rup-build --finish` |
 | `UnicodeEncodeError` | Run with `PYTHONUTF8=1 PYTHONIOENCODING=utf-8` |
 | `ModuleNotFoundError: _shared` | `_shared/` missing in the agent — rerun the full `install.sh` |
 | Iteration interrupted | `rup-orchestrator --status --phase P` shows the next pending step; continue from its packet command |

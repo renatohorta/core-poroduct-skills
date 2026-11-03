@@ -33,6 +33,23 @@ same model, with the same conversation context, writes the artifacts.
 | `rup-ccm` | Configuration & Change Management | 2 |
 | `rup-deployment` | Deployment | 2 |
 
+## The execution skills (replace the superpowers plugin — ADR-0013)
+
+Six more skills conduct the work and keep its state readable in `.context/`:
+cards (epic, story, task, bug), a roadmap of releases and iterations, and cards
+that move between kanban columns.
+
+| Skill | Use it to |
+|-------|-----------|
+| `rup-context` | Check the project's `.context/`, **ask the user**, then adopt the RUP standard (`--init`), import existing docs |
+| `rup-discover` | Talk before building: problem, users, goals, non-goals, anti-goals; recorded in Inception |
+| `rup-backlog` | Create epics/stories/tasks, derive them from requirements, move cards, plan releases/iterations, generate the roadmap and board |
+| `rup-build` | Start a task test-first, then finish it with a delivery whose tests are checked for value |
+| `rup-debug` | Open a bug card, pin it with a regression test, record the root cause before the fix |
+| `rup-review` | Review a card in `4-review` and record `approved` / `changes requested` |
+
+15 skills in total: 9 document skills + 6 execution skills.
+
 Full details: [`skills/README.md`](skills/README.md) and [`docs/SKILLS.md`](docs/SKILLS.md).
 
 ## How a skill runs
@@ -58,6 +75,14 @@ agent ──► run.py --record doc.md --phase P     ─► validates every "## 
 - **Which `.context/`**: `--context-dir`, else `$RUP_CONTEXT_DIR`, else the
   nearest `.context/` up to the git root. Curated docs (`requirements.md`, …)
   are never touched — generated artifacts carry the `rup-` prefix.
+- **Authorization**: every writing command needs the marker
+  `.context/.rup-standard`. Without it the skill writes nothing and exits 5; the
+  agent asks the user and, on approval, runs `rup-context --init` (ADR-0013).
+- **Execution skills**: `rup-backlog` creates and moves cards
+  (`.context/kanban/<column>/<ID>.md`), plans `.context/roadmap/` and generates
+  `docs/06-roadmap.md` and `docs/06-board.md`; `rup-build --start/--finish`,
+  `rup-debug --open/--diagnose` and `rup-review <ID>` / `--record` drive a task
+  from `3-doing` to review. The skills never run git or your tests.
 
 ## Repository structure
 
@@ -69,7 +94,7 @@ core-poroduct-skills/
 ├── requirements-dev.txt      # pytest
 ├── .github/workflows/ci.yml  # CI
 ├── .context/                 # Operational context (source of truth for agents)
-├── tests/                    # Suite (no LLM, ~3 s)
+├── tests/                    # Suite (no LLM, 268 tests, ~5 s)
 ├── docs/                     # INSTALLATION, ARCHITECTURE, SKILLS
 ├── scripts/install.sh        # Installs/updates the skills in the agents
 └── skills/
@@ -77,9 +102,15 @@ core-poroduct-skills/
     ├── _shared/              # helpers, not a skill
     │   ├── rup.py            # phases, ordered disciplines, exit codes
     │   ├── discipline.py     # work packet + --record engine
-    │   └── context.py        # .context/ resolution and writing
+    │   ├── context.py        # .context/ resolution, writing, authorization marker
+    │   ├── consent.py        # --status/--init/--import, pointer note
+    │   ├── frontmatter.py    # card frontmatter parser/writer
+    │   ├── cards.py          # cards, moves, roll-up, derivation
+    │   ├── roadmap.py        # releases, iterations, generated views
+    │   └── testcheck*.py     # test-value checks (Python ast, JS/TS patterns)
     ├── rup-orchestrator/     # governance, iteration protocol, UCP
-    └── rup-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
+    ├── rup-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
+    └── rup-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
 
 ## Quick install
@@ -103,8 +134,11 @@ uv pip install --python .venv -r requirements-dev.txt
 
 | File | What it guarantees |
 |------|--------------------|
-| `tests/test_smoke.py` | Every skill: stdlib only (`python -S`), packet with roles/artifacts/record command, exit 1 on missing briefing or unreadable `--input`, `SKILL.md` teaches `--record`, well-formed specs (9 skills, 21 roles). Orchestrator: registry == skill dirs, `--list`, `--discipline`, `--auto` protocol order, sizing instructions; UCP exact/validated/CLI. `install.sh` plan and installed copies running in the Claude and Hermes layouts |
+| `tests/test_smoke.py` | Every skill: stdlib only (`python -S`), packet with roles/artifacts/record command, exit 1 on missing briefing or unreadable `--input`, `SKILL.md` teaches `--record`, well-formed specs (9 document skills, 21 roles). Orchestrator: registry == skill dirs, `--list`, `--discipline`, `--auto` protocol order, sizing instructions; UCP exact/validated/CLI. `install.sh` plan and installed copies running in the Claude and Hermes layouts |
 | `tests/test_context_persistence.py` | `.context/` resolution, layout, provenance, log, curated docs untouched; `--record` per skill (file/stdin), rejection of missing artifacts, exit 4; packets read-only; chaining in RUP order and per phase, cap on earlier artifacts; `--status`; caller's project resolution; sizing artifact; guard that the suite never writes into this repo |
+| `tests/test_consent.py`, `tests/test_rup_context.py` | Authorization marker and exit 5 on writing commands, non-destructive `--init`/upgrade, pointer note, import leaves originals untouched |
+| `tests/test_frontmatter.py`, `tests/test_cards.py`, `tests/test_roadmap.py` | Card parser/writer, IDs, criteria, moves, History, roll-up, derivation, roadmap files and generated views |
+| `tests/test_testcheck.py`, `tests/test_rup_{discover,build,debug,review}.py` | Test-value checks (trivial tests, criterion links, red evidence), start/finish with good and bad deliveries, bug flow, review verdicts |
 | `tests/test_higiene.py` | No committed secrets, no machine paths in code |
 
 CI (`.github/workflows/ci.yml`): Python 3.12/3.13 on Linux (blocking) and Windows
@@ -117,6 +151,9 @@ CI (`.github/workflows/ci.yml`): Python 3.12/3.13 on Linux (blocking) and Window
 | 0 | Success |
 | 1 | Usage error: missing briefing, unreadable `--input`, document missing required artifacts, invalid sizing model |
 | 4 | `.context/` not writable |
+| 5 | Needs authorization: `.context/` lacks the `.rup-standard` marker — ask the user, then `rup-context --init` |
+
+Exit 1 also covers an invalid card/document and a rejected delivery.
 
 ## Portability
 

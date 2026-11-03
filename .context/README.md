@@ -3,7 +3,8 @@
 **Project**: Core Product Skills — canonical repository of the `rup-*` skills
 (Rational Unified Process; the agent running a skill is the LLM — ADR-0012),
 propagated to the **Hermes Agent**
-and **Claude Code**. The legacy `cp-*` family was removed (ADR-0010).
+and **Claude Code**: 9 document skills + 6 execution skills (ADR-0013). The
+legacy `cp-*` family was removed (ADR-0010).
 
 This directory is the **single source of truth** for the project context. All
 agents must read and write context here, **never** in `.hermes/` or `.claude/`.
@@ -17,7 +18,8 @@ agents must read and write context here, **never** in `.hermes/` or `.claude/`.
 | Understand how it works internally | `docs/02-elaboration/architecture.md` |
 | See the API/CLI contracts | `docs/03-construction/api-contracts.md` |
 | Install/operate/debug | `docs/04-transition/devops-infra.md` |
-| See what is in the queue | `docs/06-kanban.md`, `kanban/` |
+| See what is in the queue | `docs/06-board.md` (generated), `docs/06-kanban.md`, `kanban/` |
+| See the roadmap | `docs/06-roadmap.md` (generated), `roadmap/` |
 | Know why something is the way it is | `tracking/decisions.md` |
 
 ## Structure
@@ -43,7 +45,9 @@ apart from the curated docs, which the skills never overwrite.
 | `03-construction/` | `data-dictionary.md` | Filesystem structures, kanban schema |
 | `04-transition/` | `test-strategy.md` | Test levels, coverage, commands |
 | `04-transition/` | `devops-infra.md` | Install, CI, runbook |
-| `06-kanban.md` | — | Kanban state |
+| `06-kanban.md` | — | Kanban state (curated, never touched by the skills) |
+| `06-roadmap.md` | — | Roadmap view, **generated** by `rup-backlog` (do not edit) |
+| `06-board.md` | — | Board by column, **generated** by `rup-backlog` (do not edit) |
 
 ### inbox/ — Work intake
 One `.md` file per item.
@@ -57,25 +61,35 @@ One `.md` file per item.
 ### tracking/ — Tracking
 - `progress.md` — Overall progress and next steps
 - `rup-log.md` — One line per artifact written by the `rup-*` skills (created on first run)
-- `decisions.md` — Decision log (ADR-0001 … ADR-0011)
+- `decisions.md` — Decision log (ADR-0001 … ADR-0013)
 
-### kanban/ — Execution pipeline (managed by hand)
+### kanban/ — Execution pipeline (cards managed by `rup-backlog`)
 Source of truth for the task flow; Trello, when connected, is only a
-mirror. A task is a `.md` with YAML frontmatter and the column is the folder:
+mirror. A card is a `.md` with YAML frontmatter and the column is the folder:
 `1-backlog/` → `2-todo/` → `3-doing/` → `4-review/` → `5-testing/` →
 `6-staging/` → `7-done/`, plus `blocked/` for questions and blockers.
+Card types: epic `EP-NNN`, story `ST-NNN`, task `TK-NNN`, bug `BUG-NNN`; IDs are
+assigned by the skill. Cards move with `rup-backlog --move ID COLUMN --reason R`
+(declaration is enough) and `rup-build`/`rup-debug`/`rup-review` move them at
+their natural steps. Details in `kanban/README.md`.
 
-Raw items enter `inbox/`; after triage, they become tasks in `kanban/1-backlog/`.
-When a card is promoted to `2-todo/`, it is refined into an **executable issue**
-(Ready for Dev) with DoR, API contracts, schemas and target files — see
-`kanban/2-todo/{ID}.md`. Details in `kanban/README.md`.
+### roadmap/ — Releases and iterations
+`R<n>.md` (release) and `R<n>-I<m>.md` (iteration, with a RUP phase), created by
+`rup-backlog`. The generated views `docs/06-roadmap.md` and `docs/06-board.md`
+show releases → iterations → epics → story progress.
+
+### Authorization marker
+`.rup-standard` (version, who authorized, when). Without it no skill writes into
+`.context/` (exit 5); `rup-context --init` adds it after the user approves
+(ADR-0013). **This repository's own `.context/` has no marker yet** — run
+`rup-context --status` and, with the owner's approval, `--init`.
 
 ## Rules
 
 1. Every change to the repository updates the affected file in `docs/`, per
    the map above.
 2. New work enters through `inbox/`, not directly in `docs/`; once triaged,
-   it moves to `kanban/1-backlog/`.
+   it becomes a card in `kanban/1-backlog/` (`rup-backlog --new`).
 3. A relevant decision becomes an ADR in `tracking/decisions.md` — with context
    and consequences, not just the conclusion.
 4. In a divergence between `.context/` and `docs/` (the repository's human

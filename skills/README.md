@@ -24,6 +24,27 @@ and **21 roles** (1 orchestrator + 20 specialists).
 | `rup-ccm` | Configuration & Change Management | 2 | `configuration-manager`, `change-control-manager` |
 | `rup-deployment` | Deployment | 2 | `deployment-manager`, `technical-writer` |
 
+## Execution skills (ADR-0013)
+
+Six skills conduct the work (they replace the superpowers plugin) and keep its
+state in `.context/`: cards, roadmap, generated board. 15 skills in total.
+
+| Skill | Purpose | Commands |
+|-------|---------|----------|
+| `rup-context` | Detect, ask authorization, adopt the standard, import docs | `--status`, `--init --authorized-by`, `--import`, `--record-import` |
+| `rup-discover` | Discovery conversation, recorded in Inception | packet (`"<idea>"`), `--record` |
+| `rup-backlog` | Epics/stories/tasks, moves, roadmap, views | `--new`, `--show`, `--list`, `--move`, `--derive`, `--release-new`, `--iteration-new`, `--plan`, `--roadmap` |
+| `rup-build` | Task/bug execution with TDD and test-value checks | `--start`, `--finish --delivery` |
+| `rup-debug` | Bug card, root cause before fix | `--open`, `--diagnose` |
+| `rup-review` | Review checklist and verdict | `<ID>`, `--record <ID> --doc` |
+
+Every writing command needs the marker `.context/.rup-standard` (exit 5 without
+it: ask the user, then `rup-context --init`). Cards: `EP/ST/TK/BUG-NNN`, one file
+in `.context/kanban/<column>/`; criteria `ST-NNN/AC-n`; roadmap in
+`.context/roadmap/`; generated `docs/06-roadmap.md` and `docs/06-board.md`.
+Moves are declarations (`--move ID COLUMN --reason`); the skills never run git or
+the project's tests.
+
 ## Lifecycle
 
 ```
@@ -39,7 +60,12 @@ skills/
 ├── _shared/                  # helpers, not a skill
 │   ├── rup.py                # phases, ordered disciplines, exit codes
 │   ├── discipline.py         # work packet + --record engine
-│   └── context.py            # mandatory .context/ persistence
+│   ├── context.py            # .context/ persistence + authorization marker
+│   ├── consent.py            # --status/--init/--import, pointer note
+│   ├── frontmatter.py        # card frontmatter parser/writer
+│   ├── cards.py              # cards, moves, roll-up, derivation
+│   ├── roadmap.py            # releases, iterations, generated views
+│   └── testcheck*.py         # test-value checks (Python ast, JS/TS patterns)
 ├── rup-orchestrator/         # governance, iteration protocol, UCP
 │   ├── SKILL.md
 │   ├── scripts/run.py
@@ -51,7 +77,8 @@ skills/
 ├── rup-implementation/       # discipline 5
 ├── rup-test/                 # discipline 6
 ├── rup-ccm/                  # discipline 7
-└── rup-deployment/           # discipline 8
+├── rup-deployment/           # discipline 8
+└── rup-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
 
 Each discipline skill: `SKILL.md` (how the agent runs it) + `scripts/run.py`
@@ -87,7 +114,8 @@ python scripts/run.py --estimate --sizing sizing.json [--json]   # UCP, recorded
 ```
 
 Exit codes: `0` success · `1` usage error / missing artifacts / invalid sizing
-model · `4` `.context/` not writable.
+model / invalid card or document / rejected delivery · `4` `.context/` not
+writable · `5` needs authorization (no `.rup-standard` marker).
 
 `.context/` = `--context-dir`, else `$RUP_CONTEXT_DIR`, else the nearest
 `.context/` up to the git root (ADR-0011). Curated docs are never overwritten —

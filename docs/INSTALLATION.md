@@ -1,6 +1,7 @@
 # Installation and Update
 
-The skills live directly under `skills/` (`rup-*`, plus the `_shared/` helper).
+The skills live directly under `skills/` (15 `rup-*` skills — 9 document and 6
+execution skills — plus the `_shared/` helper).
 `scripts/install.sh` propagates every directory that has a `SKILL.md` to the
 agents (Hermes and Claude), and copies `_shared/` to the agents' skills root.
 
@@ -79,6 +80,15 @@ work.
 ./scripts/install.sh --claude
 ```
 
+## First use in a project
+
+After installing, the first skill that writes into a project's `.context/` exits
+with code 5 until the user authorizes the RUP standard there: the agent runs
+`rup-context --status`, shows what would be created, asks, and only then runs
+`rup-context --init --authorized-by "<name>"` (adds the `.rup-standard` marker,
+missing folders/skeletons and a pointer block in `CLAUDE.md`/`AGENT.md`;
+nothing is overwritten). One-time step per project (ADR-0013).
+
 ## Troubleshooting
 
 - **"No skills found"**: confirm that `skills/rup-*/SKILL.md` exists in the
@@ -86,6 +96,8 @@ work.
 - **`--skill X` not found**: use the directory name, e.g. `rup-requirements`.
 - **`ModuleNotFoundError: _shared`**: `_shared/` was not propagated — rerun the
   full install (not only `--skill`) once.
+- **Exit code 5 from a skill**: the project's `.context/` has no `.rup-standard`
+  marker — ask the user and run `rup-context --init` (see above).
 - **Permission denied**: on Linux/macOS, run `chmod +x scripts/install.sh`.
 - **Claude does not see the skill**: confirm that `~/.claude/skills/<skill>/SKILL.md`
   exists and that Claude was restarted.

@@ -1,6 +1,6 @@
 # API Contracts — Core Product Skills
 
-> Updated 2026-11-03 (host-LLM model — ADR-0012).
+> Updated 2026-11-03 (host-LLM model — ADR-0012; execution skills — ADR-0013).
 
 ## Status
 
@@ -36,6 +36,24 @@ run.py --record FILE|-                      # validate + write .context/
 Discipline keys: `environment`, `business-modeling`, `requirements`,
 `analysis-design`, `implementation`, `test`, `ccm`, `deployment`.
 
+## CLI — execution skills (ADR-0013)
+
+All accept `--context-dir DIR`; all writing commands need the marker.
+
+| Skill | Commands |
+|-------|----------|
+| `rup-context` | `--status` · `--init --authorized-by "<who>"` · `--import` · `--record-import FILE\|-` |
+| `rup-discover` | `"<idea>"` packet (default phase Inception) · `--record FILE\|- ["<idea>"]` → `docs/01-inception/rup-discover.md` (sections Problem, Users, Goals, Non-goals, Anti-goals, Constraints, Open questions) |
+| `rup-backlog` | `--new {epic,story,task} --title T --doc FILE\|- [--parent ID] [--priority P] [--source S]` · `--show ID` · `--list [--column C] [--type T]` · `--move ID COLUMN --reason R` · `--derive [--phase P]` · `--release-new --title T [--milestone M] [--goal G] [--target-date D]` · `--iteration-new --release R --phase P --goal G [--start S] [--end E]` · `--plan EPIC --iteration I` · `--roadmap` |
+| `rup-build` | `--start ID` · `--finish ID --delivery FILE\|- [--project-root DIR]` |
+| `rup-debug` | `--open --title T --doc FILE\|- [--parent ST-NNN] [--priority P]` · `--diagnose BUG-NNN --doc FILE\|-` |
+| `rup-review` | `ID [--project-root DIR]` (checklist packet) · `--record ID --doc FILE\|-` (verdict) |
+
+Delivery document (`rup-build --finish`): `## What was done`, `## Files changed`,
+`## Tests` (one line `- <path>::<test> — covers <ID>[, <ID>]`), `## Red evidence`
+(one `### <path>::<test>` block with fenced output per test). Review document:
+`## Verdict` (first line `approved` or `changes requested`) and `## Findings`.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -43,6 +61,11 @@ Discipline keys: `environment`, `business-modeling`, `requirements`,
 | 0 | Success |
 | 1 | Usage error — missing briefing, unreadable `--input`/`--record` source, empty document, **missing required artifacts**, invalid sizing model, `--record` with `--discipline` |
 | 4 | `.context/` not writable |
+| 5 | Needs authorization — `.context/` has no `.rup-standard` marker; nothing was written. Ask the user, then `rup-context --init` |
+
+Exit 1 also covers: invalid card/delivery/review/import document (the problems are
+printed; nothing is written), unknown card ID or column, a move without a reason,
+`--init` without `--authorized-by`.
 
 ## Recorded document
 
@@ -80,6 +103,13 @@ generated_at: 2026-11-03T14:30:00
 ## Briefing      (quoted, first 1500 chars)
 ## Artifacts     (the recorded document)
 ```
+
+## Card files (`.context/kanban/<column>/<ID>.md`)
+
+Frontmatter keys in order: `id, type, title, status, parent, priority, source,
+created_at, updated_at` (epics add `release`, `iteration`; build adds `branch`).
+Body: `# <ID> — <title>`, the type's sections, optional `## Delivery` /
+`## Review`, then `## History` (always last). Schema: `data-dictionary.md`.
 
 ## Sizing model (`--sizing` file)
 

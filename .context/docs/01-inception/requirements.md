@@ -1,6 +1,6 @@
 # Requirements — Core Product Skills
 
-> Updated 2026-11-03 (RUP family — ADR-0008/0009/0010).
+> Updated 2026-11-03 (RUP family — ADR-0008/0009/0010; execution skills — ADR-0013).
 
 ## Status
 
@@ -27,6 +27,16 @@ New requirements must enter through `.context/inbox/initiatives/`.
 | RF-11 | `--record` validates that every required artifact is present before writing | Must | ✅ Implemented |
 | RF-12 | Iteration protocol (`--auto`) and progress (`--status`) for the host | Should | ✅ Implemented |
 | RF-13 | **Always** persist the RUP artifacts into the target project's `.context/` | Must | ✅ Implemented (ADR-0011, INIT-02) |
+| RF-15 | **Never write into `.context/` without the user's authorization**: marker `.rup-standard`, exit 5, `rup-context --init` after approval, non-destructive | Must | ✅ Implemented (ADR-0013) |
+| RF-16 | Import existing project docs into `.context/` without moving, changing or deleting the originals | Should | ✅ Implemented (ADR-0013) |
+| RF-17 | Discovery conversation recorded as `rup-discover.md` and embedded first in later packets | Must | ✅ Implemented (ADR-0013) |
+| RF-18 | Cards `EP/ST/TK/BUG-NNN` with fixed, validated sections, stable criterion IDs `ST-NNN/AC-n` and parent links; derivation from the requirements only adds | Must | ✅ Implemented (ADR-0013) |
+| RF-19 | Roadmap of releases → iterations → epics; generated `06-roadmap.md` and `06-board.md` | Must | ✅ Implemented (ADR-0013) |
+| RF-20 | Move cards between columns by declaration, logged in the card and `rup-log.md`; automatic roll-up of stories/epics | Must | ✅ Implemented (ADR-0013) |
+| RF-21 | Task execution with TDD: `--start` packet and branch name, `--finish` checks declared tests (exist, criterion-linked, non-trivial, red evidence) | Must | ✅ Implemented (ADR-0013) |
+| RF-22 | Bug flow: root cause recorded before the fix, regression test referencing the bug ID | Must | ✅ Implemented (ADR-0013) |
+| RF-23 | Review checklist and verdict that moves the card | Should | ✅ Implemented (ADR-0013) |
+| RF-24 | Pointer note in the project's `CLAUDE.md`/`AGENT.md` listing which skill to use when | Should | ✅ Implemented (ADR-0013) |
 | RF-14 | Compute FPA (IFPUG/NESMA) and COCOMO II deterministically | Could | ❌ Open — estimated by the agent today |
 
 ## Non-functional requirements
@@ -40,7 +50,9 @@ New requirements must enter through `.context/inbox/initiatives/`.
 | NFR-05 | **UTF-8 encoding on Windows** | `setup_console()` forces UTF-8 on stdout/stderr | ✅ |
 | NFR-06 | **Works in both agent layouts** | `_shared` found in Claude (flat) and Hermes (category) installs | ✅ (tested) |
 | NFR-07 | **Automated test coverage** | Suite runs without credentials in CI | ✅ |
-| NFR-08 | **No runtime dependency** | Standard library only (tested with `python -S`) | ✅ |
+| NFR-08 | **No runtime dependency** | Standard library only (tested with `python -S`); no `git` subprocess, no LLM/network call | ✅ |
+| NFR-09 | **Non-destructive** | Skills never delete, move or overwrite curated docs, imported originals, existing `CLAUDE.md`/`AGENT.md` text or `06-kanban.md` | ✅ |
+| NFR-10 | **Readable skills** | Each execution `SKILL.md` <= ~60 lines: when to use, 2–4 steps, commands | ✅ |
 
 ## Prioritized backlog (MoSCoW)
 
@@ -59,6 +71,10 @@ New requirements must enter through `.context/inbox/initiatives/`.
   `install.sh`).
 - **BR-02** — `_shared` is a shared helper, **not** a skill: it goes to the
   agent's skills root, not to the category.
+- **BR-04** — Card IDs are assigned by the skill, never by the agent; a card's
+  `status` equals its folder; a task covers criteria of its parent story.
+- **BR-05** — A card moves when the agent *declares* the step done; no proof is
+  required to move. The test brake lives in `rup-build --finish`.
 - **BR-03** — The orchestrator registry (`DISCIPLINES`) and the `skills/rup-*`
   directories must match (enforced by a test).
 

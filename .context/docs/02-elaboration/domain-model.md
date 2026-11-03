@@ -21,7 +21,10 @@ are the RUP concepts the skills encode and the files they exchange.
 | **Work packet** | Markdown the skill prints for the host: roles, required artifacts, briefing, earlier artifacts | stdout of `run.py` |
 | **Artifact document** | The host's document, `## <Artifact>` per required artifact, validated by `--record` | `.context/docs/<NN-phase>/rup-<skill>.md` |
 | **Sizing model** | JSON of actors, use cases, TCF/EF factors and h/UCP | `--sizing` file / tool input |
-| **Kanban card** | Task `.md` with YAML frontmatter; the column is the folder | `.context/kanban/{column}/{ID}.md` |
+| **Kanban card** | Epic/story/task/bug `.md` with frontmatter and fixed sections; the column is the folder | `.context/kanban/{column}/{ID}.md` |
+| **Acceptance criterion** | `ST-NNN/AC-n` in a story; tasks cover them, tests reference them | story card |
+| **Release / Iteration** | Roadmap files; an iteration has a RUP phase and holds epics | `.context/roadmap/` |
+| **Authorization marker** | Proves the user approved the RUP standard in this `.context/` | `.context/.rup-standard` |
 | **ADR** | Architecture Decision Record | `.context/tracking/decisions.md` |
 
 ## Aggregates
@@ -43,6 +46,12 @@ are the RUP concepts the skills encode and the files they exchange.
 4. **Run the whole iteration** — `rup-orchestrator "<briefing>" --auto` prints the
    protocol; the host runs governance + 8 disciplines in order, each packet
    embedding what the earlier steps recorded; `--status` resumes.
+
+5. **Adopt the standard** — `rup-context --status` → ask the user → `--init`.
+6. **Plan** — `rup-discover` → requirements → `rup-backlog` cards, releases,
+   iterations, `--plan`.
+7. **Deliver a task** — `rup-build --start` → test first → `--finish` (test
+   checks) → `rup-review` verdict → `--move` to `7-done`; bugs via `rup-debug`.
 
 ## Decisions
 

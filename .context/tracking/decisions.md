@@ -357,3 +357,77 @@ deterministic, standard-library programs with a two-step protocol:
 - `--auto` no longer executes anything: it prints the protocol; the agent runs
   the steps in order (each packet embeds the earlier steps' artifacts).
 - Security surface shrank: no socket, no credential read (SEC-02 closed).
+
+---
+
+## ADR-0013 — Execution skills, authorization gate, cards and roadmap in `.context/`
+
+**Date**: 2026-11-03 · **Status**: Accepted — amends ADR-0011 (silent creation of `.context/`); extends ADR-0012 (same protocol, host agent is the LLM)
+
+**Context**: The owner ran the whole development cycle (discovery, planning,
+TDD, debugging, review, git hygiene) with the *superpowers* plugin. Its
+documentation is hard to follow and it writes outside `.context/`
+(`docs/superpowers/...`). The owner wants the state of the work readable in
+`.context/` (epics, stories, tasks, a roadmap, cards that move between columns)
+and tests that prove something. Separately, ADR-0011 created `.context/` and
+wrote into it silently, which is unsafe in projects that already have
+documentation (`.specs`, `.doc`, `docs/`, a non-standard `.context/`).
+Design: `INIT-03-rup-execution-skills-design.md` (approach B: keep the 9
+document skills, add focused execution skills).
+
+**Decision**:
+
+- **Authorization gate (amends ADR-0011).** A `.context/` is authorized when it
+  holds the marker `.context/.rup-standard` (version, who, when). Every writing
+  command of every skill checks it in `_shared/context.py`; without it nothing
+  is written and the skill exits with the new code **5**, printing what was
+  found, what would change and "ask the user; on approval run
+  `rup-context --init`". Read-only packets still work, with a warning. Any
+  `.context/` without the marker counts as non-standard, including this
+  repository's own: one authorized `--init` per project.
+- **`rup-context`**: `--status` (read-only), `--init --authorized-by "<who>"`
+  (adds missing folders and skeleton files, the marker, and a RUP pointer block
+  in `CLAUDE.md`/`AGENT.md`; never overwrites or deletes), `--import` /
+  `--record-import` (existing docs are appended in `<!-- rup-import -->` blocks
+  or create missing files; originals untouched).
+- **Six execution skills** replace the plugin: `rup-context`, `rup-discover`
+  (conversation, records `rup-discover.md`, embedded first in later packets),
+  `rup-backlog` (cards, moves, roadmap, views), `rup-build` (TDD start/finish),
+  `rup-debug` (bug cards, root cause before fix), `rup-review` (checklist and
+  verdict). They reuse the packet -> document -> record protocol or plain
+  state-changing commands. The 9 document skills are unchanged except for the
+  marker check (shared code), `rup-discover.md` in `prior_artifacts()` and one
+  governance instruction (allocate epics to iterations with `rup-backlog`).
+- **Cards**: `EP-NNN`, `ST-NNN`, `TK-NNN`, `BUG-NNN`, IDs assigned by the skill,
+  one file per card in `.context/kanban/<column>/<ID>.md`, frontmatter + fixed
+  sections validated on creation, `## History` always last. Acceptance criteria
+  get stable IDs `ST-NNN/AC-n`; a task's `## Covers` references them; stories
+  and epics roll up automatically. Derivation from `rup-requirements` only adds
+  cards.
+- **Roadmap**: `.context/roadmap/R<n>.md` (releases) and `R<n>-I<m>.md`
+  (iterations, with a RUP phase); epics are planned into iterations. Generated
+  views `docs/06-roadmap.md` and `docs/06-board.md` are rewritten after every
+  change and never hand-edited; the curated `06-kanban.md` is left alone.
+- **Declaration-based moves**: `--move ID COLUMN --reason` is enough, any move
+  is legal, a skipped column only warns in History. No proof is required.
+- **Test-value checks** (`rup-build --finish`): the tests listed in the delivery
+  must exist, reference a criterion of the parent story (or the bug ID), cover
+  every `Covers` criterion, assert something non-constant, call project code and
+  carry red evidence. Python is analysed with `ast`, JS/TS by pattern, other
+  languages by name only. A failure records nothing (exit 1).
+- **No git, no test runs in the skills.** Packets tell the agent which branch
+  and commits to make; the card records the branch.
+- **Triggering** replaces the superpowers session hook: the pointer block added
+  by `--init`, no hook installed (works in Claude Code and Hermes).
+
+**Consequences**:
+
+- Exit code 5 joins 0/1/4. Every project, including this repository, needs one
+  authorized `rup-context --init` before skills write again.
+- 15 skills (9 document + 6 execution) plus `_shared` (adds `consent.py`,
+  `frontmatter.py`, `cards.py`, `roadmap.py`, `testcheck*.py`); still stdlib
+  only and tested with `python -S`. Suite: 268 passed.
+- Old card schema (`TASK-NNN`, `task|bug|tech-debt|initiative`) is superseded;
+  existing cards are not migrated automatically.
+- Test checks are a brake on declared tests, not proof that they ran or pass.
+- Uninstalling the superpowers plugin remains the owner's call.

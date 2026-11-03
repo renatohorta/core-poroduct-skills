@@ -12,7 +12,8 @@ The skills live under `skills/rup-*`. The legacy Software Factory family
 
 Autonomous team of agents implementing the **Rational Unified Process**
 (Kruchten, 3rd ed.). The user drives everything through `rup-orchestrator`, which
-dispatches the 8 discipline skills. **9 disciplines, 21 agents.**
+dispatches the 8 discipline skills. **9 disciplines, 21 agents.** The 6
+execution skills are described at the end.
 
 ### rup-orchestrator
 **RUP Lifecycle Governance.** Base role: *Project Manager*. Classifies demands
@@ -53,6 +54,27 @@ shares the same CLI:
   + a row in `.context/tracking/rup-log.md`.
 
 Exit codes: `0` success · `1` usage error / missing artifacts · `4` `.context/`
-not writable. Standard library only.
+not writable · `5` `.context/` not authorized (no `.rup-standard` marker; see
+`rup-context`). Standard library only.
+
+## Execution skills (`skills/rup-*`, ADR-0013)
+
+Six skills that conduct the work and replace the superpowers plugin. They keep
+state in `.context/` (cards, roadmap, generated views) and never run git or the
+project's tests. All writing commands need the `.context/.rup-standard` marker
+(exit 5 otherwise).
+
+| Skill | Trigger | Main commands |
+|-------|---------|---------------|
+| `rup-context` | A skill exits 5; project without `.context/` or marker; "set up RUP" | `--status`, `--init --authorized-by "<who>"`, `--import`, `--record-import FILE\|-` |
+| `rup-discover` | Before building anything new, idea still fuzzy | `"<idea>"` (packet, phase Inception), `--record FILE\|-` -> `docs/01-inception/rup-discover.md` |
+| `rup-backlog` | Add/derive/list cards, move them, plan releases and iterations | `--new {epic,story,task}`, `--show`, `--list`, `--move ID COL --reason`, `--derive`, `--release-new`, `--iteration-new`, `--plan`, `--roadmap` |
+| `rup-build` | Implement a `TK-NNN` (or fix a `BUG-NNN`) test-first | `--start ID`, `--finish ID --delivery FILE\|- [--project-root]` |
+| `rup-debug` | A bug, regression or unexpected behavior | `--open`, `--diagnose BUG-NNN --doc FILE\|-` |
+| `rup-review` | A card sits in `4-review` | `<ID>` (checklist packet), `--record <ID> --doc FILE\|-` |
+
+Cards: `EP`/`ST`/`TK`/`BUG-NNN`, acceptance criteria `ST-NNN/AC-n`. Exit codes:
+`0` ok · `1` usage / invalid document / rejected delivery · `4` not writable ·
+`5` needs authorization.
 
 Details and provenance: [`skills/README.md`](../skills/README.md).

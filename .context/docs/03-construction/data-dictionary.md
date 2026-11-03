@@ -1,6 +1,6 @@
 # Data Dictionary — Core Product Skills
 
-> Updated 2026-11-03.
+> Updated 2026-11-03 (cards, roadmap, marker — ADR-0013).
 
 ## Status
 
@@ -23,33 +23,50 @@ documents the persistent structures that agents read/write.
 | `.context/docs/02-elaboration/` | Architecture, domain model | maintainer / coding agent |
 | `.context/docs/03-construction/` | API contracts, UI spec, data dictionary | maintainer / coding agent |
 | `.context/docs/04-transition/` | Test strategy, devops infra | maintainer / coding agent |
-| `.context/inbox/{initiatives,tasks,bugs,tech-debt}/` | Raw intake (drafts) | manual / agent |
-| `.context/kanban/{1-backlog..7-done,blocked}/` | Task cards (`.md` + YAML frontmatter) | manual (`git mv` between columns) |
+| `.context/.rup-standard` | Authorization marker: `version`, `authorized_by`, `authorized_at` | `rup-context --init` |
+| `.context/inbox/{initiatives,tasks,bugs,tech-debt,processed}/` | Raw intake (drafts) | manual / agent |
+| `.context/kanban/{1-backlog..7-done,blocked}/` | Cards `EP/ST/TK/BUG-NNN` (`.md` + frontmatter) | `rup-backlog`, `rup-build`, `rup-debug`, `rup-review` |
+| `.context/roadmap/R<n>.md`, `R<n>-I<m>.md` | Releases and iterations | `rup-backlog` |
+| `.context/docs/06-roadmap.md`, `06-board.md` | Generated views (never edited) | `rup-backlog` |
 | `.context/tracking/progress.md` | Overall progress | maintainer / coding agent |
 | `.context/tracking/decisions.md` | ADR record | any agent |
 
-### Kanban card schema (`.context/kanban/{column}/{ID}.md`)
+### Card schema (`.context/kanban/{column}/{ID}.md`)
 
 ```yaml
 ---
-id: TASK-001
-title: Task title
-status: ready          # backlog|ready|todo|doing|review|testing|staging|done|blocked
-priority: medium
-assignee:
-created_at: 2026-01-01T00:00:00
-updated_at: 2026-01-01T00:00:00
-tags: []
-type: task             # task|bug|tech-debt|initiative
-source: inbox/bugs/foo.md
+id: ST-001             # EP-NNN | ST-NNN | TK-NNN | BUG-NNN (assigned by the skill)
+type: story            # epic | story | task | bug
+title: Single-line title      # not of the form [..]
+status: 1-backlog      # always equal to the folder
+parent: EP-001         # story -> epic, task -> story, bug -> story (optional)
+priority: Should       # MoSCoW: Must | Should | Could | Won't
+source: rup-requirements#UC-01   # RUP artifact + section (single line)
+created_at: 2026-11-03T10:00:00
+updated_at: 2026-11-03T10:00:00
 ---
 ```
 
-### Executable issue schema (`.context/kanban/2-todo/{ID}.md`)
+Epics also carry `release` and `iteration` (set by `--plan`); a task/bug in
+execution carries `branch` (set by `rup-build --start`).
 
-When a card is promoted to `2-todo/`, it is refined into an executable issue
-with: Contexto & Objetivo, Arquivos Alvo, Critérios de Aceite (DoR/DoD),
-Insumos Técnicos e Contratos de Dados, and Passos de Validação e Execução.
+| Type | Required sections (before `## History`) |
+|------|------------------------------------------|
+| epic | Goal, Scope |
+| story | User story, Acceptance criteria (`- **ST-NNN/AC-n**: text`), Definition of Done |
+| task | Description, Target files, Covers (`ST-NNN/AC-n` of the parent story) |
+| bug | Symptom, Reproduction; then Root cause (`rup-debug --diagnose`), Fix, Regression test |
+
+Added by the skills: `## Delivery` (`rup-build --finish`, delivery headings
+demoted one level), `## Review` (`rup-review`, earlier reviews kept) and
+`## History`, always the last section: `- <iso> <from> → <to> — <reason> (<actor>)`.
+
+### Roadmap files (`.context/roadmap/`)
+
+| File | Frontmatter |
+|------|-------------|
+| `R<n>.md` | `id, title, milestone` (empty or a RUP milestone), `goal, target_date` |
+| `R<n>-I<m>.md` | `id, release, phase` (a RUP phase), `goal, start, end` |
 
 ### Skill artifacts (mandatory in `.context/` — ADR-0011)
 
@@ -57,12 +74,15 @@ Insumos Técnicos e Contratos de Dados, and Passos de Validação e Execução.
 |------|---------|-----------|
 | `.context/docs/<NN-phase>/rup-<skill>.md` | Frontmatter (skill, discipline, phase, milestone, generated_at) + briefing excerpt + the host's document; regenerated per run | every `rup-*` skill |
 | `.context/docs/<NN-phase>/rup-orchestrator-sizing.md` | UCP table + JSON | `rup-orchestrator --estimate` |
-| `.context/tracking/rup-log.md` | Append-only table: when, phase, skill, artifact | every write |
+| `.context/docs/01-inception/rup-discover.md` | Discovery record (Problem … Open questions) | `rup-discover --record` |
+| `.context/tracking/rup-log.md` | Append-only table: when, phase, skill, artifact; also card creations, moves, imports | every write |
 
 ## Persistence rules
 
 - `.context/` is the **single source of truth**; `.hermes/`/`.claude/` are forbidden.
 - The kanban column (folder) must match the card's `status:` frontmatter.
+- No skill writes into `.context/` without the `.rup-standard` marker (exit 5);
+  curated docs, imported originals and `docs/06-kanban.md` are never overwritten.
 - No secrets in committed files; `.env` stays at the root and is git-ignored.
 
 ## Decisions
