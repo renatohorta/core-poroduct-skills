@@ -33,6 +33,8 @@ from _shared import context as ctx
 from _shared.rup import (DISCIPLINES, EXIT_USAGE, MAX_PRIOR_ARTIFACT_CHARS,
                          ORCHESTRATOR_SKILL, PHASES)
 
+DISCOVER_SKILL = "rup-discover"
+
 GENERAL_RULES = [
     "Follow the RUP conventions (Kruchten, *The Rational Unified Process: An "
     "Introduction*, 3rd ed.) for each artifact type.",
@@ -94,6 +96,9 @@ def prior_artifacts(context_dir, phase, skill, discipline_key=None):
     Returns [(label, path, body)].
     """
     items = []
+    if skill != DISCOVER_SKILL:
+        # Discovery is an Inception artifact that feeds every later phase.
+        items.append(("Discovery (rup-discover)", DISCOVER_SKILL))
     if skill != ORCHESTRATOR_SKILL:
         items.append(("Project Management (rup-orchestrator)", ORCHESTRATOR_SKILL))
     for key, d in DISCIPLINES.items():
@@ -104,6 +109,8 @@ def prior_artifacts(context_dir, phase, skill, discipline_key=None):
     found = []
     for label, s in items:
         path = ctx.artifact_path(context_dir, phase, s)
+        if not path.is_file() and s == DISCOVER_SKILL:
+            path = ctx.artifact_path(context_dir, "Inception", s)
         if path.is_file():
             body = artifact_body(path.read_text(encoding="utf-8", errors="replace")).strip()
             if len(body) > MAX_PRIOR_ARTIFACT_CHARS:
@@ -222,13 +229,13 @@ def record(spec, *, skill, content, briefing, phase, context_dir):
 
 # ─── CLI ─────────────────────────────────────────────────────────────────
 
-def add_common_args(parser):
+def add_common_args(parser, default_phase="Elaboration"):
     parser.add_argument("briefing", nargs="?",
                         help="Briefing / business demand (or use --input)")
     parser.add_argument("--input", dest="input_file",
                         help="File with the briefing (alternative to the positional)")
-    parser.add_argument("--phase", choices=PHASES, default="Elaboration",
-                        help="RUP phase (default: Elaboration)")
+    parser.add_argument("--phase", choices=PHASES, default=default_phase,
+                        help=f"RUP phase (default: {default_phase})")
     parser.add_argument("--context-dir",
                         help="The .context/ directory (default: $RUP_CONTEXT_DIR, else the "
                              "nearest .context/ up to the git root)")
@@ -273,5 +280,5 @@ def main(spec, *, script):
         description=f"RUP {spec['title']} — prints the work packet for the host agent "
                     f"(the LLM) and records its result into .context/",
     )
-    add_common_args(parser)
+    add_common_args(parser, spec.get("default_phase", "Elaboration"))
     run(spec, parser.parse_args(), script=script)

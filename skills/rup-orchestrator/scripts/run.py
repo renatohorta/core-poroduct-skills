@@ -90,6 +90,8 @@ def governance_spec(phase, context_dir):
             "the Software Sizing & Effort Estimation section. FPA (IFPUG/NESMA) and "
             "COCOMO II/SLOC are your estimates: show the inputs and the arithmetic.",
             f"Write one Work Order per discipline involved, addressed to its skill: {disciplines}.",
+            "Allocate the epics of this iteration with rup-backlog --plan <EP-ID> "
+            "--iteration <R<n>-I<m>> and reference that iteration ID in the Iteration Plan.",
         ],
     }
 
