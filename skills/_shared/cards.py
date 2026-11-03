@@ -240,6 +240,16 @@ def set_section(card: Card, name: str, text: str, now=None) -> Card:
     return card
 
 
+def set_meta(card: Card, key: str, value: str, now=None) -> Card:
+    """Set one frontmatter key (single line), persist, bump `updated_at`. Checks consent."""
+    context.ensure_writable(card.path.parents[2])
+    _check_line(key, str(value))
+    card.meta[key] = value
+    card.meta["updated_at"] = (now or datetime.now()).isoformat(timespec="seconds")
+    card.path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
+    return card
+
+
 def add_history(card: Card, text: str, *, now=None) -> Card:
     """Append `- <iso> <text>` at the end of the `## History` span, bump `updated_at`, persist.
 

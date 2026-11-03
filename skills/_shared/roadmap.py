@@ -93,6 +93,14 @@ def new_iteration(context_dir, release_id, phase, goal, *, start="", end="") -> 
     return iid
 
 
+def iteration_phase(context_dir, iteration_id) -> str:
+    """The RUP `phase` of an iteration file; "" if unknown."""
+    for _, meta, _ in _load(context_dir, _ITERATION):
+        if meta.get("id") == iteration_id:
+            return str(meta.get("phase", ""))
+    return ""
+
+
 def plan_epic(context_dir, epic_id, iteration_id):
     from _shared import cards
     context.ensure_writable(context_dir)
