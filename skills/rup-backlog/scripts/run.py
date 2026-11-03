@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""
+rup-backlog — kanban cards (epics, stories, tasks) in `.context/kanban/`.
+
+Usage:
+  python run.py --new {epic,story,task} --title T --doc FILE|- [--parent ID]
+                [--priority P] [--source S] [--context-dir D]   (prints the new ID)
+  python run.py --show ID [--context-dir D]
+  python run.py --list [--column C] [--type T] [--context-dir D]
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+# _shared/ sits in the skills root: next to this skill (repo, Claude Code) or one
+# level up when the agent nests skills in a category (Hermes: skills/<category>/).
+_SKILL_DIR = Path(__file__).resolve().parent.parent
+for _root in (_SKILL_DIR.parent, _SKILL_DIR.parent.parent):
+    if (_root / "_shared" / "discipline.py").is_file():
+        if str(_root) not in sys.path:
+            sys.path.insert(0, str(_root))
+        break
+
+from _shared import cards, context  # noqa: E402
+from _shared.discipline import fail, read_document  # noqa: E402
+from _shared.rup import EXIT_OK, setup_console  # noqa: E402
+
+
+def print_list(context_dir, column=None, type=None) -> None:
+    rows = [c for c in cards.load_all(context_dir).values()
+            if (not column or c.status == column) and (not type or c.type == type)]
+    rows.sort(key=lambda c: (cards.COLUMNS.index(c.status), c.id))
+    print("| ID | Type | Title | Column | Parent |")
+    print("|----|------|-------|--------|--------|")
+    for c in rows:
+        print(f"| {c.id} | {c.type} | {c.title} | {c.status} | {c.meta.get('parent', '')} |")
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="RUP backlog — kanban cards in `.context/kanban/`")
+    p.add_argument("--new", choices=["epic", "story", "task"], help="create a card in 1-backlog")
+    p.add_argument("--title", help="card title (with --new)")
+    p.add_argument("--doc", metavar="FILE|-", help="document with the card's `## ` sections")
+    p.add_argument("--parent", help="parent card ID (story -> epic, task -> story)")
+    p.add_argument("--priority", default="Should", help="Must | Should | Could | Won't")
+    p.add_argument("--source", default="", help="RUP artifact path + section")
+    p.add_argument("--show", metavar="ID", help="print a card")
+    p.add_argument("--list", action="store_true", help="table of cards")
+    p.add_argument("--column", choices=cards.COLUMNS, help="filter --list by column")
+    p.add_argument("--type", choices=list(cards.TYPES), help="filter --list by type")
+    p.add_argument("--context-dir", help="target .context/ (default: auto-detect)")
+    args = p.parse_args(argv)
+    context_dir = context.resolve_context_dir(args.context_dir)
+
+    if args.new:
+        if not args.title or not args.doc:
+            fail("--new needs --title and --doc FILE|-")
+        context.ensure_writable(context_dir)
+        card = cards.create(context_dir, args.new, args.title, read_document(args.doc),
+                            parent=args.parent, priority=args.priority, source=args.source)
+        print(card.id)
+        return EXIT_OK
+
+    if args.show:
+        print(cards.get(context_dir, args.show).path.read_text(encoding="utf-8"), end="")
+        return EXIT_OK
+
+    if args.list:
+        print_list(context_dir, args.column, args.type)
+        return EXIT_OK
+
+    p.print_help()
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    setup_console()  # UTF-8 on stdout/stderr (Windows console is cp1252)
+    sys.exit(main())
