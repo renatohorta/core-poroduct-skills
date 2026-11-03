@@ -10,7 +10,7 @@
 
 | Metric | Value |
 |--------|-------|
-| `rup-*` skills | 15: 9 document (orchestrator + 8 disciplines, 21 roles) + 6 execution |
+| `cp-*` skills | 15: 9 document (orchestrator + 8 disciplines, 21 roles) + 6 execution |
 | Automated tests | 268 |
 | CI pipeline | ✅ GitHub Actions on `main` + PRs (Linux 3.12/3.13 blocking, Windows informative) |
 | Dependencies | runtime: none · dev: `pytest` |
@@ -36,7 +36,7 @@ agent's job; the suite guarantees the contract around it.
 
 | Level | Scope | How |
 |-------|-------|-----|
-| **Smoke (P0)** | Every skill's CLI and packet | `pytest` parametrized over `skills/rup-*/scripts/run.py` |
+| **Smoke (P0)** | Every skill's CLI and packet | `pytest` parametrized over `skills/cp-*/scripts/run.py` |
 | **Contract (P0)** | Registry == skills; required artifacts in packet and enforced by `--record` | specs imported from `run.py` |
 | **E2E (P0)** | packet → document → record → `.context/`, chaining, status | fixed documents built from each `SPEC` (`conftest.full_document`) |
 | **Unit (P1)** | UCP, sizing validation, `.context/` helpers, heading matching | direct imports |

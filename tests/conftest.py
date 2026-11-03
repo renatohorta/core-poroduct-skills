@@ -12,13 +12,25 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# The RUP (rup-*) skills live directly under skills/ (plus the _shared helpers).
+# The RUP (cp-*) skills live directly under skills/ (plus the _shared helpers).
 SKILLS_DIR = REPO_ROOT / "skills"
-ORCHESTRATOR = "rup-orchestrator"
+ORCHESTRATOR = "cp-orchestrator"
 
 # Let tests import the shared helpers (`from _shared import context`).
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
+
+def _repo_context_snapshot():
+    """What the suite must never change in this repository's own .context/:
+    generated artifacts, cards, roadmap files and the artifact log."""
+    ctx = REPO_ROOT / ".context"
+    files = (list((ctx / "docs").glob("*/cp-*.md")) + list((ctx / "kanban").glob("*/*.md"))
+             + list((ctx / "roadmap").glob("*.md")) + [ctx / "tracking" / "rup-log.md"])
+    return {str(f.relative_to(ctx)): f.read_bytes() for f in files if f.is_file()}
+
+
+# Taken at import, before any test runs (the guard test compares against it).
+REPO_CONTEXT_SNAPSHOT = _repo_context_snapshot()
 
 # Exit codes (see skills/_shared/rup.py)
 EXIT_OK = 0
@@ -28,8 +40,8 @@ EXIT_NEEDS_CONSENT = 5
 
 
 def skill_names():
-    """Names of the RUP (rup-*) skills present in the repository."""
-    return sorted(d.name for d in SKILLS_DIR.glob("rup-*")
+    """Names of the RUP (cp-*) skills present in the repository."""
+    return sorted(d.name for d in SKILLS_DIR.glob("cp-*")
                   if (d / "scripts" / "run.py").is_file())
 
 
@@ -46,7 +58,7 @@ def _document_skills():
 
 # Skills that print a work packet and record a document (orchestrator + disciplines).
 DOCUMENT_SKILLS = _document_skills()
-# Every other rup-* skill with a run.py (context, backlog, build, ...).
+# Every other cp-* skill with a run.py (context, backlog, build, ...).
 EXECUTION_SKILLS = [s for s in skill_names() if s not in DOCUMENT_SKILLS]
 
 

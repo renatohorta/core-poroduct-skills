@@ -1,5 +1,5 @@
 """
-rup.py — Shared RUP registry and console setup for every rup-* skill.
+rup.py — Shared RUP registry and console setup for every cp-* skill.
 
 Single source of truth for the phases and the ordered disciplines (the order
 `--auto` follows and the order in which a discipline sees the artifacts of the
@@ -17,18 +17,18 @@ EXIT_NEEDS_CONSENT = 5     # .context/ not authorized (no .rup-standard marker)
 
 PHASES = ["Inception", "Elaboration", "Construction", "Transition"]
 
-ORCHESTRATOR_SKILL = "rup-orchestrator"
+ORCHESTRATOR_SKILL = "cp-orchestrator"
 
 # Ordered: environment → … → deployment.
 DISCIPLINES = {
-    "environment": {"skill": "rup-environment", "title": "Environment"},
-    "business-modeling": {"skill": "rup-business-modeling", "title": "Business Modeling"},
-    "requirements": {"skill": "rup-requirements", "title": "Requirements"},
-    "analysis-design": {"skill": "rup-analysis-design", "title": "Analysis & Design"},
-    "implementation": {"skill": "rup-implementation", "title": "Implementation"},
-    "test": {"skill": "rup-test", "title": "Test"},
-    "ccm": {"skill": "rup-ccm", "title": "Configuration & Change Management"},
-    "deployment": {"skill": "rup-deployment", "title": "Deployment"},
+    "environment": {"skill": "cp-environment", "title": "Environment"},
+    "business-modeling": {"skill": "cp-business-modeling", "title": "Business Modeling"},
+    "requirements": {"skill": "cp-requirements", "title": "Requirements"},
+    "analysis-design": {"skill": "cp-analysis-design", "title": "Analysis & Design"},
+    "implementation": {"skill": "cp-implementation", "title": "Implementation"},
+    "test": {"skill": "cp-test", "title": "Test"},
+    "ccm": {"skill": "cp-ccm", "title": "Configuration & Change Management"},
+    "deployment": {"skill": "cp-deployment", "title": "Deployment"},
 }
 
 # Cap per earlier artifact embedded in a work packet (the full text stays in .context/).

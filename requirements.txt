@@ -1,4 +1,4 @@
-# Core Product Skills — runtime dependencies of the rup-* skills
+# Core Product Skills — runtime dependencies of the cp-* skills
 #
 # None. The skills are pure standard library (Python 3.10+): the agent running a
 # skill (Claude Code, Hermes, …) is the LLM — the scripts only print work packets,

@@ -18,8 +18,8 @@ template used when documenting a target project's screens for a UI generator.
 | Entry point | Purpose |
 |-------------|---------|
 | `scripts/install.sh` | Propagates `skills/` to Hermes and Claude |
-| `skills/rup-orchestrator/scripts/run.py` | Single entry point (RUP governance + dispatch) |
-| `skills/rup-<discipline>/scripts/run.py` | Each discipline's own CLI |
+| `skills/cp-orchestrator/scripts/run.py` | Single entry point (RUP governance + dispatch) |
+| `skills/cp-<discipline>/scripts/run.py` | Each discipline's own CLI |
 | `skills/rup-{context,discover,backlog,build,debug,review}/scripts/run.py` | Execution skills (ADR-0013) |
 
 ## Design System (CLI conventions)

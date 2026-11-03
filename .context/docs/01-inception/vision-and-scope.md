@@ -8,7 +8,7 @@
 
 ## What it is
 
-**Core Product Skills** is the canonical repository of the **`rup-*` skills**,
+**Core Product Skills** is the canonical repository of the **`cp-*` skills**,
 which implement the **Rational Unified Process** (Kruchten, *The Rational Unified
 Process: An Introduction*, 3rd ed.) — 9 disciplines, 1 orchestrator and 20
 specialist roles. **The agent running a skill (Claude Code, Hermes) is the LLM**
@@ -20,7 +20,7 @@ propagated to the consuming agents (**Hermes Agent** and **Claude Code**) via
 `scripts/install.sh`.
 
 > History: the repository previously hosted the Software Factory family
-> (`cp-*`). It was deprecated (ADR-0007) and then removed (ADR-0010); it remains
+> (also `cp-*`, different skills). It was deprecated (ADR-0007) and then removed (ADR-0010); it remains
 > in the git history up to commit `6490694`.
 
 ## Problem it solves
@@ -40,7 +40,7 @@ and the loss of the conversation context the agent already had (ADR-0012).
 | Pillar | How it materializes |
 |--------|---------------------|
 | **Single source of truth** | Skills edited in `skills/`, propagated by `install.sh` |
-| **Single entry point** | `rup-orchestrator` governs the lifecycle and dispatches the disciplines |
+| **Single entry point** | `cp-orchestrator` governs the lifecycle and dispatches the disciplines |
 | **Faithful to RUP** | Phases/milestones (LCO, LCA, IOC, PR), roles and artifacts from Kruchten |
 | **Deterministic where possible** | Use Case Points computed in code, exposed to the agent as a tool |
 | **Same LLM, same context** | The host agent plays the RUP roles itself — no API key, proxy or extra model |
@@ -59,7 +59,7 @@ and the loss of the conversation context the agent already had (ADR-0012).
 ## Scope
 
 **In scope**
-- Source code of the 9 `rup-*` skills (SKILL.md + `scripts/run.py` + `references/`)
+- Source code of the 9 `cp-*` skills (SKILL.md + `scripts/run.py` + `references/`)
 - Shared helpers (`skills/_shared/`: registry, packet/record engine, `.context/` writer)
 - Install/propagation script (`scripts/install.sh`)
 
@@ -73,7 +73,7 @@ and the loss of the conversation context the agent already had (ADR-0012).
 1. **Skill is self-contained** — each `run.py` embeds its own agents; it does
    not depend on an external agents directory.
 2. **The orchestrator is the single interface** — the user talks to
-   `rup-orchestrator`; it plans, sizes, emits Work Orders and dispatches.
+   `cp-orchestrator`; it plans, sizes, emits Work Orders and dispatches.
 3. **Uniform protocol** — packet (`"<briefing>" [--input] [--phase]`) → one
    document with `## <Artifact>` per required artifact → `--record`.
 4. **Compute, don't guess** — deterministic formulas (UCP) run in code
@@ -86,5 +86,6 @@ and the loss of the conversation context the agent already had (ADR-0012).
 - **ADR-0011** — Artifacts always persisted into `.context/`.
 - **ADR-0008** — RUP family as the active product.
 - **ADR-0009** — Use Case Points computed in the orchestrator.
-- **ADR-0010** — `cp-*` removed; RUP skills flattened into `skills/`.
+- **ADR-0010** — legacy Software Factory `cp-*` removed; RUP skills flattened into `skills/`.
+- **ADR-0014** — RUP skills renamed from `rup-*` to `cp-*`.
 - **ADR-0012** — The host agent is the LLM; CrewAI, `llm.py`, proxy and chat removed.

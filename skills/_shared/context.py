@@ -1,7 +1,7 @@
 """
 context.py — Mandatory persistence of the RUP artifacts into `.context/`.
 
-Every `rup-*` skill records the agent's document into the target project's
+Every `cp-*` skill records the agent's document into the target project's
 `.context/` (ADR-0011, ADR-0012). This module is the single implementation of:
 
   - where the `.context/` is   (resolve_context_dir)
@@ -11,10 +11,10 @@ Every `rup-*` skill records the agent's document into the target project's
 
 Layout (matches the RUP phases of `.context/docs/`):
 
-  .context/docs/01-inception/rup-<discipline>.md
-  .context/docs/02-elaboration/rup-<discipline>.md
-  .context/docs/03-construction/rup-<discipline>.md
-  .context/docs/04-transition/rup-<discipline>.md
+  .context/docs/01-inception/cp-<discipline>.md
+  .context/docs/02-elaboration/cp-<discipline>.md
+  .context/docs/03-construction/cp-<discipline>.md
+  .context/docs/04-transition/cp-<discipline>.md
   .context/tracking/rup-log.md        (one line per written artifact)
 
 The `rup-` prefix keeps the generated artifacts apart from the curated docs
@@ -109,7 +109,7 @@ def require_consent(context_dir) -> None:
           f"{', '.join(state.other_doc_dirs) if state.other_doc_dirs else 'none'}")
     print(f"    `--init` would create {len(state.missing)} standard entries (nothing is overwritten).")
     print("    Nothing was written. To adopt the RUP standard in .context/: ask the user;")
-    print("    on approval run `rup-context --init`.")
+    print("    on approval run `cp-context --init`.")
     sys.exit(EXIT_NEEDS_CONSENT)
 
 
@@ -190,7 +190,7 @@ def _ensure_log_header(context_dir) -> Path:
     if not log.exists():
         log.write_text(
             "# RUP artifact log\n\n"
-            "> Appended by the `rup-*` skills on every artifact written to `.context/`.\n\n"
+            "> Appended by the `cp-*` skills on every artifact written to `.context/`.\n\n"
             "| When | Phase | Skill | Artifact |\n"
             "|------|-------|-------|----------|\n",
             encoding="utf-8",

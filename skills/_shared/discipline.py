@@ -1,5 +1,5 @@
 """
-discipline.py — Host-LLM engine shared by every rup-* skill (ADR-0012).
+discipline.py — Host-LLM engine shared by every cp-* skill (ADR-0012).
 
 The skills do not call any LLM. The agent that invokes the skill (Claude Code,
 Hermes, …) IS the LLM. A skill run has two deterministic steps:
@@ -33,7 +33,7 @@ from _shared import context as ctx
 from _shared.rup import (DISCIPLINES, EXIT_USAGE, MAX_PRIOR_ARTIFACT_CHARS,
                          ORCHESTRATOR_SKILL, PHASES)
 
-DISCOVER_SKILL = "rup-discover"
+DISCOVER_SKILL = "cp-discover"
 
 GENERAL_RULES = [
     "Follow the RUP conventions (Kruchten, *The Rational Unified Process: An "
@@ -98,9 +98,9 @@ def prior_artifacts(context_dir, phase, skill, discipline_key=None):
     items = []
     if skill != DISCOVER_SKILL:
         # Discovery is an Inception artifact that feeds every later phase.
-        items.append(("Discovery (rup-discover)", DISCOVER_SKILL))
+        items.append(("Discovery (cp-discover)", DISCOVER_SKILL))
     if skill != ORCHESTRATOR_SKILL:
-        items.append(("Project Management (rup-orchestrator)", ORCHESTRATOR_SKILL))
+        items.append(("Project Management (cp-orchestrator)", ORCHESTRATOR_SKILL))
     for key, d in DISCIPLINES.items():
         if key == discipline_key:
             break
@@ -142,7 +142,7 @@ def render_packet(spec, *, skill, script, briefing, phase, context_dir, briefing
     lines = []
     if not ctx.has_consent(context_dir):
         lines += ["⚠️ .context/ not authorized yet — recording will ask for authorization "
-                  "(rup-context --init).", ""]
+                  "(cp-context --init).", ""]
     lines += [
         f"# RUP work packet — {spec['title']} (`{skill}`)",
         "",

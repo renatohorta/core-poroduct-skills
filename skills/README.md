@@ -6,7 +6,7 @@ grounded in *The Rational Unified Process:
 An Introduction* (3rd ed.), Philippe Kruchten (Addison-Wesley / IBM Rational
 Software).
 
-The user interacts with `rup-orchestrator`, which governs the lifecycle and
+The user interacts with `cp-orchestrator`, which governs the lifecycle and
 drives the 8 discipline skills. Together they cover the **9 RUP disciplines**
 and **21 roles** (1 orchestrator + 20 specialists).
 
@@ -14,15 +14,15 @@ and **21 roles** (1 orchestrator + 20 specialists).
 
 | Skill | Discipline | Agents | Agent slugs |
 |-------|------------|--------|-------------|
-| `rup-orchestrator` | Project Management (governance) | 1 | `rup-orchestrator` |
-| `rup-environment` | Environment | 1 | `process-engineer` |
-| `rup-business-modeling` | Business Modeling | 2 | `business-process-analyst`, `business-designer` |
-| `rup-requirements` | Requirements | 2 | `system-analyst`, `requirements-specifier` |
-| `rup-analysis-design` | Analysis & Design | 5 | `software-architect`, `designer`, `user-interface-designer`, `database-designer`, `capsule-designer` |
-| `rup-implementation` | Implementation | 2 | `system-integrator`, `implementer` |
-| `rup-test` | Test | 4 | `test-manager`, `test-analyst`, `test-designer`, `tester` |
-| `rup-ccm` | Configuration & Change Management | 2 | `configuration-manager`, `change-control-manager` |
-| `rup-deployment` | Deployment | 2 | `deployment-manager`, `technical-writer` |
+| `cp-orchestrator` | Project Management (governance) | 1 | `cp-orchestrator` |
+| `cp-environment` | Environment | 1 | `process-engineer` |
+| `cp-business-modeling` | Business Modeling | 2 | `business-process-analyst`, `business-designer` |
+| `cp-requirements` | Requirements | 2 | `system-analyst`, `requirements-specifier` |
+| `cp-analysis-design` | Analysis & Design | 5 | `software-architect`, `designer`, `user-interface-designer`, `database-designer`, `capsule-designer` |
+| `cp-implementation` | Implementation | 2 | `system-integrator`, `implementer` |
+| `cp-test` | Test | 4 | `test-manager`, `test-analyst`, `test-designer`, `tester` |
+| `cp-ccm` | Configuration & Change Management | 2 | `configuration-manager`, `change-control-manager` |
+| `cp-deployment` | Deployment | 2 | `deployment-manager`, `technical-writer` |
 
 ## Execution skills (ADR-0013)
 
@@ -31,15 +31,15 @@ state in `.context/`: cards, roadmap, generated board. 15 skills in total.
 
 | Skill | Purpose | Commands |
 |-------|---------|----------|
-| `rup-context` | Detect, ask authorization, adopt the standard, import docs | `--status`, `--init --authorized-by`, `--import`, `--record-import` |
-| `rup-discover` | Discovery conversation, recorded in Inception | packet (`"<idea>"`), `--record` |
-| `rup-backlog` | Epics/stories/tasks, moves, roadmap, views | `--new`, `--show`, `--list`, `--move`, `--derive`, `--release-new`, `--iteration-new`, `--plan`, `--roadmap` |
-| `rup-build` | Task/bug execution with TDD and test-value checks | `--start`, `--finish --delivery` |
-| `rup-debug` | Bug card, root cause before fix | `--open`, `--diagnose` |
-| `rup-review` | Review checklist and verdict | `<ID>`, `--record <ID> --doc` |
+| `cp-context` | Detect, ask authorization, adopt the standard, import docs | `--status`, `--init --authorized-by`, `--import`, `--record-import` |
+| `cp-discover` | Discovery conversation, recorded in Inception | packet (`"<idea>"`), `--record` |
+| `cp-backlog` | Epics/stories/tasks, moves, roadmap, views | `--new`, `--show`, `--list`, `--move`, `--derive`, `--release-new`, `--iteration-new`, `--plan`, `--roadmap` |
+| `cp-build` | Task/bug execution with TDD and test-value checks | `--start`, `--finish --delivery` |
+| `cp-debug` | Bug card, root cause before fix | `--open`, `--diagnose` |
+| `cp-review` | Review checklist and verdict | `<ID>`, `--record <ID> --doc` |
 
 Every writing command needs the marker `.context/.rup-standard` (exit 5 without
-it: ask the user, then `rup-context --init`). Cards: `EP/ST/TK/BUG-NNN`, one file
+it: ask the user, then `cp-context --init`). Cards: `EP/ST/TK/BUG-NNN`, one file
 in `.context/kanban/<column>/`; criteria `ST-NNN/AC-n`; roadmap in
 `.context/roadmap/`; generated `docs/06-roadmap.md` and `docs/06-board.md`.
 Moves are declarations (`--move ID COLUMN --reason`); the skills never run git or
@@ -66,19 +66,19 @@ skills/
 │   ├── cards.py              # cards, moves, roll-up, derivation
 │   ├── roadmap.py            # releases, iterations, generated views
 │   └── testcheck*.py         # test-value checks (Python ast, JS/TS patterns)
-├── rup-orchestrator/         # governance, iteration protocol, UCP
+├── cp-orchestrator/         # governance, iteration protocol, UCP
 │   ├── SKILL.md
 │   ├── scripts/run.py
 │   └── references/           # lifecycle.md, sizing-estimation.md
-├── rup-environment/          # discipline 1
-├── rup-business-modeling/    # discipline 2
-├── rup-requirements/         # discipline 3
-├── rup-analysis-design/      # discipline 4
-├── rup-implementation/       # discipline 5
-├── rup-test/                 # discipline 6
-├── rup-ccm/                  # discipline 7
-├── rup-deployment/           # discipline 8
-└── rup-{context,discover,backlog,build,debug,review}/   # execution skills
+├── cp-environment/          # discipline 1
+├── cp-business-modeling/    # discipline 2
+├── cp-requirements/         # discipline 3
+├── cp-analysis-design/      # discipline 4
+├── cp-implementation/       # discipline 5
+├── cp-test/                 # discipline 6
+├── cp-ccm/                  # discipline 7
+├── cp-deployment/           # discipline 8
+└── cp-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
 
 Each discipline skill: `SKILL.md` (how the agent runs it) + `scripts/run.py`
@@ -95,7 +95,7 @@ library only.
 2. The agent writes ONE document: `# <Role>` + `## <Artifact>` per artifact.
 3. `python scripts/run.py --record doc.md --phase P ["<briefing>"]` (or
    `--record -` for stdin) → checks every required `## <Artifact>` and writes
-   `.context/docs/<NN-phase>/rup-<skill>.md` + a row in `.context/tracking/rup-log.md`.
+   `.context/docs/<NN-phase>/cp-<skill>.md` + a row in `.context/tracking/rup-log.md`.
 
 ## CLI contract
 
@@ -119,7 +119,7 @@ writable · `5` needs authorization (no `.rup-standard` marker).
 
 `.context/` = `--context-dir`, else `$RUP_CONTEXT_DIR`, else the nearest
 `.context/` up to the git root (ADR-0011). Curated docs are never overwritten —
-generated artifacts are `rup-<skill>.md`.
+generated artifacts are `cp-<skill>.md`.
 
 ## Software sizing (owned by the orchestrator)
 
@@ -127,9 +127,9 @@ The orchestrator produces **Software Sizing & Effort Estimation** — Function
 Points (IFPUG/NESMA), **Use Case Points** (UAW/UUCW/UUCP/TCF/EF) and parametric
 estimates (COCOMO II, SLOC/KLOC) — feeding the Measurement Plan and the
 Iteration Plan. The UCP calculation is implemented deterministically in
-`rup-orchestrator/scripts/run.py` (`compute_ucp`); the governance packet tells
+`cp-orchestrator/scripts/run.py` (`compute_ucp`); the governance packet tells
 the agent to build the sizing model and run `--estimate` instead of computing it.
-Details and formulas: `rup-orchestrator/references/sizing-estimation.md`.
+Details and formulas: `cp-orchestrator/references/sizing-estimation.md`.
 
 ## Provenance
 

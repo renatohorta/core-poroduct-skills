@@ -1,4 +1,4 @@
-"""rup-build: --start / --finish of a task (INIT-03 §7.7)."""
+"""cp-build: --start / --finish of a task (INIT-03 §7.7)."""
 from pathlib import Path
 
 import pytest
@@ -8,7 +8,7 @@ from test_context_persistence import run_skill
 
 from _shared import cards, frontmatter
 
-SKILL = "rup-build"
+SKILL = "cp-build"
 
 EPIC = "## Goal\n\nSchedule visits.\n\n## Scope\n\nBooking only.\n"
 STORY = ("## User story\n\nAs a patient I want to book so that I save time.\n\n"

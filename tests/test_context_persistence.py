@@ -2,7 +2,7 @@
 
 Unit tests of `skills/_shared/context.py` plus end-to-end runs of the real
 skills: packet → the host's document → `--record` validates and writes
-`.context/docs/<NN-phase>/rup-<skill>.md` + a row in `tracking/rup-log.md`.
+`.context/docs/<NN-phase>/cp-<skill>.md` + a row in `tracking/rup-log.md`.
 No LLM involved: the host agent is the LLM, here replaced by a fixed document.
 """
 import json
@@ -94,35 +94,35 @@ def test_resolve_falls_back_to_start(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("phase, folder", list(PHASE_DIR.items()))
 def test_artifact_path_follows_rup_phase_layout(tmp_path, phase, folder):
-    p = ctx.artifact_path(tmp_path, phase, "rup-requirements")
-    assert p == tmp_path / "docs" / folder / "rup-requirements.md"
+    p = ctx.artifact_path(tmp_path, phase, "cp-requirements")
+    assert p == tmp_path / "docs" / folder / "cp-requirements.md"
 
 
 def test_artifact_path_rejects_unknown_phase(tmp_path):
     with pytest.raises(ValueError, match="unknown RUP phase"):
-        ctx.artifact_path(tmp_path, "Design", "rup-requirements")
+        ctx.artifact_path(tmp_path, "Design", "cp-requirements")
 
 
 def test_write_artifact_has_provenance_and_is_logged(tmp_path):
     now = datetime(2026, 11, 3, 14, 30, 0)
-    path = ctx.write_artifact(tmp_path, "Vision Document: ...", skill="rup-requirements",
+    path = ctx.write_artifact(tmp_path, "Vision Document: ...", skill="cp-requirements",
                               title="Requirements", phase="Inception",
                               briefing="clinics SaaS", now=now)
-    assert path == tmp_path / "docs" / "01-inception" / "rup-requirements.md"
+    assert path == tmp_path / "docs" / "01-inception" / "cp-requirements.md"
     text = path.read_text(encoding="utf-8")
-    assert text.startswith("---\nskill: rup-requirements\n")
+    assert text.startswith("---\nskill: cp-requirements\n")
     assert "milestone: Lifecycle Objective (LCO)" in text
     assert "generated_at: 2026-11-03T14:30:00" in text
     assert "> clinics SaaS" in text
     assert text.rstrip().endswith("Vision Document: ...")
     rows = log_rows(tmp_path)
-    assert rows == ["| 2026-11-03T14:30:00 | Inception | `rup-requirements` | "
-                    "`docs/01-inception/rup-requirements.md` |"]
+    assert rows == ["| 2026-11-03T14:30:00 | Inception | `cp-requirements` | "
+                    "`docs/01-inception/cp-requirements.md` |"]
 
 
 def test_rewrite_regenerates_file_and_appends_log(tmp_path):
     for content in ("first", "second"):
-        path = ctx.write_artifact(tmp_path, content, skill="rup-test", title="Test",
+        path = ctx.write_artifact(tmp_path, content, skill="cp-test", title="Test",
                                   phase="Construction", briefing="b")
     assert path.read_text(encoding="utf-8").rstrip().endswith("second")
     assert "first" not in path.read_text(encoding="utf-8")
@@ -133,13 +133,13 @@ def test_curated_docs_are_never_touched(tmp_path):
     curated = tmp_path / "docs" / "01-inception" / "requirements.md"
     curated.parent.mkdir(parents=True)
     curated.write_text("curated by a human", encoding="utf-8")
-    ctx.write_artifact(tmp_path, "generated", skill="rup-requirements",
+    ctx.write_artifact(tmp_path, "generated", skill="cp-requirements",
                        title="Requirements", phase="Inception", briefing="b")
     assert curated.read_text(encoding="utf-8") == "curated by a human"
 
 
 def test_long_briefing_is_excerpted(tmp_path):
-    path = ctx.write_artifact(tmp_path, "x", skill="rup-ccm", title="CCM",
+    path = ctx.write_artifact(tmp_path, "x", skill="cp-ccm", title="CCM",
                               phase="Elaboration", briefing="y" * 5000)
     text = path.read_text(encoding="utf-8")
     assert "[… truncated]" in text and "y" * 5000 not in text
@@ -203,23 +203,23 @@ def test_heading_matching_tolerates_qualifiers_and_case():
 
 
 def test_record_from_stdin(ctx_env, python_cmd):
-    doc = full_document(spec_of("rup-ccm"))
-    r = run_skill("rup-ccm", ["--record", "-", "--phase", "Transition"], ctx_env, python_cmd,
+    doc = full_document(spec_of("cp-ccm"))
+    r = run_skill("cp-ccm", ["--record", "-", "--phase", "Transition"], ctx_env, python_cmd,
                   stdin=doc)
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
-    assert (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs" / "04-transition" / "rup-ccm.md").is_file()
+    assert (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs" / "04-transition" / "cp-ccm.md").is_file()
 
 
 def test_record_empty_document_is_rejected(ctx_env, python_cmd, tmp_path):
-    r = record("rup-test", ctx_env, python_cmd, tmp_path, doc="   \n")
+    r = record("cp-test", ctx_env, python_cmd, tmp_path, doc="   \n")
     assert r.returncode == EXIT_USAGE and "empty" in r.stdout
 
 
 def test_record_without_briefing_still_writes(ctx_env, python_cmd, tmp_path):
-    r = record("rup-environment", ctx_env, python_cmd, tmp_path)
+    r = record("cp-environment", ctx_env, python_cmd, tmp_path)
     assert r.returncode == EXIT_OK, r.stdout
     text = (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs" / "02-elaboration"
-            / "rup-environment.md").read_text(encoding="utf-8")
+            / "cp-environment.md").read_text(encoding="utf-8")
     assert "briefing not provided at record time" in text
 
 
@@ -230,64 +230,64 @@ def test_unwritable_context_exits_4(ctx_env, python_cmd, tmp_path):
     ro.chmod(0o500)
     env = dict(ctx_env, RUP_CONTEXT_DIR=str(ro))
     try:
-        r = record("rup-requirements", env, python_cmd, tmp_path)
+        r = record("cp-requirements", env, python_cmd, tmp_path)
     finally:
         ro.chmod(0o700)
     assert r.returncode == EXIT_CONTEXT_NOT_WRITABLE, r.stdout + r.stderr
 
 
 def test_packet_is_read_only(ctx_env, python_cmd):
-    r = run_skill("rup-test", ["briefing", "--phase", "Transition"], ctx_env, python_cmd)
+    r = run_skill("cp-test", ["briefing", "--phase", "Transition"], ctx_env, python_cmd)
     assert r.returncode == EXIT_OK
-    assert "04-transition" in r.stdout and "rup-test.md" in r.stdout
+    assert "04-transition" in r.stdout and "cp-test.md" in r.stdout
     assert not (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs").exists(), \
         "a packet must not write anything"
 
 
 def test_packets_chain_through_context_in_rup_order(ctx_env, python_cmd, tmp_path):
     """Each packet embeds governance + the earlier disciplines recorded in .context/."""
-    marker = {s: f"MARKER-{s.upper()}" for s in (ORCHESTRATOR, "rup-environment", "rup-ccm")}
+    marker = {s: f"MARKER-{s.upper()}" for s in (ORCHESTRATOR, "cp-environment", "cp-ccm")}
     for skill, m in marker.items():
         doc = full_document(spec_of(skill)) + f"\n{m}\n"
         assert record(skill, ctx_env, python_cmd, tmp_path, doc=doc).returncode == EXIT_OK
 
-    bm = run_skill("rup-business-modeling", ["b"], ctx_env, python_cmd).stdout
-    assert marker[ORCHESTRATOR] in bm and marker["rup-environment"] in bm
-    assert marker["rup-ccm"] not in bm, "a later discipline must not leak into an earlier one"
-    assert "skill: rup-environment" not in bm, "the provenance header must be stripped"
+    bm = run_skill("cp-business-modeling", ["b"], ctx_env, python_cmd).stdout
+    assert marker[ORCHESTRATOR] in bm and marker["cp-environment"] in bm
+    assert marker["cp-ccm"] not in bm, "a later discipline must not leak into an earlier one"
+    assert "skill: cp-environment" not in bm, "the provenance header must be stripped"
 
-    env_packet = run_skill("rup-environment", ["b"], ctx_env, python_cmd).stdout
-    assert marker[ORCHESTRATOR] in env_packet and marker["rup-environment"] not in env_packet
+    env_packet = run_skill("cp-environment", ["b"], ctx_env, python_cmd).stdout
+    assert marker[ORCHESTRATOR] in env_packet and marker["cp-environment"] not in env_packet
 
-    deploy = run_skill("rup-deployment", ["b"], ctx_env, python_cmd).stdout
-    assert marker["rup-ccm"] in deploy
+    deploy = run_skill("cp-deployment", ["b"], ctx_env, python_cmd).stdout
+    assert marker["cp-ccm"] in deploy
 
     gov = run_skill(ORCHESTRATOR, ["b"], ctx_env, python_cmd).stdout
-    assert marker["rup-ccm"] in gov and marker[ORCHESTRATOR] not in gov
+    assert marker["cp-ccm"] in gov and marker[ORCHESTRATOR] not in gov
 
 
 def test_chaining_is_per_phase(ctx_env, python_cmd, tmp_path):
-    doc = full_document(spec_of("rup-environment")) + "\nMARKER-INCEPTION\n"
-    assert record("rup-environment", ctx_env, python_cmd, tmp_path, phase="Inception",
+    doc = full_document(spec_of("cp-environment")) + "\nMARKER-INCEPTION\n"
+    assert record("cp-environment", ctx_env, python_cmd, tmp_path, phase="Inception",
                   doc=doc).returncode == EXIT_OK
-    out = run_skill("rup-requirements", ["b", "--phase", "Elaboration"], ctx_env, python_cmd).stdout
+    out = run_skill("cp-requirements", ["b", "--phase", "Elaboration"], ctx_env, python_cmd).stdout
     assert "MARKER-INCEPTION" not in out
 
 
 def test_long_earlier_artifacts_are_capped(ctx_env, python_cmd, tmp_path):
     from _shared.rup import MAX_PRIOR_ARTIFACT_CHARS
-    doc = full_document(spec_of("rup-environment")) + "z" * (MAX_PRIOR_ARTIFACT_CHARS + 100)
-    assert record("rup-environment", ctx_env, python_cmd, tmp_path, doc=doc).returncode == EXIT_OK
-    out = run_skill("rup-business-modeling", ["b"], ctx_env, python_cmd).stdout
+    doc = full_document(spec_of("cp-environment")) + "z" * (MAX_PRIOR_ARTIFACT_CHARS + 100)
+    assert record("cp-environment", ctx_env, python_cmd, tmp_path, doc=doc).returncode == EXIT_OK
+    out = run_skill("cp-business-modeling", ["b"], ctx_env, python_cmd).stdout
     assert "[… truncated — full artifact in" in out
 
 
 def test_status_and_auto_reflect_recorded_steps(ctx_env, python_cmd, tmp_path):
-    for skill in (ORCHESTRATOR, "rup-environment"):
+    for skill in (ORCHESTRATOR, "cp-environment"):
         assert record(skill, ctx_env, python_cmd, tmp_path).returncode == EXIT_OK
     st = run_skill(ORCHESTRATOR, ["--status"], ctx_env, python_cmd).stdout
-    assert re.search(r"\| 0 \| Governance \| `rup-orchestrator` \| ✅ ", st)
-    assert re.search(r"\| 1 \| Environment \| `rup-environment` \| ✅ ", st)
+    assert re.search(r"\| 0 \| Governance \| `cp-orchestrator` \| ✅ ", st)
+    assert re.search(r"\| 1 \| Environment \| `cp-environment` \| ✅ ", st)
     assert "Next pending step: 2 — Business Modeling" in st
     auto = run_skill(ORCHESTRATOR, ["b", "--auto"], ctx_env, python_cmd).stdout
     assert "Next pending step: 2 — Business Modeling" in auto
@@ -302,7 +302,7 @@ def test_discipline_packet_targets_the_callers_project(clean_env, python_cmd, tm
     r = run_skill(ORCHESTRATOR, ["b", "--discipline", "requirements"], env, python_cmd,
                   cwd=project)
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
-    expected = (project / ".context" / "docs" / "02-elaboration" / "rup-requirements.md").resolve()
+    expected = (project / ".context" / "docs" / "02-elaboration" / "cp-requirements.md").resolve()
     assert str(expected) in r.stdout
 
 
@@ -317,7 +317,7 @@ def test_estimate_writes_sizing_artifact_and_keeps_json_clean(ctx_env, python_cm
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
     assert json.loads(r.stdout)["ucp"] == 185.0, "stdout must stay pure JSON"
     artifact = (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs" / "01-inception"
-                / "rup-orchestrator-sizing.md")
+                / "cp-orchestrator-sizing.md")
     text = artifact.read_text(encoding="utf-8")
     assert "| UCP (Use Case Points) | 185.0 |" in text
     assert re.search(r"\| Effort @ 20\.0 h/UCP \| 3700\.0 h \|", text)
@@ -325,6 +325,8 @@ def test_estimate_writes_sizing_artifact_and_keeps_json_clean(ctx_env, python_cm
 
 def test_repo_context_untouched_by_the_suite():
     """Guard: the suite must never write generated artifacts into this repo."""
-    generated = list((REPO_ROOT / ".context" / "docs").glob("*/rup-*.md"))
-    assert not generated, f"tests leaked artifacts into the repo: {generated}"
-    assert not (REPO_ROOT / ".context" / "tracking" / "rup-log.md").exists()
+    from conftest import REPO_CONTEXT_SNAPSHOT, _repo_context_snapshot
+    now = _repo_context_snapshot()
+    leaked = sorted(set(now) ^ set(REPO_CONTEXT_SNAPSHOT)) + sorted(
+        k for k in now if k in REPO_CONTEXT_SNAPSHOT and now[k] != REPO_CONTEXT_SNAPSHOT[k])
+    assert not leaked, f"tests changed this repo's .context/: {leaked}"

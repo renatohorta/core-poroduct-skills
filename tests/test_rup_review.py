@@ -1,4 +1,4 @@
-"""rup-review: checklist packet and verdict record (INIT-03 §7.9)."""
+"""cp-review: checklist packet and verdict record (INIT-03 §7.9)."""
 from pathlib import Path
 
 import pytest
@@ -8,7 +8,7 @@ from test_context_persistence import run_skill
 
 from _shared import cards, testcheck
 
-SKILL = "rup-review"
+SKILL = "cp-review"
 
 EPIC = "## Goal\n\nSchedule visits.\n\n## Scope\n\nBooking only.\n"
 STORY = ("## User story\n\nAs a patient I want to book so that I save time.\n\n"
@@ -147,4 +147,4 @@ def test_redelivery_replaces_delivery_and_review_shows_second(proj, ctx_env, pyt
 
 
 def subprocess_finish(env, python_cmd, text):
-    return run_skill("rup-build", ["--finish", "TK-001", "--delivery", "-"], env, python_cmd, stdin=text)
+    return run_skill("cp-build", ["--finish", "TK-001", "--delivery", "-"], env, python_cmd, stdin=text)

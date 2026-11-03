@@ -431,3 +431,35 @@ document skills, add focused execution skills).
   existing cards are not migrated automatically.
 - Test checks are a brake on declared tests, not proof that they ran or pass.
 - Uninstalling the superpowers plugin remains the owner's call.
+
+---
+
+## ADR-0014 — RUP skills renamed from `rup-*` to `cp-*`
+
+**Date**: 2026-11-03 · **Status**: Accepted
+
+**Context**: The owner asked for every skill to use the `cp-` prefix (Core
+Product) instead of `rup-`. The prefix was already used by the legacy Software
+Factory family removed in ADR-0010; those skills only exist in the git history,
+so the names are free again.
+
+**Decision**: Rename all 15 skills (`skills/rup-<name>` → `skills/cp-<name>`,
+`git mv`) and every reference to their names: `SKILL.md` frontmatter, the
+registry in `_shared/rup.py`, generated artifact names
+(`.context/docs/<NN-phase>/cp-<skill>.md`, `cp-orchestrator-sizing.md`),
+derivation sources (`cp-requirements#<heading>`), the pointer note, docs and
+tests. Internal identifiers that are not skill names keep their names: the
+marker `.context/.rup-standard`, the log `tracking/rup-log.md`, the
+`<!-- rup-import -->` / `<!-- rup-skills:… -->` markers, `RUP_CONTEXT_DIR`,
+`RUP_SKILLS_PYTHON` and the module `_shared/rup.py` (they name the RUP method,
+not a skill). Historical records (ADR-0001…0013, `inbox/processed/`,
+`translation-map.md`) are not rewritten.
+
+**Consequences**:
+
+- Agents must invoke `cp-orchestrator`, `cp-context`, `cp-backlog`, etc.;
+  reinstall with `./scripts/install.sh` (old `rup-*` installed copies, if any,
+  must be removed by hand — `install.sh` never deletes other skills).
+- Artifacts recorded before the rename (`rup-<skill>.md`) are not migrated.
+- Older ADRs mention `cp-*` meaning the legacy Software Factory; from ADR-0014
+  on, `cp-*` means the RUP skills.

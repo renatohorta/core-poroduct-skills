@@ -22,13 +22,13 @@ POINTER_START = "<!-- rup-skills:start -->"
 POINTER_END = "<!-- rup-skills:end -->"
 POINTER_FILES = ("CLAUDE.md", "AGENT.md")
 POINTER_BODY = """## RUP skills — which one to use
-- Before building anything new: `rup-discover`
-- Plan epics/stories/tasks, roadmap, move cards: `rup-backlog`
-- Implement a task (TDD): `rup-build`
-- Fix a bug: `rup-debug`
-- Review a delivered card: `rup-review`
-- RUP documents (governance, disciplines): `rup-orchestrator`
-- Project context lives in `.context/` (set up with `rup-context`).
+- Before building anything new: `cp-discover`
+- Plan epics/stories/tasks, roadmap, move cards: `cp-backlog`
+- Implement a task (TDD): `cp-build`
+- Fix a bug: `cp-debug`
+- Review a delivered card: `cp-review`
+- RUP documents (governance, disciplines): `cp-orchestrator`
+- Project context lives in `.context/` (set up with `cp-context`).
 """
 
 KANBAN_COLUMNS = ["1-backlog", "2-todo", "3-doing", "4-review", "5-testing",
@@ -149,7 +149,7 @@ def init_context(context_dir, *, authorized_by: str, now=None) -> list:
     created += ensure_pointer_note(context_dir.parent)
     if created:
         context.append_event(
-            context_dir, skill="rup-context", now=now,
+            context_dir, skill="cp-context", now=now,
             what=f"init: {len(created)} entries created, authorized by {authorized_by}")
     return created
 
@@ -239,6 +239,6 @@ def record_import(context_dir, text: str, *, now=None) -> list:
             title = path.stem.replace("-", " ").capitalize()
             path.write_text(f"# {title}\n\n{block}", encoding="utf-8")
         written.append(path)
-        context.append_event(context_dir, skill="rup-context", now=now,
+        context.append_event(context_dir, skill="cp-context", now=now,
                              what=f"import {target} from {sources}")
     return written

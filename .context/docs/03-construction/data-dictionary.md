@@ -23,11 +23,11 @@ documents the persistent structures that agents read/write.
 | `.context/docs/02-elaboration/` | Architecture, domain model | maintainer / coding agent |
 | `.context/docs/03-construction/` | API contracts, UI spec, data dictionary | maintainer / coding agent |
 | `.context/docs/04-transition/` | Test strategy, devops infra | maintainer / coding agent |
-| `.context/.rup-standard` | Authorization marker: `version`, `authorized_by`, `authorized_at` | `rup-context --init` |
+| `.context/.rup-standard` | Authorization marker: `version`, `authorized_by`, `authorized_at` | `cp-context --init` |
 | `.context/inbox/{initiatives,tasks,bugs,tech-debt,processed}/` | Raw intake (drafts) | manual / agent |
-| `.context/kanban/{1-backlog..7-done,blocked}/` | Cards `EP/ST/TK/BUG-NNN` (`.md` + frontmatter) | `rup-backlog`, `rup-build`, `rup-debug`, `rup-review` |
-| `.context/roadmap/R<n>.md`, `R<n>-I<m>.md` | Releases and iterations | `rup-backlog` |
-| `.context/docs/06-roadmap.md`, `06-board.md` | Generated views (never edited) | `rup-backlog` |
+| `.context/kanban/{1-backlog..7-done,blocked}/` | Cards `EP/ST/TK/BUG-NNN` (`.md` + frontmatter) | `cp-backlog`, `cp-build`, `cp-debug`, `cp-review` |
+| `.context/roadmap/R<n>.md`, `R<n>-I<m>.md` | Releases and iterations | `cp-backlog` |
+| `.context/docs/06-roadmap.md`, `06-board.md` | Generated views (never edited) | `cp-backlog` |
 | `.context/tracking/progress.md` | Overall progress | maintainer / coding agent |
 | `.context/tracking/decisions.md` | ADR record | any agent |
 
@@ -41,24 +41,24 @@ title: Single-line title      # not of the form [..]
 status: 1-backlog      # always equal to the folder
 parent: EP-001         # story -> epic, task -> story, bug -> story (optional)
 priority: Should       # MoSCoW: Must | Should | Could | Won't
-source: rup-requirements#UC-01   # RUP artifact + section (single line)
+source: cp-requirements#UC-01   # RUP artifact + section (single line)
 created_at: 2026-11-03T10:00:00
 updated_at: 2026-11-03T10:00:00
 ---
 ```
 
 Epics also carry `release` and `iteration` (set by `--plan`); a task/bug in
-execution carries `branch` (set by `rup-build --start`).
+execution carries `branch` (set by `cp-build --start`).
 
 | Type | Required sections (before `## History`) |
 |------|------------------------------------------|
 | epic | Goal, Scope |
 | story | User story, Acceptance criteria (`- **ST-NNN/AC-n**: text`), Definition of Done |
 | task | Description, Target files, Covers (`ST-NNN/AC-n` of the parent story) |
-| bug | Symptom, Reproduction; then Root cause (`rup-debug --diagnose`), Fix, Regression test |
+| bug | Symptom, Reproduction; then Root cause (`cp-debug --diagnose`), Fix, Regression test |
 
-Added by the skills: `## Delivery` (`rup-build --finish`, delivery headings
-demoted one level), `## Review` (`rup-review`, earlier reviews kept) and
+Added by the skills: `## Delivery` (`cp-build --finish`, delivery headings
+demoted one level), `## Review` (`cp-review`, earlier reviews kept) and
 `## History`, always the last section: `- <iso> <from> → <to> — <reason> (<actor>)`.
 
 ### Roadmap files (`.context/roadmap/`)
@@ -72,9 +72,9 @@ demoted one level), `## Review` (`rup-review`, earlier reviews kept) and
 
 | Path | Content | Written by |
 |------|---------|-----------|
-| `.context/docs/<NN-phase>/rup-<skill>.md` | Frontmatter (skill, discipline, phase, milestone, generated_at) + briefing excerpt + the host's document; regenerated per run | every `rup-*` skill |
-| `.context/docs/<NN-phase>/rup-orchestrator-sizing.md` | UCP table + JSON | `rup-orchestrator --estimate` |
-| `.context/docs/01-inception/rup-discover.md` | Discovery record (Problem … Open questions) | `rup-discover --record` |
+| `.context/docs/<NN-phase>/cp-<skill>.md` | Frontmatter (skill, discipline, phase, milestone, generated_at) + briefing excerpt + the host's document; regenerated per run | every `cp-*` skill |
+| `.context/docs/<NN-phase>/cp-orchestrator-sizing.md` | UCP table + JSON | `cp-orchestrator --estimate` |
+| `.context/docs/01-inception/cp-discover.md` | Discovery record (Problem … Open questions) | `cp-discover --record` |
 | `.context/tracking/rup-log.md` | Append-only table: when, phase, skill, artifact; also card creations, moves, imports | every write |
 
 ## Persistence rules

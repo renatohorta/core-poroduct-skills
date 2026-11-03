@@ -13,7 +13,7 @@ There is no server: the "deploy" is the **propagation of the skills** from this
 repository to the agents' skills directories.
 
 ```
-skills/rup-*/  ──[ scripts/install.sh ]──►  Hermes:  $HERMES_SKILLS_DIR/creative/<skill>/
+skills/cp-*/  ──[ scripts/install.sh ]──►  Hermes:  $HERMES_SKILLS_DIR/creative/<skill>/
                                                             └─►  Claude:  $CLAUDE_SKILLS_DIR/<skill>/
                                                                  (+ _shared at the skills root, in both)
 ```
@@ -24,7 +24,7 @@ skills/rup-*/  ──[ scripts/install.sh ]──►  Hermes:  $HERMES_SKILLS_DI
 ./scripts/install.sh                          # Hermes + Claude
 ./scripts/install.sh --hermes                 # only Hermes
 ./scripts/install.sh --claude                 # only Claude
-./scripts/install.sh --skill rup-requirements # only one skill
+./scripts/install.sh --skill cp-requirements # only one skill
 ./scripts/install.sh --dry-run                # simulates, does not copy
 ```
 
@@ -71,9 +71,9 @@ explicitly (`"C:\Program Files\Git\bin\bash.exe" scripts/install.sh`).
 | Signal | Where |
 |--------|-------|
 | Work packets | stdout of `run.py` |
-| Artifacts | `.context/docs/<NN-phase>/rup-<skill>.md` |
+| Artifacts | `.context/docs/<NN-phase>/cp-<skill>.md` |
 | Artifact log | `.context/tracking/rup-log.md` |
-| Iteration progress | `rup-orchestrator --status --phase P` |
+| Iteration progress | `cp-orchestrator --status --phase P` |
 | Project progress | `.context/tracking/progress.md` |
 
 There are no aggregated metrics, alerts or log retention — appropriate for local use.
@@ -86,11 +86,11 @@ There are no aggregated metrics, alerts or log retention — appropriate for loc
 | Skill does not appear in Hermes | Confirm `$HERMES_SKILLS_DIR/creative/<skill>/`; reloads on the next turn |
 | `--record` says artifacts are missing | Add a `## <Artifact>` section for each listed artifact and record again |
 | Exit 4 | `.context/` not writable — fix permissions or set `--context-dir` / `RUP_CONTEXT_DIR` |
-| Exit 5 | `.context/` has no `.rup-standard` marker — ask the user; on approval `rup-context --init --authorized-by "<name>"` |
-| `Delivery rejected:` (exit 1) | Fix each listed problem (missing test, no criterion link, trivial test, missing red evidence) and rerun `rup-build --finish` |
+| Exit 5 | `.context/` has no `.rup-standard` marker — ask the user; on approval `cp-context --init --authorized-by "<name>"` |
+| `Delivery rejected:` (exit 1) | Fix each listed problem (missing test, no criterion link, trivial test, missing red evidence) and rerun `cp-build --finish` |
 | `UnicodeEncodeError` | Run with `PYTHONUTF8=1 PYTHONIOENCODING=utf-8` |
 | `ModuleNotFoundError: _shared` | `_shared/` missing in the agent — rerun the full `install.sh` |
-| Iteration interrupted | `rup-orchestrator --status --phase P` shows the next pending step; continue from its packet command |
+| Iteration interrupted | `cp-orchestrator --status --phase P` shows the next pending step; continue from its packet command |
 | `Permission denied` on install | `chmod +x scripts/install.sh` (Linux/macOS) |
 | Change "without effect" | Check which clone of the repo the process is running from |
 

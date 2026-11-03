@@ -21,7 +21,7 @@ run.py --record FILE|-                      # validate + write .context/
        [--phase P] [--context-dir DIR] ["<briefing>" | --input FILE]
 ```
 
-## CLI — `rup-orchestrator` (adds)
+## CLI — `cp-orchestrator` (adds)
 
 | Flag | Meaning |
 |------|---------|
@@ -30,7 +30,7 @@ run.py --record FILE|-                      # validate + write .context/
 | `--auto` | Iteration protocol: step 0 governance + 8 disciplines, in order, with commands + status |
 | `--status` | Recorded artifact per step for the phase, and the next pending step |
 | `--list` | The disciplines |
-| `--estimate [--sizing F] [--json]` | Use Case Points; also recorded as `rup-orchestrator-sizing.md` |
+| `--estimate [--sizing F] [--json]` | Use Case Points; also recorded as `cp-orchestrator-sizing.md` |
 | `--sizing-template` | Empty sizing model |
 
 Discipline keys: `environment`, `business-modeling`, `requirements`,
@@ -42,14 +42,14 @@ All accept `--context-dir DIR`; all writing commands need the marker.
 
 | Skill | Commands |
 |-------|----------|
-| `rup-context` | `--status` · `--init --authorized-by "<who>"` · `--import` · `--record-import FILE\|-` |
-| `rup-discover` | `"<idea>"` packet (default phase Inception) · `--record FILE\|- ["<idea>"]` → `docs/01-inception/rup-discover.md` (sections Problem, Users, Goals, Non-goals, Anti-goals, Constraints, Open questions) |
-| `rup-backlog` | `--new {epic,story,task} --title T --doc FILE\|- [--parent ID] [--priority P] [--source S]` · `--show ID` · `--list [--column C] [--type T]` · `--move ID COLUMN --reason R` · `--derive [--phase P]` · `--release-new --title T [--milestone M] [--goal G] [--target-date D]` · `--iteration-new --release R --phase P --goal G [--start S] [--end E]` · `--plan EPIC --iteration I` · `--roadmap` |
-| `rup-build` | `--start ID` · `--finish ID --delivery FILE\|- [--project-root DIR]` |
-| `rup-debug` | `--open --title T --doc FILE\|- [--parent ST-NNN] [--priority P]` · `--diagnose BUG-NNN --doc FILE\|-` |
-| `rup-review` | `ID [--project-root DIR]` (checklist packet) · `--record ID --doc FILE\|-` (verdict) |
+| `cp-context` | `--status` · `--init --authorized-by "<who>"` · `--import` · `--record-import FILE\|-` |
+| `cp-discover` | `"<idea>"` packet (default phase Inception) · `--record FILE\|- ["<idea>"]` → `docs/01-inception/cp-discover.md` (sections Problem, Users, Goals, Non-goals, Anti-goals, Constraints, Open questions) |
+| `cp-backlog` | `--new {epic,story,task} --title T --doc FILE\|- [--parent ID] [--priority P] [--source S]` · `--show ID` · `--list [--column C] [--type T]` · `--move ID COLUMN --reason R` · `--derive [--phase P]` · `--release-new --title T [--milestone M] [--goal G] [--target-date D]` · `--iteration-new --release R --phase P --goal G [--start S] [--end E]` · `--plan EPIC --iteration I` · `--roadmap` |
+| `cp-build` | `--start ID` · `--finish ID --delivery FILE\|- [--project-root DIR]` |
+| `cp-debug` | `--open --title T --doc FILE\|- [--parent ST-NNN] [--priority P]` · `--diagnose BUG-NNN --doc FILE\|-` |
+| `cp-review` | `ID [--project-root DIR]` (checklist packet) · `--record ID --doc FILE\|-` (verdict) |
 
-Delivery document (`rup-build --finish`): `## What was done`, `## Files changed`,
+Delivery document (`cp-build --finish`): `## What was done`, `## Files changed`,
 `## Tests` (one line `- <path>::<test> — covers <ID>[, <ID>]`), `## Red evidence`
 (one `### <path>::<test>` block with fenced output per test). Review document:
 `## Verdict` (first line `approved` or `changes requested`) and `## Findings`.
@@ -61,7 +61,7 @@ Delivery document (`rup-build --finish`): `## What was done`, `## Files changed`
 | 0 | Success |
 | 1 | Usage error — missing briefing, unreadable `--input`/`--record` source, empty document, **missing required artifacts**, invalid sizing model, `--record` with `--discipline` |
 | 4 | `.context/` not writable |
-| 5 | Needs authorization — `.context/` has no `.rup-standard` marker; nothing was written. Ask the user, then `rup-context --init` |
+| 5 | Needs authorization — `.context/` has no `.rup-standard` marker; nothing was written. Ask the user, then `cp-context --init` |
 
 Exit 1 also covers: invalid card/delivery/review/import document (the problems are
 printed; nothing is written), unknown card ID or column, a move without a reason,
@@ -85,14 +85,14 @@ matching ignores case, punctuation and parenthesised qualifiers
 
 | Run | File |
 |-----|------|
-| discipline `<key>` in phase P | `.context/docs/<NN-P>/rup-<key>.md` |
-| governance | `.context/docs/<NN-P>/rup-orchestrator.md` |
-| `--estimate` | `.context/docs/<NN-P>/rup-orchestrator-sizing.md` |
+| discipline `<key>` in phase P | `.context/docs/<NN-P>/cp-<key>.md` |
+| governance | `.context/docs/<NN-P>/cp-orchestrator.md` |
+| `--estimate` | `.context/docs/<NN-P>/cp-orchestrator-sizing.md` |
 | every write | one row in `.context/tracking/rup-log.md` |
 
 ```markdown
 ---
-skill: rup-requirements
+skill: cp-requirements
 discipline: Requirements
 phase: Elaboration
 milestone: Lifecycle Architecture (LCA)

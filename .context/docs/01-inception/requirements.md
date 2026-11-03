@@ -14,11 +14,11 @@ New requirements must enter through `.context/inbox/initiatives/`.
 
 | ID | Requirement | Priority | Status |
 |----|-------------|----------|--------|
-| RF-01 | Keep the canonical source code of all `rup-*` skills in `skills/` | Must | ✅ Implemented |
+| RF-01 | Keep the canonical source code of all `cp-*` skills in `skills/` | Must | ✅ Implemented |
 | RF-02 | Propagate the skills to Hermes and Claude via `scripts/install.sh` | Must | ✅ Implemented |
 | RF-03 | Allow selective install (`--hermes`, `--claude`, `--skill`, `--dry-run`) | Must | ✅ Implemented |
 | RF-04 | The agent running the skill is the LLM — no model call, key or proxy in the skills | Must | ✅ Implemented (ADR-0012) |
-| RF-05 | Expose a single entry point (`rup-orchestrator`) that governs the RUP lifecycle | Must | ✅ Implemented |
+| RF-05 | Expose a single entry point (`cp-orchestrator`) that governs the RUP lifecycle | Must | ✅ Implemented |
 | RF-06 | One skill per RUP discipline (8), with the agents and artifacts of the spec | Must | ✅ Implemented |
 | RF-07 | Dispatch one discipline (`--discipline`) or all in order (`--auto`) | Must | ✅ Implemented |
 | RF-08 | In `--auto`, pass the artifacts of earlier disciplines to the next ones and keep one artifact per discipline | Must | ✅ Implemented (2026-11-03) |
@@ -27,9 +27,9 @@ New requirements must enter through `.context/inbox/initiatives/`.
 | RF-11 | `--record` validates that every required artifact is present before writing | Must | ✅ Implemented |
 | RF-12 | Iteration protocol (`--auto`) and progress (`--status`) for the host | Should | ✅ Implemented |
 | RF-13 | **Always** persist the RUP artifacts into the target project's `.context/` | Must | ✅ Implemented (ADR-0011, INIT-02) |
-| RF-15 | **Never write into `.context/` without the user's authorization**: marker `.rup-standard`, exit 5, `rup-context --init` after approval, non-destructive | Must | ✅ Implemented (ADR-0013) |
+| RF-15 | **Never write into `.context/` without the user's authorization**: marker `.rup-standard`, exit 5, `cp-context --init` after approval, non-destructive | Must | ✅ Implemented (ADR-0013) |
 | RF-16 | Import existing project docs into `.context/` without moving, changing or deleting the originals | Should | ✅ Implemented (ADR-0013) |
-| RF-17 | Discovery conversation recorded as `rup-discover.md` and embedded first in later packets | Must | ✅ Implemented (ADR-0013) |
+| RF-17 | Discovery conversation recorded as `cp-discover.md` and embedded first in later packets | Must | ✅ Implemented (ADR-0013) |
 | RF-18 | Cards `EP/ST/TK/BUG-NNN` with fixed, validated sections, stable criterion IDs `ST-NNN/AC-n` and parent links; derivation from the requirements only adds | Must | ✅ Implemented (ADR-0013) |
 | RF-19 | Roadmap of releases → iterations → epics; generated `06-roadmap.md` and `06-board.md` | Must | ✅ Implemented (ADR-0013) |
 | RF-20 | Move cards between columns by declaration, logged in the card and `rup-log.md`; automatic roll-up of stories/epics | Must | ✅ Implemented (ADR-0013) |
@@ -74,8 +74,8 @@ New requirements must enter through `.context/inbox/initiatives/`.
 - **BR-04** — Card IDs are assigned by the skill, never by the agent; a card's
   `status` equals its folder; a task covers criteria of its parent story.
 - **BR-05** — A card moves when the agent *declares* the step done; no proof is
-  required to move. The test brake lives in `rup-build --finish`.
-- **BR-03** — The orchestrator registry (`DISCIPLINES`) and the `skills/rup-*`
+  required to move. The test brake lives in `cp-build --finish`.
+- **BR-03** — The orchestrator registry (`DISCIPLINES`) and the `skills/cp-*`
   directories must match (enforced by a test).
 
 ---
@@ -117,7 +117,7 @@ New requirements must enter through `.context/inbox/initiatives/`.
 | SEC-03 | Briefings and earlier artifacts end up in the host agent's context, i.e. its LLM provider | Medium | Same exposure as the conversation itself — no extra provider | Do not put secrets/personal data in briefings |
 | SEC-04 | Orchestrator's `subprocess.run` executes the skills' `run.py` | Low | Fixed `DISCIPLINES` registry, argument list, no `shell=True` | Keep — never build a command from a string |
 | SEC-05 | `install.sh` does `rm -rf "$dst"` before copying | Low | Destination derived from known env vars | Never point `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` to a directory with its own content |
-| SEC-06 | `.context/` artifacts may contain content from the target project | Low | Written only to the resolved `.context/` (never outside the git root unless `--context-dir`/`RUP_CONTEXT_DIR` says so) | Review `rup-*.md` before committing in projects with sensitive data |
+| SEC-06 | `.context/` artifacts may contain content from the target project | Low | Written only to the resolved `.context/` (never outside the git root unless `--context-dir`/`RUP_CONTEXT_DIR` says so) | Review `cp-*.md` before committing in projects with sensitive data |
 
 ## LGPD
 

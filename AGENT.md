@@ -1,10 +1,10 @@
 # AGENT.md — Project Context
 
 **Project**: Core Product Skills — canonical repository of the **RUP skills**
-(`skills/rup-*`: 9 document skills + 6 execution skills, ADR-0013) propagated to the Hermes Agent and Claude Code. **The agent
+(`skills/cp-*`: 9 document skills + 6 execution skills, ADR-0013) propagated to the Hermes Agent and Claude Code. **The agent
 running a skill is the LLM** (ADR-0012): the skills never call a model and are
-pure standard library. The legacy `cp-*` family (ADR-0010) and the CrewAI
-execution (ADR-0012) only exist in the git history.
+pure standard library. The legacy Software Factory family (removed in ADR-0010) also used the `cp-` prefix; the current `cp-*` skills are the RUP skills, renamed from `rup-*` in ADR-0014. The CrewAI
+execution (ADR-0012) only exists in the git history.
 
 **Source of truth: `.context/`**
 
@@ -33,14 +33,14 @@ source of truth and the only place agents read/write project context.
    `--auto`, `--status`, `--list`, `--estimate`, `--sizing`, `--sizing-template`,
    `--json`. Exit codes: 0 ok · 1 usage/invalid document/rejected delivery ·
    4 `.context/` not writable · 5 needs authorization (no `.context/.rup-standard`
-   marker; the agent asks the user, then runs `rup-context --init`).
-   The execution skills (`rup-context`, `rup-discover`, `rup-backlog`,
-   `rup-build`, `rup-debug`, `rup-review`) add their own commands; see each
+   marker; the agent asks the user, then runs `cp-context --init`).
+   The execution skills (`cp-context`, `cp-discover`, `cp-backlog`,
+   `cp-build`, `cp-debug`, `cp-review`) add their own commands; see each
    `SKILL.md`.
 4. **A discipline's roles/artifacts are data** — the `SPEC` dict in its
    `run.py`; the behavior is in `_shared/discipline.py`. Never reintroduce an
    LLM client, API key or third-party runtime dependency (tests run `python -S`).
-5. **Artifacts always go to `.context/`** — `.context/docs/<NN-phase>/rup-<skill>.md`
+5. **Artifacts always go to `.context/`** — `.context/docs/<NN-phase>/cp-<skill>.md`
    + `.context/tracking/rup-log.md` (ADR-0011). Tests must point `RUP_CONTEXT_DIR`
    at a temp dir (the `clean_env` fixture does) — never write into this repo's `.context/`.
 6. **Cards and views** — cards are `.context/kanban/<column>/<ID>.md`
@@ -50,3 +50,14 @@ source of truth and the only place agents read/write project context.
 7. **Windows**: the skills force UTF-8 on stdout/stderr (`setup_console`).
 8. **Before committing**: `git status --short` (partial commits are the most
    common mistake here) and `.venv/bin/python -m pytest` (~5 s).
+
+<!-- rup-skills:start -->
+## RUP skills — which one to use
+- Before building anything new: `cp-discover`
+- Plan epics/stories/tasks, roadmap, move cards: `cp-backlog`
+- Implement a task (TDD): `cp-build`
+- Fix a bug: `cp-debug`
+- Review a delivered card: `cp-review`
+- RUP documents (governance, disciplines): `cp-orchestrator`
+- Project context lives in `.context/` (set up with `cp-context`).
+<!-- rup-skills:end -->

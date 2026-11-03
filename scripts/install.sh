@@ -3,14 +3,14 @@
 # install.sh — Installs/updates the skills in the agents.
 #
 # Every directory under skills/ that has a SKILL.md is a skill (the RUP family,
-# rup-*). skills/_shared/ is a helper, not a skill: it goes to the agent's skills
+# cp-*). skills/_shared/ is a helper, not a skill: it goes to the agent's skills
 # root, never into a category.
 #
 # Usage:
 #   ./scripts/install.sh                       # installs every skill
 #   ./scripts/install.sh --hermes              # Hermes only
 #   ./scripts/install.sh --claude              # Claude only
-#   ./scripts/install.sh --skill rup-requirements   # one skill only
+#   ./scripts/install.sh --skill cp-requirements   # one skill only
 #   ./scripts/install.sh --dry-run             # shows what it would do, without copying
 #
 # Portability: uses env vars + relative defaults. No hardcoded OS/machine path.
@@ -42,7 +42,7 @@ Usage:
   ./scripts/install.sh                          # installs every skill
   ./scripts/install.sh --hermes                 # Hermes only
   ./scripts/install.sh --claude                 # Claude only
-  ./scripts/install.sh --skill rup-requirements # one skill only
+  ./scripts/install.sh --skill cp-requirements # one skill only
   ./scripts/install.sh --dry-run                # shows what it would do, without copying
 EOF
   exit 0

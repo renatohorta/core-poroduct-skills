@@ -1,4 +1,4 @@
-"""Cards: model, IDs, creation and the rup-backlog --new/--show/--list CLI."""
+"""Cards: model, IDs, creation and the cp-backlog --new/--show/--list CLI."""
 from pathlib import Path
 
 import pytest
@@ -8,7 +8,7 @@ from test_context_persistence import run_skill
 
 from _shared import cards, frontmatter
 
-SKILL = "rup-backlog"
+SKILL = "cp-backlog"
 
 EPIC = "## Goal\n\nSchedule visits.\n\n## Scope\n\nBooking only.\n"
 STORY = ("## User story\n\nAs a patient I want to book so that I save time.\n\n"
@@ -231,7 +231,7 @@ def test_story_rolls_to_doing_when_first_task_starts(ctx):
     cards.move(ctx, "TK-001", "3-doing", "start")
     assert col(ctx, "ST-001") == "3-doing" and col(ctx, "EP-001") == "3-doing"
     text = cards.get(ctx, "ST-001").path.read_text(encoding="utf-8")
-    assert "roll-up: TK-001 started (rup-backlog)" in text
+    assert "roll-up: TK-001 started (cp-backlog)" in text
     cards.move(ctx, "TK-002", "4-review", "go")
     assert col(ctx, "ST-001") == "3-doing"
     assert text.count("roll-up") == 1
@@ -254,7 +254,7 @@ def test_story_and_epic_roll_to_done_when_all_children_done(ctx):
     cards.move(ctx, "BUG-001", "7-done", "ok")
     assert col(ctx, "ST-001") == "7-done" and col(ctx, "EP-001") == "7-done"
     text = cards.get(ctx, "EP-001").path.read_text(encoding="utf-8")
-    assert "roll-up: all children done (rup-backlog)" in text
+    assert "roll-up: all children done (cp-backlog)" in text
 
 
 def test_move_without_rollup_leaves_parent(ctx):
@@ -392,7 +392,7 @@ Flow.
 
 def write_requirements(ctx, text=REQUIREMENTS, phase="Elaboration"):
     from _shared import context
-    path = context.artifact_path(ctx, phase, "rup-requirements")
+    path = context.artifact_path(ctx, phase, "cp-requirements")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("# header\n\n## Artifacts\n" + text, encoding="utf-8")
 
@@ -400,19 +400,19 @@ def write_requirements(ctx, text=REQUIREMENTS, phase="Elaboration"):
 def test_derive_requires_requirements_artifact(ctx_env, python_cmd):
     r = run_skill(SKILL, ["--derive"], ctx_env, python_cmd)
     assert r.returncode == EXIT_USAGE, r.stdout + r.stderr
-    assert "record rup-requirements first" in r.stdout + r.stderr
+    assert "record cp-requirements first" in r.stdout + r.stderr
 
 
 def test_derive_report_pending_derived_orphans(ctx):
     write_requirements(ctx)
-    cards.create(ctx, "epic", "Booking", EPIC, source="rup-requirements#Booking")
-    cards.create(ctx, "epic", "Gone", EPIC, source="rup-requirements#Removed package")
+    cards.create(ctx, "epic", "Booking", EPIC, source="cp-requirements#Booking")
+    cards.create(ctx, "epic", "Gone", EPIC, source="cp-requirements#Removed package")
     cards.create(ctx, "epic", "Manual", EPIC, source="other.md#X")
     report = cards.derivation_report(ctx, "Elaboration")
-    assert report["derived"] == ["rup-requirements#Booking"]
-    assert report["pending"] == ["rup-requirements#Billing", "rup-requirements#Book a visit",
-                                 "rup-requirements#Cancel a visit"]
-    assert report["orphans"] == ["rup-requirements#Removed package"]
+    assert report["derived"] == ["cp-requirements#Booking"]
+    assert report["pending"] == ["cp-requirements#Billing", "cp-requirements#Book a visit",
+                                 "cp-requirements#Cancel a visit"]
+    assert report["orphans"] == ["cp-requirements#Removed package"]
 
 
 def test_derive_cli_prints_commands(ctx_env, python_cmd, tmp_path):
@@ -423,14 +423,14 @@ def test_derive_cli_prints_commands(ctx_env, python_cmd, tmp_path):
     assert "Orphan cards" in r.stdout
     assert "--new epic --title Billing" in r.stdout
     assert "--new story --title 'Book a visit'" in r.stdout
-    assert "--source 'rup-requirements#Book a visit'" in r.stdout
+    assert "--source 'cp-requirements#Book a visit'" in r.stdout
     assert "<epic ID>" in r.stdout
 
 
 def test_derive_never_modifies_existing_cards(ctx_env, python_cmd, tmp_path):
     ctx = Path(ctx_env["RUP_CONTEXT_DIR"])
     write_requirements(ctx)
-    card = cards.create(ctx, "epic", "Booking", EPIC, source="rup-requirements#Booking")
+    card = cards.create(ctx, "epic", "Booking", EPIC, source="cp-requirements#Booking")
     before = card.path.read_bytes()
     r = run_skill(SKILL, ["--derive"], ctx_env, python_cmd)
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
@@ -443,7 +443,7 @@ def test_no_skipped_warning_on_normal_flows(ctx):
     cards.move(ctx, "EP-001", "3-doing", "start")  # 1-backlog -> 3-doing
     cards.move(ctx, "EP-001", "2-todo", "back")
     cards.move(ctx, "EP-001", "3-doing", "again")  # 2-todo -> 3-doing
-    cards.move(ctx, "EP-001", "7-done", "roll-up", actor="rup-backlog")
+    cards.move(ctx, "EP-001", "7-done", "roll-up", actor="cp-backlog")
     assert "⚠️" not in cards.get(ctx, "EP-001").path.read_text(encoding="utf-8")
     cards.create(ctx, "epic", "B", EPIC)
     cards.move(ctx, "EP-002", "4-review", "jump")  # still warns

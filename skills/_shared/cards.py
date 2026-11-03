@@ -224,7 +224,7 @@ def create(context_dir, type, title, body, *, parent=None, priority="Should",
     path = _kanban(context_dir) / COLUMNS[0] / f"{card_id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(frontmatter.dump(meta, card_body), encoding="utf-8")
-    context.append_event(context_dir, skill="rup-backlog",
+    context.append_event(context_dir, skill="cp-backlog",
                          what=f"created {card_id} ({type}) in {COLUMNS[0]}", now=now)
     roadmap.regenerate_views(context_dir)
     return Card(card_id, type, title, COLUMNS[0], meta, card_body.rstrip() + "\n", path)
@@ -318,7 +318,7 @@ def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
     now = now or datetime.now()
     src = card.status
     line = f"{src} → {column} — {reason} ({actor})"
-    normal = actor == "rup-backlog" or (src in ("1-backlog", "2-todo") and column == "3-doing")
+    normal = actor == "cp-backlog" or (src in ("1-backlog", "2-todo") and column == "3-doing")
     if "blocked" not in (src, column) and not normal:
         a, b = COLUMNS.index(src), COLUMNS.index(column)
         if b - a > 1:
@@ -330,7 +330,7 @@ def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
     card.status = column
     add_history(card, line, now=now)  # writes the card at its new path
     old_path.unlink()
-    context.append_event(context_dir, skill="rup-backlog",
+    context.append_event(context_dir, skill="cp-backlog",
                          what=f"moved {card_id} {src} → {column}: {reason}", now=now)
     if rollup:
         _rollup(context_dir, card, now=now)
@@ -360,7 +360,7 @@ def rollup(context_dir, card: Card, *, now=None) -> list:
             if first:
                 target, why = "3-doing", f"roll-up: {first.id} started"
         if target:
-            parent = move(context_dir, parent.id, target, why, actor="rup-backlog",
+            parent = move(context_dir, parent.id, target, why, actor="cp-backlog",
                           now=now, rollup=False, views=False)
             moved.append(parent)
         card = parent
@@ -370,9 +370,9 @@ def rollup(context_dir, card: Card, *, now=None) -> list:
 _rollup = rollup  # `move` has a parameter named `rollup`
 
 
-# ─── derivation from rup-requirements ────────────────────────────────────
+# ─── derivation from cp-requirements ────────────────────────────────────
 
-REQUIREMENTS_SKILL = "rup-requirements"
+REQUIREMENTS_SKILL = "cp-requirements"
 SOURCE_PREFIX = f"{REQUIREMENTS_SKILL}#"
 
 
@@ -381,7 +381,7 @@ def requirements_candidates(context_dir, phase: str) -> list:
     `## Use-Case Packages` (epic) then of `## Use Cases` (story)."""
     path = context.artifact_path(context_dir, phase, REQUIREMENTS_SKILL)
     if not path.is_file():
-        fail(f"{path} not found: record rup-requirements first "
+        fail(f"{path} not found: record cp-requirements first "
              f"(phase {phase}) before deriving epics and stories")
     found: dict = {"epic": [], "story": []}
     section = None
@@ -398,7 +398,7 @@ def requirements_candidates(context_dir, phase: str) -> list:
 
 
 def derivation_report(context_dir, phase: str) -> dict:
-    """`derived` / `pending` / `orphans` source strings (`rup-requirements#<heading>`)."""
+    """`derived` / `pending` / `orphans` source strings (`cp-requirements#<heading>`)."""
     sources = [SOURCE_PREFIX + h for _, h in requirements_candidates(context_dir, phase)]
     used = {str(c.meta.get("source", "")) for c in load_all(context_dir).values()}
     return {

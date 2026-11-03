@@ -15,23 +15,24 @@ already recorded — and then validate and record the agent's document into the
 project's `.context/` (mandatory, ADR-0011). No API key, no proxy, no CrewAI: the
 same model, with the same conversation context, writes the artifacts.
 
-> History: the legacy `cp-*` family was removed (ADR-0010); the CrewAI execution
-> of the RUP skills was replaced by the host-LLM model (ADR-0012). Both remain in
-> the git history.
+> History: the legacy Software Factory family (removed in ADR-0010) also used the
+> `cp-` prefix; the current `cp-*` skills are the RUP skills, renamed from `rup-*`
+> (ADR-0014). The CrewAI execution was replaced by the host-LLM model (ADR-0012).
+> All of it remains in the git history.
 
-## The RUP skills (`skills/rup-*`)
+## The RUP skills (`skills/cp-*`)
 
 | Skill | Discipline | Roles |
 |-------|------------|-------|
-| `rup-orchestrator` | Project Management (governance) | 1 |
-| `rup-environment` | Environment | 1 |
-| `rup-business-modeling` | Business Modeling | 2 |
-| `rup-requirements` | Requirements | 2 |
-| `rup-analysis-design` | Analysis & Design | 5 |
-| `rup-implementation` | Implementation | 2 |
-| `rup-test` | Test | 4 |
-| `rup-ccm` | Configuration & Change Management | 2 |
-| `rup-deployment` | Deployment | 2 |
+| `cp-orchestrator` | Project Management (governance) | 1 |
+| `cp-environment` | Environment | 1 |
+| `cp-business-modeling` | Business Modeling | 2 |
+| `cp-requirements` | Requirements | 2 |
+| `cp-analysis-design` | Analysis & Design | 5 |
+| `cp-implementation` | Implementation | 2 |
+| `cp-test` | Test | 4 |
+| `cp-ccm` | Configuration & Change Management | 2 |
+| `cp-deployment` | Deployment | 2 |
 
 ## The execution skills (replace the superpowers plugin — ADR-0013)
 
@@ -41,12 +42,12 @@ that move between kanban columns.
 
 | Skill | Use it to |
 |-------|-----------|
-| `rup-context` | Check the project's `.context/`, **ask the user**, then adopt the RUP standard (`--init`), import existing docs |
-| `rup-discover` | Talk before building: problem, users, goals, non-goals, anti-goals; recorded in Inception |
-| `rup-backlog` | Create epics/stories/tasks, derive them from requirements, move cards, plan releases/iterations, generate the roadmap and board |
-| `rup-build` | Start a task test-first, then finish it with a delivery whose tests are checked for value |
-| `rup-debug` | Open a bug card, pin it with a regression test, record the root cause before the fix |
-| `rup-review` | Review a card in `4-review` and record `approved` / `changes requested` |
+| `cp-context` | Check the project's `.context/`, **ask the user**, then adopt the RUP standard (`--init`), import existing docs |
+| `cp-discover` | Talk before building: problem, users, goals, non-goals, anti-goals; recorded in Inception |
+| `cp-backlog` | Create epics/stories/tasks, derive them from requirements, move cards, plan releases/iterations, generate the roadmap and board |
+| `cp-build` | Start a task test-first, then finish it with a delivery whose tests are checked for value |
+| `cp-debug` | Open a bug card, pin it with a regression test, record the root cause before the fix |
+| `cp-review` | Review a card in `4-review` and record `approved` / `changes requested` |
 
 15 skills in total: 9 document skills + 6 execution skills.
 
@@ -60,14 +61,14 @@ agent ──► run.py "<briefing>" --phase P        ─► WORK PACKET (read-on
                                                    briefing · earlier .context/ artifacts
 agent writes ONE document: "# <Role>" + "## <Artifact>" for each required artifact
 agent ──► run.py --record doc.md --phase P     ─► validates every "## <Artifact>"
-                                                   writes .context/docs/<NN-phase>/rup-<skill>.md
+                                                   writes .context/docs/<NN-phase>/cp-<skill>.md
                                                    logs   .context/tracking/rup-log.md
 ```
 
 - **Chaining**: a discipline's packet embeds the governance artifact and the
   artifacts of the earlier disciplines recorded in the same phase. Run them in
   order and each builds on the previous ones.
-- **Whole iteration**: `rup-orchestrator "<briefing>" --auto` prints the
+- **Whole iteration**: `cp-orchestrator "<briefing>" --auto` prints the
   protocol (governance + 8 disciplines, in order, with the commands);
   `--status` shows what is recorded and the next pending step.
 - **Sizing**: Use Case Points are computed by code (`--estimate`), never by the
@@ -77,11 +78,11 @@ agent ──► run.py --record doc.md --phase P     ─► validates every "## 
   are never touched — generated artifacts carry the `rup-` prefix.
 - **Authorization**: every writing command needs the marker
   `.context/.rup-standard`. Without it the skill writes nothing and exits 5; the
-  agent asks the user and, on approval, runs `rup-context --init` (ADR-0013).
-- **Execution skills**: `rup-backlog` creates and moves cards
+  agent asks the user and, on approval, runs `cp-context --init` (ADR-0013).
+- **Execution skills**: `cp-backlog` creates and moves cards
   (`.context/kanban/<column>/<ID>.md`), plans `.context/roadmap/` and generates
-  `docs/06-roadmap.md` and `docs/06-board.md`; `rup-build --start/--finish`,
-  `rup-debug --open/--diagnose` and `rup-review <ID>` / `--record` drive a task
+  `docs/06-roadmap.md` and `docs/06-board.md`; `cp-build --start/--finish`,
+  `cp-debug --open/--diagnose` and `cp-review <ID>` / `--record` drive a task
   from `3-doing` to review. The skills never run git or your tests.
 
 ## Repository structure
@@ -108,8 +109,8 @@ core-poroduct-skills/
     │   ├── cards.py          # cards, moves, roll-up, derivation
     │   ├── roadmap.py        # releases, iterations, generated views
     │   └── testcheck*.py     # test-value checks (Python ast, JS/TS patterns)
-    ├── rup-orchestrator/     # governance, iteration protocol, UCP
-    ├── rup-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
+    ├── cp-orchestrator/     # governance, iteration protocol, UCP
+    ├── cp-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
     └── rup-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
 
@@ -118,7 +119,7 @@ core-poroduct-skills/
 ```bash
 ./scripts/install.sh                       # every skill, Hermes + Claude
 ./scripts/install.sh --hermes | --claude   # one agent
-./scripts/install.sh --skill rup-requirements
+./scripts/install.sh --skill cp-requirements
 ./scripts/install.sh --dry-run
 ```
 
@@ -151,7 +152,7 @@ CI (`.github/workflows/ci.yml`): Python 3.12/3.13 on Linux (blocking) and Window
 | 0 | Success |
 | 1 | Usage error: missing briefing, unreadable `--input`, document missing required artifacts, invalid sizing model |
 | 4 | `.context/` not writable |
-| 5 | Needs authorization: `.context/` lacks the `.rup-standard` marker — ask the user, then `rup-context --init` |
+| 5 | Needs authorization: `.context/` lacks the `.rup-standard` marker — ask the user, then `cp-context --init` |
 
 Exit 1 also covers an invalid card/document and a rejected delivery.
 

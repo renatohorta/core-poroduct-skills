@@ -1,4 +1,4 @@
-"""Smoke tests of the RUP (rup-*) skills — host-LLM model (ADR-0012).
+"""Smoke tests of the RUP (cp-*) skills — host-LLM model (ADR-0012).
 
 Every skill must:
   - run on the standard library alone (no crewai, no LLM key, no site-packages)
@@ -99,7 +99,7 @@ def test_every_skill_has_skill_md_and_references(skill):
 @pytest.mark.parametrize("skill", DISCIPLINE_SKILLS)
 def test_spec_is_well_formed(skill):
     spec = load_skill(skill).SPEC
-    assert spec["key"] == skill[len("rup-"):]
+    assert spec["key"] == skill[len("cp-"):]
     assert DISCIPLINES[spec["key"]]["skill"] == skill
     assert DISCIPLINES[spec["key"]]["title"] == spec["title"]
     assert spec["agents"], f"{skill}: no agents"
@@ -139,7 +139,7 @@ def test_orchestrator_lists_all_disciplines(clean_env, python_cmd):
 def test_orchestrator_discipline_prints_that_packet(clean_env, python_cmd):
     r = run_skill(ORCHESTRATOR, BRIEFING + ["--discipline", "requirements"], clean_env, python_cmd)
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
-    assert r.stdout.startswith("# RUP work packet — Requirements (`rup-requirements`)")
+    assert r.stdout.startswith("# RUP work packet — Requirements (`cp-requirements`)")
 
 
 def test_orchestrator_discipline_rejects_record(clean_env, python_cmd, tmp_path):
@@ -147,7 +147,7 @@ def test_orchestrator_discipline_rejects_record(clean_env, python_cmd, tmp_path)
     doc.write_text("x", encoding="utf-8")
     r = run_skill(ORCHESTRATOR, ["--discipline", "ccm", "--record", str(doc)],
                   clean_env, python_cmd)
-    assert r.returncode == EXIT_USAGE and "rup-ccm" in r.stdout
+    assert r.returncode == EXIT_USAGE and "cp-ccm" in r.stdout
 
 
 def test_auto_prints_the_protocol_in_rup_order(clean_env, python_cmd):
@@ -263,7 +263,7 @@ def test_installed_skills_run_in_both_agent_layouts(clean_env, tmp_path, bash_cm
     r = _install(bash_cmd, clean_env, tmp_path)
     assert r.returncode == EXIT_OK, f"install.sh failed:\n{r.stdout}\n{r.stderr}"
     for root in (tmp_path / "claude", tmp_path / "hermes" / "creative"):
-        for skill in (ORCHESTRATOR, "rup-requirements"):
+        for skill in (ORCHESTRATOR, "cp-requirements"):
             run_py = root / skill / "scripts" / "run.py"
             r = subprocess.run([python_cmd, str(run_py), "briefing"], capture_output=True,
                                text=True, timeout=120, env=clean_env,

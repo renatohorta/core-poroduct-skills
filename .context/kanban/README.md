@@ -1,6 +1,6 @@
 # kanban/ — Execution Pipeline
 
-Source of truth for the task flow, managed by `rup-backlog` (and the execution
+Source of truth for the task flow, managed by `cp-backlog` (and the execution
 skills that call the same move logic). When Trello is configured, it is only a
 **mirrored view** — what matters is what is here. Writing needs the RUP standard
 authorized in `.context/` (marker `.rup-standard`, exit 5 otherwise).
@@ -9,7 +9,7 @@ authorized in `.context/` (marker `.rup-standard`, exit 5 otherwise).
 
 `inbox/` is raw intake: a draft of an initiative, task, bug or technical debt.
 After triage, the item becomes a card here, in `1-backlog/`, created with
-`rup-backlog --new` (or derived from the requirements with `--derive`).
+`cp-backlog --new` (or derived from the requirements with `--derive`).
 
 ## Columns
 
@@ -40,7 +40,7 @@ IDs are assigned by the skill (3 digits, one sequence per type).
 
 - Acceptance criteria get IDs `ST-NNN/AC-n`; a task's `## Covers` lists them.
 - `## History` is always the last section: `- <iso> <from> → <to> — <reason> (<actor>)`.
-- `rup-build --finish` adds `## Delivery` (its headings demoted); `rup-review`
+- `cp-build --finish` adds `## Delivery` (its headings demoted); `cp-review`
   adds `## Review`.
 - Priority is MoSCoW: `Must`, `Should` (default), `Could`, `Won't`.
 
@@ -52,7 +52,7 @@ title: Book a slot
 status: 1-backlog
 parent: EP-001
 priority: Should
-source: rup-requirements#UC-01
+source: cp-requirements#UC-01
 created_at: 2026-11-03T10:00:00
 updated_at: 2026-11-03T10:00:00
 ---
@@ -66,16 +66,16 @@ updated_at: 2026-11-03T10:00:00
 ## History
 ```
 
-## Commands (`rup-backlog`, `rup-build`, `rup-debug`, `rup-review`)
+## Commands (`cp-backlog`, `cp-build`, `cp-debug`, `cp-review`)
 
 ```
-rup-backlog --new {epic,story,task} --title T --doc FILE|- [--parent ID]
-rup-backlog --list | --show ID | --derive
-rup-backlog --move ID COLUMN --reason "..."     # declaration is enough; any move is legal
-rup-backlog --release-new / --iteration-new / --plan EP --iteration I / --roadmap
-rup-build   --start TK-NNN | --finish TK-NNN --delivery FILE|-
-rup-debug   --open ... | --diagnose BUG-NNN --doc FILE|-
-rup-review  TK-NNN | --record TK-NNN --doc FILE|-
+cp-backlog --new {epic,story,task} --title T --doc FILE|- [--parent ID]
+cp-backlog --list | --show ID | --derive
+cp-backlog --move ID COLUMN --reason "..."     # declaration is enough; any move is legal
+cp-backlog --release-new / --iteration-new / --plan EP --iteration I / --roadmap
+cp-build   --start TK-NNN | --finish TK-NNN --delivery FILE|-
+cp-debug   --open ... | --diagnose BUG-NNN --doc FILE|-
+cp-review  TK-NNN | --record TK-NNN --doc FILE|-
 ```
 
 Stories and epics move by roll-up: to `3-doing` when the first child starts, to

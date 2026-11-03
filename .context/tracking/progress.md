@@ -2,19 +2,27 @@
 
 > Last update: 2026-11-03.
 
+## Skills renamed `rup-*` → `cp-*` (2026-11-03)
+
+| Change | Status | Date |
+|--------|--------|------|
+| 15 skill dirs, registry, SKILL.md, artifact names, docs and tests renamed (ADR-0014) | ✅ Done | 2026-11-03 |
+| This repository's `.context/` authorized (`cp-context --init`) | ✅ Done | 2026-11-03 |
+| Skills installed in Claude Code (`install.sh --claude`) | ✅ Done | 2026-11-03 |
+
 ## Execution skills — INIT-03 (2026-11-03)
 
 | Change | Status | Date |
 |--------|--------|------|
 | Authorization gate: marker `.context/.rup-standard`, exit code 5 on every writing command | ✅ Done | 2026-11-03 |
-| `rup-context`: `--status`, `--init`, `--import`, `--record-import`; pointer note in `CLAUDE.md`/`AGENT.md` | ✅ Done | 2026-11-03 |
-| `rup-discover`: discovery conversation recorded as `rup-discover.md`, embedded first in later packets | ✅ Done | 2026-11-03 |
-| `rup-backlog`: cards EP/ST/TK/BUG, moves with roll-up, derivation, releases/iterations, generated `06-roadmap.md`/`06-board.md` | ✅ Done | 2026-11-03 |
-| `rup-build`, `rup-debug`, `rup-review`: TDD start/finish with test-value checks, bug flow, review verdict | ✅ Done | 2026-11-03 |
+| `cp-context`: `--status`, `--init`, `--import`, `--record-import`; pointer note in `CLAUDE.md`/`AGENT.md` | ✅ Done | 2026-11-03 |
+| `cp-discover`: discovery conversation recorded as `cp-discover.md`, embedded first in later packets | ✅ Done | 2026-11-03 |
+| `cp-backlog`: cards EP/ST/TK/BUG, moves with roll-up, derivation, releases/iterations, generated `06-roadmap.md`/`06-board.md` | ✅ Done | 2026-11-03 |
+| `cp-build`, `cp-debug`, `cp-review`: TDD start/finish with test-value checks, bug flow, review verdict | ✅ Done | 2026-11-03 |
 | Shared modules: `consent`, `frontmatter`, `cards`, `roadmap`, `testcheck{,_py,_js}` | ✅ Done | 2026-11-03 |
 | Docs, ADR-0013, this `.context/` updated | ✅ Done | 2026-11-03 |
 | Suite (no LLM, stdlib only, ~5 s) | ✅ 268 passed | 2026-11-03 |
-| **Pending (owner)**: authorize this repository's `.context/` (`rup-context --init`), then uninstall superpowers if satisfied | ⏳ Open | — |
+| **Pending (owner)**: authorize this repository's `.context/` (`cp-context --init`), then uninstall superpowers if satisfied | ⏳ Open | — |
 
 ADR: `.context/tracking/decisions.md` (ADR-0013). Closes INIT-03.
 
@@ -36,7 +44,7 @@ ADR: `.context/tracking/decisions.md` (ADR-0012).
 | Change | Status | Date |
 |--------|--------|------|
 | `skills/_shared/context.py`: resolution, phase layout, provenance, log | ✅ Done | 2026-11-03 |
-| All 9 skills write `.context/docs/<NN-phase>/rup-<skill>.md` (+ `--context-dir`) | ✅ Done | 2026-11-03 |
+| All 9 skills write `.context/docs/<NN-phase>/cp-<skill>.md` (+ `--context-dir`) | ✅ Done | 2026-11-03 |
 | Writability checked before the LLM call — exit 4 | ✅ Done | 2026-11-03 |
 | `--auto` chains through the `.context/` artifacts; `--estimate` writes the sizing | ✅ Done | 2026-11-03 |
 | Fake crewai + end-to-end tests; suite | ✅ 138 passed | 2026-11-03 |
@@ -53,7 +61,7 @@ ADR: `.context/tracking/decisions.md` (ADR-0011). Closes INIT-02.
 | `--auto`: chained context, one artifact per discipline, stop on failure | ✅ Done | 2026-11-03 |
 | UCP as a CrewAI tool for the governance agent + sizing validation | ✅ Done | 2026-11-03 |
 | `--dry-run` without crewai; exit 1 on unreadable `--input` | ✅ Done | 2026-11-03 |
-| CI on `main`; `chat.py` on `rup-*`; docs and `.context/` rewritten | ✅ Done | 2026-11-03 |
+| CI on `main`; `chat.py` on `cp-*`; docs and `.context/` rewritten | ✅ Done | 2026-11-03 |
 | Suite | ✅ 108 passed | 2026-11-03 |
 
 ADR: `.context/tracking/decisions.md` (ADR-0010).
@@ -100,7 +108,7 @@ ADR: `.context/tracking/decisions.md` (ADR-0007).
 
 | Area | State |
 |------|-------|
-| `rup-*` skills | ✅ 15 skills: 9 document (orchestrator + 8 disciplines, 21 agents) + 6 execution |
+| `cp-*` skills | ✅ 15 skills: 9 document (orchestrator + 8 disciplines, 21 agents) + 6 execution |
 | Authorization | ✅ Marker `.rup-standard` gates every write (exit 5); this repo's `.context/` not yet authorized |
 | Cards / roadmap | ✅ `EP/ST/TK/BUG-NNN`, `.context/roadmap/`, generated views |
 | Execution model | ✅ The host agent is the LLM: work packet → document → `--record` |
