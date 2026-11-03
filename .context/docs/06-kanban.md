@@ -28,7 +28,7 @@
 
 ### 🔵 Backlog
 
-_(empty)_ — open intake: `INIT-02` in `.context/inbox/initiatives/`.
+_(empty)_
 
 New work enters as a draft in `.context/inbox/`. After triage, it moves to `.context/kanban/1-backlog/`.
 
@@ -40,6 +40,8 @@ _(empty)_
 
 | ID | Item | Date |
 |----|------|------|
+| ADR-0012 | Host agent is the LLM: work packets + `--record`; CrewAI, `llm.py`, proxy and chat removed | 2026-11-03 |
+| INIT-02 | Artifacts always persisted into `.context/` (ADR-0011) | 2026-11-03 |
 | ADR-0010 | `cp-*` removed, `rup-*` flattened into `skills/`; `--auto` chaining, UCP agent tool, crewai-free `--dry-run`, portable `install.sh`, CI on `main` | 2026-11-03 |
 | DT-02 | Smoke test suite (`--help`, `--dry-run`, exit codes) | 2026-08-18 |
 | DT-03 | Validation of the `invoke` x `argparse` contract | 2026-08-18 |

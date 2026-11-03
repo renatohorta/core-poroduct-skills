@@ -24,21 +24,38 @@ Kruchten. Part of the `rup` family — drive the whole lifecycle through
 
 Elaboration → Transition
 
-## Usage
+## How to run this skill — you are the LLM
 
-```bash
-# Run the whole discipline crew
-python scripts/run.py "briefing for the Test discipline"
+This skill does not call any model: **you, the agent running it, produce the
+artifacts**. The script gives you the work packet and records your result.
 
-# Target a specific RUP phase
-python scripts/run.py "briefing" --phase Inception
+1. **Get the work packet** (read-only):
 
-# Inspect the crew without an LLM
-python scripts/run.py "briefing" --phase Inception --dry-run
+   ```bash
+   python scripts/run.py "<briefing>" --phase <Inception|Elaboration|Construction|Transition>
+   python scripts/run.py --input briefing.md --phase Elaboration     # long briefings
+   ```
 
-# From a context file
-python scripts/run.py --input context.txt --output test.md
-```
+   It prints the RUP roles of this discipline (goal, perspective, mission), the
+   **exact list of artifacts** you must write, the briefing, and the artifacts
+   already recorded in `.context/` that this discipline builds on (governance +
+   the earlier disciplines of the same phase).
+
+2. **Write ONE markdown document**: a `# <Role>` per role, and a level-2
+   heading `## <Artifact>` for every artifact listed. Follow the RUP conventions,
+   reuse names/IDs from the earlier artifacts, state assumptions explicitly.
+
+3. **Record it — mandatory** (the packet prints the exact command):
+
+   ```bash
+   python scripts/run.py --record doc.md --phase Elaboration "<briefing>"
+   cat doc.md | python scripts/run.py --record - --phase Elaboration --input briefing.md
+   ```
+
+   The recorder checks that every required `## <Artifact>` section exists (if not,
+   it lists the missing ones, writes nothing and exits `1` — add them and record
+   again) and writes `.context/docs/<NN-phase>/rup-test.md` with a provenance header,
+   plus a row in `.context/tracking/rup-log.md`.
 
 ## CLI contract
 
@@ -47,11 +64,11 @@ python scripts/run.py --input context.txt --output test.md
 | `briefing` (positional) | Business demand / context for the discipline |
 | `--input <file>` | Read the briefing from a file (alternative to positional) |
 | `--phase {Inception,Elaboration,Construction,Transition}` | RUP phase (default: Elaboration) |
-| `--output <file>` | Write the result to a file |
-| `--dry-run` | Build the crew and list the agents, without calling an LLM |
+| `--context-dir <dir>` | The `.context/` (default: `$RUP_CONTEXT_DIR`, else the nearest up to the git root) |
+| `--record <file\|->` | Validate your document and write it to `.context/` |
 
-Exit codes: `0` success · `1` usage error · `2` no LLM configured · `3` `crewai`
-not installed. `--help` and `--dry-run` always work without credentials.
+Exit codes: `0` success · `1` usage error / missing artifacts · `4` `.context/`
+not writable. Standard library only — no LLM key, no `crewai`.
 
 ## Reference
 

@@ -1,10 +1,10 @@
 """Shared fixtures of the suite.
 
-Principle: **no test calls an LLM**. LLM tests are expensive, slow and
-non-deterministic, and do not catch the bugs that actually occur here — which
-are about CLI contract and error handling. Every test runs with a credential-free
-environment (see `clean_env`), ensuring the suite passes in CI without secrets.
+The skills never call an LLM (ADR-0012): the agent running a skill is the LLM.
+The scripts are deterministic — they print work packets, validate the agent's
+documents and write `.context/` — so every behavior is testable as-is.
 """
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -12,21 +12,18 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# The RUP (rup-*) skills live directly under skills/ (plus the _shared helper).
+# The RUP (rup-*) skills live directly under skills/ (plus the _shared helpers).
 SKILLS_DIR = REPO_ROOT / "skills"
+ORCHESTRATOR = "rup-orchestrator"
 
-# Every variable capable of configuring an LLM — removed in all tests.
-LLM_ENV_VARS = (
-    "LLM_MODEL", "LLM_API_KEY", "LLM_API_BASE", "LLM_TEMPERATURE", "LLM_PROVIDER",
-    "GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OLLAMA_API_KEY",
-    "OPENROUTER_API_KEY", "DEEPSEEK_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY",
-    "COHERE_API_KEY", "TOGETHER_API_KEY", "XAI_API_KEY",
-)
+# Let tests import the shared helpers (`from _shared import context`).
+if str(SKILLS_DIR) not in sys.path:
+    sys.path.insert(0, str(SKILLS_DIR))
 
-# Exit codes standardized by the skills (see .context/docs/04-transition/test-strategy.md)
+# Exit codes (see skills/_shared/rup.py)
 EXIT_OK = 0
-EXIT_NO_LLM = 2
-EXIT_NO_CREWAI = 3
+EXIT_USAGE = 1
+EXIT_CONTEXT_NOT_WRITABLE = 4
 
 
 def skill_names():
@@ -35,16 +32,52 @@ def skill_names():
                   if (d / "scripts" / "run.py").is_file())
 
 
+def discipline_names():
+    return [s for s in skill_names() if s != ORCHESTRATOR]
+
+
 def skill_script(name: str) -> Path:
     return SKILLS_DIR / name / "scripts" / "run.py"
 
 
+def load_skill(name: str):
+    """Import a skill's run.py as a module (its main() is guarded)."""
+    spec = importlib.util.spec_from_file_location(f"skill_{name.replace('-', '_')}",
+                                                  skill_script(name))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def full_document(spec) -> str:
+    """A document with one `## <Artifact>` section per required artifact."""
+    parts = []
+    for agent in spec["agents"]:
+        parts.append(f"# {agent['role']}\n")
+        for artifact in agent["artifacts"]:
+            parts.append(f"## {artifact}\n\nContent of {artifact}.\n")
+    return "\n".join(parts)
+
+
 @pytest.fixture(scope="session")
-def clean_env():
-    """Environment without any LLM credential, with UTF-8 stdout."""
-    env = {k: v for k, v in os.environ.items() if k not in LLM_ENV_VARS}
+def clean_env(tmp_path_factory):
+    """Environment with UTF-8 stdout and a throwaway RUP_CONTEXT_DIR.
+
+    The skills write `.context/` mandatorily; a test must never write into this
+    repository's own `.context/`.
+    """
+    env = {k: v for k, v in os.environ.items() if k != "RUP_CONTEXT_DIR"}
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["RUP_CONTEXT_DIR"] = str(tmp_path_factory.mktemp("session-context") / ".context")
+    return env
+
+
+@pytest.fixture
+def ctx_env(clean_env, tmp_path):
+    """clean_env with a per-test .context/ (returned in env["RUP_CONTEXT_DIR"])."""
+    env = dict(clean_env)
+    env["RUP_CONTEXT_DIR"] = str(tmp_path / "project" / ".context")
     return env
 
 

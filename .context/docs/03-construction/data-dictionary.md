@@ -9,7 +9,7 @@
 ## Overview
 
 This repository has **no database**. The "data" is the **filesystem state**:
-`.context/` (the source of truth) and the artifacts the skills write to `--output`. This file
+`.context/` (the source of truth), including the artifacts the skills record. This file
 documents the persistent structures that agents read/write.
 
 ## Persistent structures
@@ -51,19 +51,18 @@ When a card is promoted to `2-todo/`, it is refined into an executable issue
 with: Contexto & Objetivo, Arquivos Alvo, Critérios de Aceite (DoR/DoD),
 Insumos Técnicos e Contratos de Dados, and Passos de Validação e Execução.
 
-### Skill artifacts
+### Skill artifacts (mandatory in `.context/` — ADR-0011)
 
-| Path | Content |
-|------|---------|
-| `--output F` | Result of one crew (markdown) |
-| `<stem>.NN-<key>.md` next to `--output` in `--auto` | One artifact per discipline |
-| temp `rup-auto-*` dir | `--auto` chained context files (deleted at the end) |
+| Path | Content | Written by |
+|------|---------|-----------|
+| `.context/docs/<NN-phase>/rup-<skill>.md` | Frontmatter (skill, discipline, phase, milestone, generated_at) + briefing excerpt + the host's document; regenerated per run | every `rup-*` skill |
+| `.context/docs/<NN-phase>/rup-orchestrator-sizing.md` | UCP table + JSON | `rup-orchestrator --estimate` |
+| `.context/tracking/rup-log.md` | Append-only table: when, phase, skill, artifact | every write |
 
 ## Persistence rules
 
 - `.context/` is the **single source of truth**; `.hermes/`/`.claude/` are forbidden.
 - The kanban column (folder) must match the card's `status:` frontmatter.
-- `outputs/` is git-ignored — a good default target for `--output`.
 - No secrets in committed files; `.env` stays at the root and is git-ignored.
 
 ## Decisions

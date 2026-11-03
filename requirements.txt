@@ -1,15 +1,5 @@
 # Core Product Skills — runtime dependencies of the rup-* skills
 #
-# Installation:
-#   python -m venv .venv && .venv/bin/pip install -r requirements.txt
-#   # or, with uv (much faster):
-#   uv venv --python 3.12 .venv && uv pip install --python .venv -r requirements.txt
-#
-# Python: 3.11–3.14. The pip resolver on 3.14 may pin `crewai` to an old
-# version (0.11.x) because of transitive wheel metadata; if that happens, use
-# `uv` (resolves 1.15.x normally) or a Python 3.12/3.13.
-#
-# Only DIRECT dependencies go here. The ~135 transitive ones (chromadb, litellm,
-# openai, pydantic, onnxruntime, numpy…) come via resolution.
-
-crewai>=1.15,<2
+# None. The skills are pure standard library (Python 3.10+): the agent running a
+# skill (Claude Code, Hermes, …) is the LLM — the scripts only print work packets,
+# validate the agent's documents and write them to .context/ (ADR-0012).

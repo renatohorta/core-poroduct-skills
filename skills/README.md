@@ -1,13 +1,14 @@
 # rup — Rational Unified Process family
 
-A family of CrewAI skills implementing the **RUP (Rational Unified Process)** as
-an autonomous team of agents, strictly grounded in *The Rational Unified Process:
+A family of skills implementing the **RUP (Rational Unified Process)** as a team
+of roles that **the agent running the skill plays itself** (ADR-0012), strictly
+grounded in *The Rational Unified Process:
 An Introduction* (3rd ed.), Philippe Kruchten (Addison-Wesley / IBM Rational
 Software).
 
-The user interacts exclusively with `rup-orchestrator`, which governs the
-lifecycle and dispatches the 8 discipline skills. Together they cover the **9 RUP
-disciplines** and **21 agents** (1 orchestrator + 20 specialists).
+The user interacts with `rup-orchestrator`, which governs the lifecycle and
+drives the 8 discipline skills. Together they cover the **9 RUP disciplines**
+and **21 roles** (1 orchestrator + 20 specialists).
 
 ## Disciplines
 
@@ -35,8 +36,11 @@ Inception --> Elaboration --> Construction --> Transition
 ```
 skills/
 ├── README.md                 # this file
-├── _shared/llm.py            # shared LLM helper (provider-agnostic, not a skill)
-├── rup-orchestrator/         # governance + dispatcher
+├── _shared/                  # helpers, not a skill
+│   ├── rup.py                # phases, ordered disciplines, exit codes
+│   ├── discipline.py         # work packet + --record engine
+│   └── context.py            # mandatory .context/ persistence
+├── rup-orchestrator/         # governance, iteration protocol, UCP
 │   ├── SKILL.md
 │   ├── scripts/run.py
 │   └── references/           # lifecycle.md, sizing-estimation.md
@@ -50,35 +54,44 @@ skills/
 └── rup-deployment/           # discipline 8
 ```
 
-Each discipline skill follows the repository convention: `SKILL.md` +
-`scripts/run.py` (self-contained CrewAI crew, embedded agents) +
-`references/agents.md` (agent → artifact mapping).
+Each discipline skill: `SKILL.md` (how the agent runs it) + `scripts/run.py`
+(the discipline's roles, missions and artifacts **as data**, plus a call to the
+shared engine) + `references/agents.md` (role → artifact mapping). Standard
+library only.
+
+## How it runs — the agent is the LLM
+
+1. `python scripts/run.py "<briefing>" --phase P` → prints the **work packet**:
+   roles (goal, perspective, mission), the exact artifacts to write, the briefing
+   and the earlier artifacts already in `.context/` (governance + earlier
+   disciplines of the phase). Read-only.
+2. The agent writes ONE document: `# <Role>` + `## <Artifact>` per artifact.
+3. `python scripts/run.py --record doc.md --phase P ["<briefing>"]` (or
+   `--record -` for stdin) → checks every required `## <Artifact>` and writes
+   `.context/docs/<NN-phase>/rup-<skill>.md` + a row in `.context/tracking/rup-log.md`.
 
 ## CLI contract
 
 ```bash
-# any discipline skill
-python scripts/run.py "briefing" --phase Elaboration [--input F] [--output F] [--dry-run]
+# any skill
+python scripts/run.py "briefing" [--input F] [--phase P] [--context-dir D]   # work packet
+python scripts/run.py --record doc.md [--phase P] ["briefing" | --input F]   # record
 
-# the orchestrator adds --discipline, --auto and --list
-python scripts/run.py "briefing" --discipline requirements
-python scripts/run.py "briefing" --auto [--output out/iteration.md]   # chained
+# the orchestrator adds
+python scripts/run.py "briefing" --discipline requirements   # that discipline's packet
+python scripts/run.py "briefing" --auto                      # iteration protocol, in order
+python scripts/run.py --status [--phase P]                   # what is recorded / next step
 python scripts/run.py --list
-
-# Software Sizing & Effort Estimation (Use Case Points) — deterministic, no LLM
 python scripts/run.py --sizing-template > sizing.json
-python scripts/run.py --estimate --sizing sizing.json [--json]
+python scripts/run.py --estimate --sizing sizing.json [--json]   # UCP, recorded in .context/
 ```
 
-Exit codes: `0` success · `1` usage error · `2` no LLM configured · `3` `crewai`
-not installed. `--help` and `--dry-run` always work without credentials (and
-without crewai); the sizing estimator (`--estimate`, `--sizing-template`) needs
-no crewai or LLM.
+Exit codes: `0` success · `1` usage error / missing artifacts / invalid sizing
+model · `4` `.context/` not writable.
 
-`--auto` runs the disciplines in order and chains them: each one receives the
-briefing plus the artifacts of the previous ones (via `--input`) and writes its
-own file (`iteration.01-environment.md` … `iteration.08-deployment.md`). It stops
-at the first failing discipline.
+`.context/` = `--context-dir`, else `$RUP_CONTEXT_DIR`, else the nearest
+`.context/` up to the git root (ADR-0011). Curated docs are never overwritten —
+generated artifacts are `rup-<skill>.md`.
 
 ## Software sizing (owned by the orchestrator)
 
@@ -86,8 +99,8 @@ The orchestrator produces **Software Sizing & Effort Estimation** — Function
 Points (IFPUG/NESMA), **Use Case Points** (UAW/UUCW/UUCP/TCF/EF) and parametric
 estimates (COCOMO II, SLOC/KLOC) — feeding the Measurement Plan and the
 Iteration Plan. The UCP calculation is implemented deterministically in
-`rup-orchestrator/scripts/run.py` (`compute_ucp`) and can be run from the CLI;
-the governance agent calls it through the `use_case_points_calculator` tool.
+`rup-orchestrator/scripts/run.py` (`compute_ucp`); the governance packet tells
+the agent to build the sizing model and run `--estimate` instead of computing it.
 Details and formulas: `rup-orchestrator/references/sizing-estimation.md`.
 
 ## Provenance

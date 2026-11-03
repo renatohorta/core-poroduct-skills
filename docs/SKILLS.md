@@ -19,15 +19,16 @@ dispatches the 8 discipline skills. **9 disciplines, 21 agents.**
 into phases (Inception/Elaboration/Construction/Transition), maintains the SDP,
 Business Case and Risk List, produces the **Software Sizing & Effort Estimation**
 (Function Points IFPUG/NESMA, Use Case Points UAW/UUCW/UUCP/TCF/EF, COCOMO II /
-SLOC-KLOC), emits formal **Work Orders** and dispatches the disciplines (`--auto` chains
-them: each discipline receives the artifacts of the previous ones). The Use Case
-Points are computed by a deterministic tool the agent calls, never by the LLM. Its
+SLOC-KLOC), emits formal **Work Orders** and drives the disciplines (`--auto`
+prints the iteration protocol; each discipline's packet embeds the artifacts the
+earlier ones recorded). Use Case Points are computed by code (`--estimate`),
+never by the model. Its
 artifacts: SDP, Risk List, Problem Resolution Plan, Product Acceptance Plan,
 Measurement Plan & Database, Sizing & Effort Estimation, Business Case,
 Iteration Plan, Iteration/Status Assessment, Work Order.
 
 - **Trigger**: "run RUP", "rational unified process", "plan the iteration", "manage the project", "work orders", "estimate effort", "use case points"
-- **CLI**: `--phase`, `--discipline`, `--auto`, `--list`, `--estimate`, `--sizing`, `--sizing-template`, `--json`, `--input`, `--output`, `--dry-run`
+- **CLI**: `--phase`, `--input`, `--context-dir`, `--record`, `--discipline`, `--auto`, `--status`, `--list`, `--estimate`, `--sizing`, `--sizing-template`, `--json`
 
 ### Disciplines
 
@@ -42,11 +43,16 @@ Iteration Plan, Iteration/Status Assessment, Work Order.
 | `rup-ccm` | Configuration & Change Mgmt | `configuration-manager`, `change-control-manager` | Configuration Management Plan, Baselines, Change Requests |
 | `rup-deployment` | Deployment | `deployment-manager`, `technical-writer` | Deployment Plan, Installation Material, Release Notes, User Manual, Training Material |
 
-Each discipline skill shares the same CLI:
-`run.py "<briefing>" [--phase P] [--input F] [--output F] [--dry-run]`.
+**The agent running the skill is the LLM** (ADR-0012). Each discipline skill
+shares the same CLI:
 
-Exit codes: `0` success · `1` usage error · `2` no LLM configured · `3` `crewai`
-not installed. `--help` and `--dry-run` always work without credentials (and
-`--dry-run` also without crewai).
+- `run.py "<briefing>" [--input F] [--phase P] [--context-dir D]` → work packet
+  (roles, missions, required artifacts, earlier `.context/` artifacts);
+- `run.py --record doc.md [--phase P] ["<briefing>"]` → validates every required
+  `## <Artifact>` and writes `.context/docs/<NN-phase>/rup-<skill>.md` (mandatory)
+  + a row in `.context/tracking/rup-log.md`.
+
+Exit codes: `0` success · `1` usage error / missing artifacts · `4` `.context/`
+not writable. Standard library only.
 
 Details and provenance: [`skills/README.md`](../skills/README.md).

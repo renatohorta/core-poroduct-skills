@@ -1,100 +1,102 @@
 # Architecture — Core Product Skills
 
-> Updated 2026-11-03 (RUP family, flat `skills/` layout — ADR-0010).
+> Updated 2026-11-03 (host-LLM model — ADR-0012).
 
 ## Status
 
 - [x] Done (current architecture documented)
 
+## Principle
+
+**The agent running a skill is the LLM.** The skills never call a model: they
+are deterministic, standard-library scripts that (1) compile a *work packet* for
+the agent and (2) validate and record the agent's document into the project's
+`.context/` (mandatory, ADR-0011). Same model, same conversation context, no API
+key, proxy or extra dependency.
+
 ## Layered view
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ CONSUMERS (outside this repo)                                │
-│   Hermes Agent                    Claude Code                │
-│   $HERMES_SKILLS_DIR/creative/    ~/.claude/skills/          │
-│   (+ $HERMES_SKILLS_DIR/_shared)  (+ ~/.claude/skills/_shared)│
-└───────────────▲──────────────────────▲───────────────────────┘
-                │  scripts/install.sh (propagation)
-┌───────────────┴──────────────────────┴───────────────────────┐
-│ CANONICAL REPOSITORY (this repo)                             │
-│                                                              │
-│  skills/rup-orchestrator   ← single entry point (PM agent)   │
-│      └── scripts/run.py  governance crew + UCP tool + dispatcher
-│                │ subprocess: run.py <briefing|--input ctx> --phase P [--output F]
-│      ┌─────────┴───────────────────────────────────┐         │
-│      ▼                                             ▼         │
-│  rup-environment → rup-business-modeling → rup-requirements → │
-│  rup-analysis-design → rup-implementation → rup-test →        │
-│  rup-ccm → rup-deployment          (order used by --auto)     │
-│                                                              │
-│  skills/_shared/llm.py    ← provider-agnostic LLM resolution │
-│  scripts/chat.py          ← direct trigger (CLI)             │
-│  scripts/claude_proxy.py  ← Claude Code as LLM (OpenAI API)  │
-└──────────────────────────────────────────────────────────────┘
+│ HOST AGENT = the LLM (outside this repo)                     │
+│   Claude Code: ~/.claude/skills/       Hermes: <skills>/creative/
+└──────┬─────────────────────────────────────────▲─────────────┘
+       │ 1. run.py "<briefing>" --phase P         │ packet (stdout)
+       │ 3. run.py --record doc.md --phase P      │ ok / missing artifacts
+┌──────▼─────────────────────────────────────────┴─────────────┐
+│ SKILLS (this repo, installed by scripts/install.sh)          │
+│  rup-orchestrator   governance packet · --discipline · --auto │
+│                     --status · --estimate (UCP)               │
+│  rup-<discipline>×8 SPEC (roles, missions, artifacts as data) │
+│  _shared/discipline.py  packet rendering + --record validation│
+│  _shared/context.py     .context/ resolution + writing        │
+│  _shared/rup.py         phases, ordered disciplines, exits    │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ writes
+                               ▼
+        <project>/.context/docs/<NN-phase>/rup-<skill>.md
+        <project>/.context/tracking/rup-log.md
 ```
 
 ## Components
 
 | Component | Path | Responsibility |
 |-----------|------|----------------|
-| **Orchestrator** | `skills/rup-orchestrator/scripts/run.py` | Governance crew (PM), UCP calculator (CLI + agent tool), dispatcher (`--discipline`, `--auto`) |
-| **Discipline skills** | `skills/rup-{environment,business-modeling,requirements,analysis-design,implementation,test,ccm,deployment}/` | One RUP discipline each, with its own CrewAI crew |
-| **LLM helper** | `skills/_shared/llm.py` | `build_crew_llm()`, `require_llm()`, `require_crewai()`, `setup_console()` |
-| **Installer** | `scripts/install.sh` | Propagates every `skills/*/SKILL.md` dir + `_shared` to Hermes and Claude |
-| **Direct chat** | `scripts/chat.py` | Runs any `rup-*` skill with the `.env` LLM |
-| **Claude proxy** | `scripts/claude_proxy.py` | OpenAI-compatible API delegating to `claude -p` |
+| **Registry** | `skills/_shared/rup.py` | Phases, ordered `DISCIPLINES`, exit codes, `setup_console()` |
+| **Engine** | `skills/_shared/discipline.py` | `render_packet()`, `prior_artifacts()`, `missing_artifacts()`, `record()`, shared CLI |
+| **Context helper** | `skills/_shared/context.py` | `resolve_context_dir()`, `ensure_writable()`, `write_artifact()`, log |
+| **Discipline skills** | `skills/rup-<discipline>/scripts/run.py` | `SPEC` (roles, missions, artifacts) + `discipline.main()` |
+| **Orchestrator** | `skills/rup-orchestrator/scripts/run.py` | Governance spec, `--discipline`, `--auto` protocol, `--status`, UCP |
+| **Installer** | `scripts/install.sh` | Copies every `skills/*/SKILL.md` dir + `_shared` to Hermes and Claude |
 
-## Anatomy of a skill
+## The protocol
 
-```
-skills/rup-<name>/
-├── SKILL.md          # frontmatter (name, description/triggers) + documentation
-├── scripts/run.py    # self-contained: CrewAI agents + CLI (argparse)
-└── references/*.md   # agents.md (agent → artifacts); orchestrator: lifecycle, sizing
-```
+1. **Packet** — `run.py "<briefing>" [--input F] --phase P [--context-dir D]`
+   prints: instructions (one document, `# <Role>`, `## <Artifact>`, RUP rules,
+   the exact `--record` command), the briefing, the earlier artifacts from
+   `.context/`, and each role's goal/perspective/mission/artifacts. Read-only.
+2. **Document** — the host writes it.
+3. **Record** — `run.py --record FILE|- --phase P ["<briefing>"|--input F]`:
+   every required artifact must have a level-2 heading containing its name
+   (case, punctuation and parenthesised qualifiers ignored); otherwise it lists
+   the missing ones, writes nothing and exits 1. Then `.context/` is written.
 
-Each `run.py` locates `_shared/` next to the skill (repo, Claude) or one level
-up (Hermes category layout) and inserts that root in `sys.path`. `crewai` is
-imported guarded, so `--help` and `--dry-run` work without it.
+## Chaining
 
-## Data flow in `--auto`
+`prior_artifacts()` embeds, from `.context/docs/<NN-phase>/`: for a discipline,
+the governance artifact + the disciplines **before** it in RUP order; for
+governance, every discipline of the phase. Bodies only (after `## Artifacts`),
+each capped at 12 000 chars. Doing the steps in order therefore gives each one
+the output of the previous ones; `--auto` prints that order with the commands
+and `--status` the progress.
 
-```
-briefing ─► ctx_01 = briefing ───────────────► rup-environment --input ctx_01 --output A1
-            ctx_02 = briefing + A1 ──────────► rup-business-modeling --input ctx_02 --output A2
-            ctx_03 = briefing + A1 + A2 ─────► rup-requirements ...
-            ...                                (each prior artifact capped at 12 000 chars)
-            stop at the first exit code != 0
-```
+`--discipline <key>` runs the discipline's skill in a subprocess (ADR-0004) with
+an explicit `--context-dir` (the child's cwd is the skills root, so it must not
+resolve `.context/` itself).
 
-`A<n>` is `<output-stem>.NN-<key>.md` next to `--output`, or a file in a
-temporary workdir when `--output` is omitted (the crews also print their result
-to stdout). The context files always live in the temporary workdir.
+## Artifacts in `.context/` (mandatory — ADR-0011)
+
+- `.context/docs/<NN-phase>/rup-<skill>.md` (+ `rup-orchestrator-sizing.md` from
+  `--estimate`), with provenance frontmatter; regenerated per run; curated docs
+  never touched.
+- `.context/tracking/rup-log.md`: one row per write.
+- Resolution: `--context-dir` > `RUP_CONTEXT_DIR` > nearest `.context/` up to the
+  git root > `<git root or cwd>/.context`. Unwritable → exit 4.
 
 ## Software sizing
 
-`compute_ucp` (pure Python) is validated by `ucp_from_model` and exposed:
-- on the CLI: `--estimate [--sizing F] [--json]`, `--sizing-template`;
-- to the governance agent as the CrewAI tool `use_case_points_calculator` —
-  the task tells the agent to call it instead of doing the arithmetic.
-
-## LLM resolution (`_shared/llm.py`)
-
-1. Agent env vars — `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_TEMPERATURE`, `LLM_PROVIDER`
-2. `.env` at the project root
-3. Per-provider key detection (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …)
-4. Default: `gemini/gemini-2.5-flash`
+`compute_ucp` + `ucp_from_model` (validation) behind `--estimate`. The governance
+packet carries the exact `--sizing-template` / `--estimate` commands and forbids
+computing UCP by hand; FPA and COCOMO II are the host's estimates.
 
 ## Architectural decisions
 
-- **ADR-0003** — LLM resolved by `_shared/llm.py` instead of the CrewAI default.
-- **ADR-0004** — Communication between skills via `subprocess` + files, not
-  Python import: each skill stays self-contained and independently installable.
+- **ADR-0004** — Skills talk via `subprocess` + files, not Python import.
 - **ADR-0005** — `install.sh` does `rm -rf` on the destination before copying.
 - **ADR-0008** — RUP family: orchestrator + 8 discipline skills.
 - **ADR-0009** — UCP computed deterministically in the orchestrator.
-- **ADR-0010** — `cp-*` removed, `rup-*` flattened into `skills/`, `--auto`
-  chaining and the UCP agent tool.
+- **ADR-0010** — `cp-*` removed, `rup-*` flattened into `skills/`.
+- **ADR-0011** — Artifacts always persisted into `.context/`.
+- **ADR-0012** — The host agent is the LLM; CrewAI, `llm.py`, proxy, chat removed.
 
 Full record: `.context/tracking/decisions.md`.

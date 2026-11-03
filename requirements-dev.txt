@@ -1,9 +1,6 @@
 # Core Product Skills — development/test dependencies
 #
 #   uv pip install --python .venv -r requirements-dev.txt
-#
-# Includes the runtime, so that `pytest` runs the full suite (the contract
-# tests need the skills to be able to build the crews).
 
 -r requirements.txt
 

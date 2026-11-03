@@ -92,30 +92,9 @@ def test_no_hardcoded_machine_path():
 
 
 def test_env_not_committed():
-    """`.env` holds a credential and can never be tracked — only `.env.example`."""
+    """`.env` may hold credentials and can never be tracked."""
     r = subprocess.run(["git", "ls-files", ".env"], capture_output=True, text=True,
                        cwd=str(REPO_ROOT), encoding="utf-8", errors="replace")
     assert not r.stdout.strip(), ".env is committed — remove it with `git rm --cached .env`"
     gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
     assert ".env" in gitignore
-
-
-def test_env_example_has_no_real_value():
-    """`.env.example` is a template: the key variables are empty or commented."""
-    example = REPO_ROOT / ".env.example"
-    if not example.exists():
-        pytest.skip(".env.example missing")
-    suspects = []
-    for n, line in enumerate(example.read_text(encoding="utf-8").splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        if "KEY" not in key.upper() and "TOKEN" not in key.upper():
-            continue
-        value = value.strip().strip('"').strip("'")
-        # Obvious placeholders are acceptable.
-        if value and not re.fullmatch(r"[<{].*[>}]|your[-_].*|xxx+|\.\.\.|change[-_]?me",
-                                      value, re.I):
-            suspects.append(f"line {n}: {key.strip()}={value[:12]}...")
-    assert not suspects, ".env.example with a real value:\n  " + "\n  ".join(suspects)

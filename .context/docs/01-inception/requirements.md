@@ -17,17 +17,17 @@ New requirements must enter through `.context/inbox/initiatives/`.
 | RF-01 | Keep the canonical source code of all `rup-*` skills in `skills/` | Must | ✅ Implemented |
 | RF-02 | Propagate the skills to Hermes and Claude via `scripts/install.sh` | Must | ✅ Implemented |
 | RF-03 | Allow selective install (`--hermes`, `--claude`, `--skill`, `--dry-run`) | Must | ✅ Implemented |
-| RF-04 | Resolve the host agent's LLM without coupling to a provider | Must | ✅ Implemented (`_shared/llm.py`) |
+| RF-04 | The agent running the skill is the LLM — no model call, key or proxy in the skills | Must | ✅ Implemented (ADR-0012) |
 | RF-05 | Expose a single entry point (`rup-orchestrator`) that governs the RUP lifecycle | Must | ✅ Implemented |
 | RF-06 | One skill per RUP discipline (8), with the agents and artifacts of the spec | Must | ✅ Implemented |
 | RF-07 | Dispatch one discipline (`--discipline`) or all in order (`--auto`) | Must | ✅ Implemented |
 | RF-08 | In `--auto`, pass the artifacts of earlier disciplines to the next ones and keep one artifact per discipline | Must | ✅ Implemented (2026-11-03) |
 | RF-09 | Compute Use Case Points deterministically (CLI and agent tool) | Must | ✅ Implemented |
-| RF-10 | Inspect the plan without an LLM (`--dry-run`, also without crewai) | Should | ✅ Implemented |
-| RF-11 | Trigger skills directly via CLI (`scripts/chat.py`) | Should | ✅ Implemented |
-| RF-12 | Use Claude Code as the crews' LLM via OpenAI-compatible proxy | Could | ✅ Implemented (`scripts/claude_proxy.py`) |
-| RF-13 | Persist the RUP artifacts into the target project's `.context/` | Should | ❌ Open (INIT-02) |
-| RF-14 | Compute FPA (IFPUG/NESMA) and COCOMO II deterministically | Could | ❌ Open — LLM-produced today |
+| RF-10 | Work packet per skill: roles, missions, required artifacts, earlier `.context/` artifacts | Must | ✅ Implemented |
+| RF-11 | `--record` validates that every required artifact is present before writing | Must | ✅ Implemented |
+| RF-12 | Iteration protocol (`--auto`) and progress (`--status`) for the host | Should | ✅ Implemented |
+| RF-13 | **Always** persist the RUP artifacts into the target project's `.context/` | Must | ✅ Implemented (ADR-0011, INIT-02) |
+| RF-14 | Compute FPA (IFPUG/NESMA) and COCOMO II deterministically | Could | ❌ Open — estimated by the agent today |
 
 ## Non-functional requirements
 
@@ -35,16 +35,14 @@ New requirements must enter through `.context/inbox/initiatives/`.
 |----|-------------|----------------------|--------|
 | NFR-01 | **Portability** | Zero hardcoded OS/machine paths; paths via env var + relative default | ✅ |
 | NFR-02 | **No personal data in code** | Zero fixed handles/machine names in scripts | ✅ |
-| NFR-03 | **Secrets outside the repository** | `.env` in `.gitignore`; only `.env.example` committed | ✅ |
+| NFR-03 | **No secrets needed** | The skills read no credential; `.env` stays git-ignored | ✅ |
 | NFR-04 | **Skill self-containment** | Each `run.py` embeds its agents; no external directory | ✅ |
 | NFR-05 | **UTF-8 encoding on Windows** | `setup_console()` forces UTF-8 on stdout/stderr | ✅ |
 | NFR-06 | **Works in both agent layouts** | `_shared` found in Claude (flat) and Hermes (category) installs | ✅ (tested) |
 | NFR-07 | **Automated test coverage** | Suite runs without credentials in CI | ✅ |
+| NFR-08 | **No runtime dependency** | Standard library only (tested with `python -S`) | ✅ |
 
 ## Prioritized backlog (MoSCoW)
-
-**Should**
-- INIT-02: persist RUP artifacts into `.context/`.
 
 **Could**
 - Deterministic FPA / COCOMO II calculators (same pattern as UCP).
@@ -81,30 +79,29 @@ New requirements must enter through `.context/inbox/initiatives/`.
 | Aspect | Situation |
 |--------|-----------|
 | Type | Development tool (skills/CLI), **internal use** |
-| Network exposure | None by default; only `claude_proxy.py` opens a local socket |
+| Network exposure | None — no socket, no outbound call |
 | Personal data processed | **No third-party personal data** is collected or stored |
-| Attack surface | Local execution: reading `.env`, `subprocess`, calls to LLM APIs |
+| Attack surface | Local execution: reading the briefing/document, writing `.context/`, `subprocess` of sibling skills |
 
 ## Verified baseline (2026-08-18)
 
 | Check | Result |
 |-------|--------|
-| Secrets committed to Git | ✅ None — `git ls-files` only returns `.env.example` |
+| Secrets committed to Git | ✅ None |
 | API keys hardcoded in code | ✅ None (`sk-…`/`AIza…` not found) |
 | `.gitignore` covers secrets | ✅ `.env`, `.env.local`, `.env.*.local` |
-| Local proxy bind | ✅ `127.0.0.1` (not `0.0.0.0`) — no network exposure |
 | Personal/machine paths hardcoded | ✅ None in the skills (env var + relative default) |
 
 ## Risks and controls
 
 | ID | Risk | Severity | Current control | Action |
 |----|------|----------|-----------------|--------|
-| SEC-01 | LLM key leaks via `.env` copied along with the skill | Medium | `install.sh` copies only `skills/`; `.env` stays at the root and is ignored by Git | Keep — do not move `.env` into `skills/` |
-| SEC-02 | `claude_proxy.py` exposes the Claude Code OAuth session to local processes | Medium | Bind restricted to `127.0.0.1`; optional `CLAUDE_PROXY_TOKEN` bearer (DT-04) | Set `CLAUDE_PROXY_TOKEN` on shared machines |
-| SEC-03 | Briefings sent to the crews go to the configured LLM provider | Medium | Explicit provider choice via `.env` | Do not put secrets/personal data in briefings |
+| ~~SEC-01~~ | ~~LLM key leaks via `.env` copied along with the skill~~ | — | The skills read no key (ADR-0012) | — |
+| ~~SEC-02~~ | ~~`claude_proxy.py` exposed the Claude Code OAuth session~~ | — | Proxy removed (ADR-0012) | — |
+| SEC-03 | Briefings and earlier artifacts end up in the host agent's context, i.e. its LLM provider | Medium | Same exposure as the conversation itself — no extra provider | Do not put secrets/personal data in briefings |
 | SEC-04 | Orchestrator's `subprocess.run` executes the skills' `run.py` | Low | Fixed `DISCIPLINES` registry, argument list, no `shell=True` | Keep — never build a command from a string |
 | SEC-05 | `install.sh` does `rm -rf "$dst"` before copying | Low | Destination derived from known env vars | Never point `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` to a directory with its own content |
-| SEC-06 | `--auto` artifacts may contain content from the target project | Low | Written only where `--output` points; chaining files live in a temp dir deleted at the end | Do not point `--output` inside a committed path with sensitive content |
+| SEC-06 | `.context/` artifacts may contain content from the target project | Low | Written only to the resolved `.context/` (never outside the git root unless `--context-dir`/`RUP_CONTEXT_DIR` says so) | Review `rup-*.md` before committing in projects with sensitive data |
 
 ## LGPD
 
@@ -122,11 +119,9 @@ does not collect, store or process data subjects' data. Practical consequences:
 
 | Secret | Where it lives | Never |
 |--------|----------------|-------|
-| `LLM_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` … | Local `.env` (not committed) or agent env var | In `SKILL.md`, `run.py`, `references/` or a commit |
-
-Public configuration template: `.env.example` (no real values).
+None. The skills read no credential (ADR-0012); the host agent's own
+authentication never reaches them.
 
 ## Security pending items
 
-- None open. DT-04 (proxy token) and DOC-01 (proxy port 8090) were resolved on
-  2026-08-18 — see `.context/inbox/processed/`.
+- None open.

@@ -40,7 +40,7 @@ concentrates more responsibility.
 
 ## ADR-0003 — Provider-agnostic LLM resolution
 
-**Date**: before 2026-08-18 · **Status**: Accepted
+**Date**: before 2026-08-18 · **Status**: Superseded by ADR-0012 (no LLM client in the skills)
 
 **Context**: Without an explicit `llm=`, CrewAI falls into the OpenAI default and
 fails with `OPENAI_API_KEY is required` even with another provider configured.
@@ -262,5 +262,98 @@ pushes to `master` (the branch is `main`).
   credentials. `tests/test_rup_smoke.py` became `tests/test_smoke.py`;
   `conftest.SKILLS_DIR` is `skills/`.
 - The `.context/kanban/` flow is manual — the `cp-agile` daemon no longer exists.
-- Writing the RUP artifacts into a target project's `.context/` is still open
-  (INIT-02).
+- Writing the RUP artifacts into a target project's `.context/` was left open
+  here and decided in ADR-0011.
+
+---
+
+## ADR-0011 — RUP artifacts are always persisted into `.context/`
+
+**Date**: 2026-11-03 · **Status**: Accepted — recording mechanics amended by ADR-0012 (`--record`; no crew, no `--output`)
+
+**Context**: The `rup-*` skills only printed their result and, optionally,
+wrote it to `--output`. The RUP artifacts (Vision, SRS, SAD, Test Plan, Work
+Orders, sizing…) therefore never became part of the project's source of truth,
+`.context/` (ADR-0001), unless someone copied them by hand (INIT-02). The owner
+decided persistence must be **mandatory**, not an opt-in flag.
+
+**Decision**:
+
+- Every real run of every `rup-*` skill writes its artifact to
+  `.context/docs/<NN-phase>/rup-<skill>.md` — the phase folders already used by
+  `.context/docs/` — and appends a row to `.context/tracking/rup-log.md`.
+  `--estimate` writes `rup-orchestrator-sizing.md`. `--output` became an extra copy.
+- **Naming**: the `rup-` prefix separates generated artifacts from the curated
+  docs (`requirements.md`, `architecture.md`, …), which are never overwritten.
+- **Policy**: regenerate the file per run and phase, with a provenance
+  frontmatter (skill, discipline, phase, milestone, timestamp) and a briefing
+  excerpt; history lives in git, the log keeps every write.
+- **Which `.context/`**: `--context-dir` > `RUP_CONTEXT_DIR` > nearest
+  `.context/` walking up from cwd, stopping at the git root (never escapes the
+  repository) > `<git root or cwd>/.context`, created on first write. The
+  orchestrator resolves it once and passes `--context-dir` to each child,
+  because children run with cwd = the skills root.
+- **Fail before paying**: writability is checked before `kickoff()`; failure
+  exits with the new code **4** and no LLM call is made.
+- `--auto` chains through `.context/`: each discipline receives the body (after
+  `## Artifacts`) of the earlier disciplines' `.context/` files.
+- Single implementation in `skills/_shared/context.py` (stdlib only).
+
+**Consequences**:
+
+- Running a skill always changes the project's working tree (new/updated
+  `rup-*.md` + log). Commit them like any other context change.
+- `--dry-run`, `--help`, `--list` and `--sizing-template` write nothing.
+- Tests: a fake `crewai` (`tests/fakes/crewai/`) lets the suite run every skill
+  end to end without an LLM; `clean_env` points `RUP_CONTEXT_DIR` to a temp dir
+  and a guard test fails if anything lands in this repository's `.context/`.
+  Suite: 138 passed.
+
+---
+
+## ADR-0012 — The host agent is the LLM; CrewAI, `llm.py`, proxy and chat removed
+
+**Date**: 2026-11-03 · **Status**: Accepted
+
+**Context**: The RUP skills ran CrewAI crews that needed their own LLM. The
+agent invoking a skill (Claude Code, Hermes) does not pass its model or
+credentials to subprocesses, so the crews had two options: an API key resolved
+by `_shared/llm.py` (paid separately; with only `ANTHROPIC_API_KEY` set it still
+picked the Gemini default model and failed), or `scripts/claude_proxy.py`
+(`claude -p` per call: dropped the assistant turns CrewAI's loop relies on,
+ignored `tools` — so the UCP tool could not be called — slow and quota-hungry).
+Either way it was a **second** LLM, without the conversation context the agent
+already had.
+
+**Decision**: The agent running the skill is the only LLM. The skills became
+deterministic, standard-library programs with a two-step protocol:
+
+1. **Work packet** — `run.py "<briefing>" --phase P` prints the roles (goal,
+   perspective, mission), the exact required artifacts, RUP rules, the briefing,
+   the earlier artifacts recorded in `.context/` (governance + earlier
+   disciplines of the phase) and the exact `--record` command.
+2. **Record** — `run.py --record FILE|- --phase P` checks that every required
+   artifact has a `## <Artifact>` section (else lists them, writes nothing,
+   exit 1) and writes `.context/` (ADR-0011).
+
+- Each discipline's `run.py` is now its `SPEC` (roles/missions/artifacts as
+  data, extracted verbatim from the former crews) + `_shared/discipline.py`.
+- `_shared/rup.py` is the single registry (phases, ordered disciplines, exits).
+- Orchestrator: governance packet (with the exact `--sizing-template` /
+  `--estimate` commands — UCP is never computed by the model), `--discipline`
+  (that skill's packet), `--auto` (iteration protocol, in order), `--status`.
+- **Removed**: `crewai` dependency, `_shared/llm.py`, `scripts/claude_proxy.py`
+  (and its tests), `scripts/chat.py`, `.env.example`, `--dry-run`, `--output`,
+  exit codes 2 and 3.
+
+**Consequences**:
+
+- Same model and context as the conversation; no key, proxy or extra cost;
+  real tool use by the host (it runs `--estimate` itself).
+- No runtime dependency (tests run the skills with `python -S`); suite from ~50 s
+  to ~3 s; the fake crewai is gone — E2E tests record fixed documents.
+- The skills can no longer run unattended without an agent (CI, cron): the
+  artifacts are written by whoever runs the protocol.
+- `--auto` no longer executes anything: it prints the protocol; the agent runs
+  the steps in order (each packet embeds the earlier steps' artifacts).
+- Security surface shrank: no socket, no credential read (SEC-02 closed).

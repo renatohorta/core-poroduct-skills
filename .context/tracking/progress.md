@@ -2,6 +2,31 @@
 
 > Last update: 2026-11-03.
 
+## Host agent is the LLM (2026-11-03)
+
+| Change | Status | Date |
+|--------|--------|------|
+| Work packet + `--record` engine (`_shared/discipline.py`), registry (`_shared/rup.py`) | ✅ Done | 2026-11-03 |
+| 8 disciplines rewritten as `SPEC` data (roles/missions/artifacts kept verbatim) | ✅ Done | 2026-11-03 |
+| Orchestrator: governance packet, `--discipline`, `--auto` protocol, `--status`, UCP via `--estimate` | ✅ Done | 2026-11-03 |
+| Removed: crewai, `llm.py`, `claude_proxy.py`, `chat.py`, `.env.example`, `--dry-run`, `--output`, exits 2/3 | ✅ Done | 2026-11-03 |
+| `SKILL.md` of every skill teaches the agent the protocol | ✅ Done | 2026-11-03 |
+| Suite (no LLM, stdlib only, ~3 s) | ✅ 138 passed | 2026-11-03 |
+
+ADR: `.context/tracking/decisions.md` (ADR-0012).
+
+## Artifacts always persisted into `.context/` (2026-11-03)
+
+| Change | Status | Date |
+|--------|--------|------|
+| `skills/_shared/context.py`: resolution, phase layout, provenance, log | ✅ Done | 2026-11-03 |
+| All 9 skills write `.context/docs/<NN-phase>/rup-<skill>.md` (+ `--context-dir`) | ✅ Done | 2026-11-03 |
+| Writability checked before the LLM call — exit 4 | ✅ Done | 2026-11-03 |
+| `--auto` chains through the `.context/` artifacts; `--estimate` writes the sizing | ✅ Done | 2026-11-03 |
+| Fake crewai + end-to-end tests; suite | ✅ 138 passed | 2026-11-03 |
+
+ADR: `.context/tracking/decisions.md` (ADR-0011). Closes INIT-02.
+
 ## `cp-*` removed, RUP flattened into `skills/` (2026-11-03)
 
 | Change | Status | Date |
@@ -60,16 +85,17 @@ ADR: `.context/tracking/decisions.md` (ADR-0007).
 | Area | State |
 |------|-------|
 | `rup-*` skills | ✅ 9 skills (orchestrator + 8 disciplines), 21 agents |
-| Orchestration | ✅ Governance crew, `--discipline`, chained `--auto` |
-| Sizing | ✅ UCP deterministic (CLI + agent tool); FPA/COCOMO II LLM-produced |
-| LLM resolution | ✅ Provider-agnostic, actionable failure (`require_llm`) |
+| Execution model | ✅ The host agent is the LLM: work packet → document → `--record` |
+| Orchestration | ✅ Governance packet, `--discipline`, `--auto` protocol, `--status` |
+| Sizing | ✅ UCP deterministic (`--estimate`); FPA/COCOMO II estimated by the agent |
+| Dependencies | ✅ None at runtime (stdlib only) |
 | Distribution | ✅ `install.sh` (Hermes + Claude), tested in both layouts |
-| Automated tests | ✅ 108 tests, no LLM credential |
+| Automated tests | ✅ 138 tests, ~3 s, end to end through `.context/` |
+| Persistence | ✅ Every artifact written to `.context/` (ADR-0011) |
 | CI/CD | ✅ GitHub Actions on `main` + PRs: Linux 3.12/3.13 + Windows informative |
 
 ## Suggested next steps
 
-1. **INIT-02** — persist the RUP artifacts into the target project's `.context/`.
-2. **Deterministic FPA / COCOMO II** — same pattern as UCP (code + agent tool).
-3. **`.gitattributes`** (`* text=auto eol=lf`) — avoids whole-file CRLF diffs on Windows.
-4. **Skill versioning** — no way to know which version is installed in an agent.
+1. **Deterministic FPA / COCOMO II** — same pattern as UCP (code + agent tool).
+2. **`.gitattributes`** (`* text=auto eol=lf`) — avoids whole-file CRLF diffs on Windows.
+3. **Skill versioning** — no way to know which version is installed in an agent.

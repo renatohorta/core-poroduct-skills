@@ -6,9 +6,10 @@
 The RUP **Measurement Plan** is only meaningful when the size of the software is
 estimated. This reference documents the three sizing techniques required by the
 specification and, for **Use Case Points**, the exact computation implemented in
-`scripts/run.py` (`compute_ucp`). The same function is exposed on the CLI
-(`--estimate`) and to the governance agent as the `use_case_points_calculator`
-tool, which validates the input and returns JSON (or `ERROR: …`).
+`scripts/run.py` (`compute_ucp`), exposed on the CLI as `--estimate`. The agent
+running the skill builds the sizing model and runs `--estimate` (which validates
+the input, prints the result and records `rup-orchestrator-sizing.md` in
+`.context/`); it never computes UCP itself.
 
 ## 1. Use Case Points (UCP) — computed in code
 
@@ -80,7 +81,7 @@ UCP  = 185 × 1.0 × 1.0 = 185
 Effort = 185 × 20 = 3700 h
 ```
 
-## 2. Function Point Analysis (FPA — IFPUG / NESMA) — produced by the LLM
+## 2. Function Point Analysis (FPA — IFPUG / NESMA) — estimated by the agent
 
 Sizes the *Data Model* and the *Use Cases* in function points:
 
@@ -90,7 +91,7 @@ Sizes the *Data Model* and the *Use Cases* in function points:
 - Unadjusted Function Points (UFP) → Value Adjustment Factor (VAF, the 14 GSCs)
   → Adjusted Function Points.
 
-## 3. Parametric estimation (COCOMO II, SLOC/KLOC) — produced by the LLM
+## 3. Parametric estimation (COCOMO II, SLOC/KLOC) — estimated by the agent
 
 - Calibrate team productivity (loc/person-month); estimate **SLOC/KLOC per
   technology**; derive **COCOMO II** effort (with scale and cost drivers) and the
@@ -105,12 +106,12 @@ Sizes the *Data Model* and the *Use Cases* in function points:
 - The result feeds the **Measurement Plan / Project Measurements Database** and
   the **Iteration Plan** (effort per iteration = hours per phase).
 
-## CLI (no LLM required)
+## CLI
 
 ```bash
 # compute UCP from a JSON sizing model
 python scripts/run.py --estimate --sizing sizing.json
-python scripts/run.py --estimate --sizing sizing.json --json --output ucp.json
+python scripts/run.py --estimate --sizing sizing.json --json > ucp.json   # also recorded in .context/
 
 # print an empty sizing model to fill in
 python scripts/run.py --sizing-template > sizing.json

@@ -8,10 +8,12 @@
 
 ## What it is
 
-**Core Product Skills** is the canonical repository of the **`rup-*` skills**: a
-team of CrewAI agents that implements the **Rational Unified Process** (Kruchten,
-*The Rational Unified Process: An Introduction*, 3rd ed.) — 9 disciplines, 1
-orchestrator and 20 specialist agents.
+**Core Product Skills** is the canonical repository of the **`rup-*` skills**,
+which implement the **Rational Unified Process** (Kruchten, *The Rational Unified
+Process: An Introduction*, 3rd ed.) — 9 disciplines, 1 orchestrator and 20
+specialist roles. **The agent running a skill (Claude Code, Hermes) is the LLM**
+(ADR-0012): the skills hand it a work packet and record its artifacts into the
+project's `.context/`.
 
 This repository is the **single source code**: any change is made here and
 propagated to the consuming agents (**Hermes Agent** and **Claude Code**) via
@@ -24,13 +26,14 @@ propagated to the consuming agents (**Hermes Agent** and **Claude Code**) via
 ## Problem it solves
 
 Without this repository, each agent would have its own divergent copy of the
-skills, with hardcoded paths and LLM configuration coupled to a provider. That
-caused:
+skills. That caused:
 
 - **Divergence** between the skill installed in Hermes and the one installed in Claude.
 - **Rework** when fixing the same bug in two places.
-- **Provider coupling** — the crews fell into the CrewAI OpenAI default
-  (`OPENAI_API_KEY is required`) even with another provider configured.
+
+And running the RUP roles as a separate LLM pipeline (the former CrewAI crews)
+meant a second model, its own API key or a proxy, cost on top of the agent's,
+and the loss of the conversation context the agent already had (ADR-0012).
 
 ## Value proposition
 
@@ -40,7 +43,8 @@ caused:
 | **Single entry point** | `rup-orchestrator` governs the lifecycle and dispatches the disciplines |
 | **Faithful to RUP** | Phases/milestones (LCO, LCA, IOC, PR), roles and artifacts from Kruchten |
 | **Deterministic where possible** | Use Case Points computed in code, exposed to the agent as a tool |
-| **Provider-agnostic** | `skills/_shared/llm.py` resolves the host agent's LLM |
+| **Same LLM, same context** | The host agent plays the RUP roles itself — no API key, proxy or extra model |
+| **Persisted** | Every artifact recorded in the project's `.context/` (ADR-0011) |
 | **Portability** | Zero OS/machine paths and zero hardcoded personal values |
 
 ## Users
@@ -50,21 +54,19 @@ caused:
 | **Hermes Agent** | Consumes the skills installed in `$HERMES_SKILLS_DIR/creative/` |
 | **Claude Code** | Consumes the skills installed in `~/.claude/skills/` |
 | **Developer/maintainer** | Edits the skills here and runs `install.sh` |
-| **CLI operator** | Triggers skills directly via `scripts/chat.py` |
+| **CLI operator** | Runs `run.py` by hand to read a packet or record a document |
 
 ## Scope
 
 **In scope**
 - Source code of the 9 `rup-*` skills (SKILL.md + `scripts/run.py` + `references/`)
-- Shared LLM helper (`skills/_shared/llm.py`)
+- Shared helpers (`skills/_shared/`: registry, packet/record engine, `.context/` writer)
 - Install/propagation script (`scripts/install.sh`)
-- Support tools: direct chat (`scripts/chat.py`) and OpenAI-compatible proxy
-  to use Claude Code as the LLM (`scripts/claude_proxy.py`)
 
 **Out of scope**
 - Agent runtime (Hermes Agent and Claude Code are separate projects)
 - The target projects where the skills run
-- LLM hosting/infra — the repository only resolves credentials and endpoints
+- Any LLM client, credential or endpoint — the host agent is the model
 
 ## Design principles
 
@@ -72,16 +74,17 @@ caused:
    not depend on an external agents directory.
 2. **The orchestrator is the single interface** — the user talks to
    `rup-orchestrator`; it plans, sizes, emits Work Orders and dispatches.
-3. **Uniform CLI contract** — every skill takes
-   `"<briefing>" [--phase] [--input] [--output] [--dry-run]`; test with `--dry-run`.
-4. **Compute, don't guess** — deterministic formulas (UCP) run in code and are
-   given to the LLM as tools.
+3. **Uniform protocol** — packet (`"<briefing>" [--input] [--phase]`) → one
+   document with `## <Artifact>` per required artifact → `--record`.
+4. **Compute, don't guess** — deterministic formulas (UCP) run in code
+   (`--estimate`); the packet tells the agent to use them.
 5. **Documentation in `.context/`** — never in `.hermes/` or `.claude/`.
 
 ## Decisions
 
 - **ADR-0001** — Source of truth in `.context/`.
-- **ADR-0003** — Provider-agnostic LLM via `skills/_shared/llm.py`.
+- **ADR-0011** — Artifacts always persisted into `.context/`.
 - **ADR-0008** — RUP family as the active product.
 - **ADR-0009** — Use Case Points computed in the orchestrator.
 - **ADR-0010** — `cp-*` removed; RUP skills flattened into `skills/`.
+- **ADR-0012** — The host agent is the LLM; CrewAI, `llm.py`, proxy and chat removed.

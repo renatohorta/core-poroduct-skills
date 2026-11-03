@@ -11,9 +11,9 @@ To **propagate** the skills (normal use):
 - **bash** (Git Bash on Windows, or native bash on Linux/macOS)
 - Write access to the agents' skills directories
 
-To **run** the skills, the host agent needs `crewai` installed. Without it,
-`--help` and `--dry-run` still work and execution exits with code 3 and an
-install instruction (never with a traceback).
+To **run** the skills, the agent only needs Python 3.10+: the skills are pure
+standard library and the agent itself is the LLM (ADR-0012) — no `crewai`, no
+API key, no `.env`.
 
 ## Development environment
 
@@ -23,9 +23,7 @@ uv pip install --python .venv -r requirements-dev.txt
 .venv/Scripts/python.exe -m pytest      # Windows  (.venv/bin/python on Unix)
 ```
 
-> **Python 3.14**: the `pip` resolver may pin `crewai` to an old version
-> (0.11.x) because of transitive wheel metadata. With `uv`, resolution normally
-> reaches 1.15.x. When in doubt, use 3.12 or 3.13.
+The only development dependency is `pytest`.
 
 ## Installation
 

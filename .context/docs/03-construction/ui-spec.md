@@ -18,17 +18,17 @@ template used when documenting a target project's screens for a UI generator.
 | Entry point | Purpose |
 |-------------|---------|
 | `scripts/install.sh` | Propagates `skills/` to Hermes and Claude |
-| `scripts/chat.py` | Direct trigger of any `rup-*` skill with the `.env` LLM |
-| `scripts/claude_proxy.py` | OpenAI-compatible proxy delegating to `claude -p` |
 | `skills/rup-orchestrator/scripts/run.py` | Single entry point (RUP governance + dispatch) |
 | `skills/rup-<discipline>/scripts/run.py` | Each discipline's own CLI |
 
 ## Design System (CLI conventions)
 
 - **UTF-8 output** on stdout/stderr (DT-01: `setup_console()` forces it on Windows).
-- **Standardized exit codes**: 0 success, 1 usage error, 2 no LLM, 3 no crewai.
-- **`--help` always works** (even without crewai); `--dry-run` inspects without
-  a credential, and without crewai it lists the planned agents.
+- **Standardized exit codes**: 0 success, 1 usage error / missing artifacts,
+  4 `.context/` not writable.
+- **The packet is the main "screen"**: markdown addressed to the host agent —
+  instructions first, then briefing, earlier artifacts and roles; exact commands
+  (absolute paths, quoted for the OS) so the host can copy them.
 - **Emoji + box-drawing** in output for readability.
 
 ## Decisions

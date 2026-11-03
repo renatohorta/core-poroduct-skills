@@ -1,74 +1,64 @@
 # Quality and QA — Core Product Skills
 
-> Updated 2026-11-03 (RUP family, ADR-0010).
+> Updated 2026-11-03 (host-LLM model — ADR-0012).
 
 ## Status
 
-- [x] Done — suite green: **108 passed**, no credentials, ~50 s
+- [x] Done — suite green: **138 passed**, ~3 s, no LLM, no third-party runtime
 
 ## Current state
 
 | Metric | Value |
 |--------|-------|
-| `rup-*` skills | 9 (orchestrator + 8 disciplines) |
-| Automated tests | 108 |
+| `rup-*` skills | 9 (orchestrator + 8 disciplines), 21 roles |
+| Automated tests | 138 |
 | CI pipeline | ✅ GitHub Actions on `main` + PRs (Linux 3.12/3.13 blocking, Windows informative) |
-| Dependency manifest | ✅ `requirements.txt` (crewai>=1.15,<2) + `requirements-dev.txt` |
+| Dependencies | runtime: none · dev: `pytest` |
 | Linter/formatter | ❌ None |
 
 ### Suite coverage
 
 | File | What it guarantees |
 |------|--------------------|
-| `tests/test_smoke.py` | Per skill: `--help` (also without crewai), `--dry-run` without credentials and without crewai, exit 2 without LLM, exit 3 without crewai, exit 1 on unreadable `--input`, `SKILL.md` + `references/` present. Orchestrator: `--list`, registry == skill dirs, `--discipline`/`--auto` dry-run, `--auto` per-discipline output paths, chained context (incl. truncation and missing artifacts), stop at first failure. UCP: hand-calculated reference, neutral factors, CLI `--estimate`/`--sizing-template`, input validation, tool body, tool attached to the governance agent. `install.sh`: dry-run plan, real install into temp Claude + Hermes layouts and the installed orchestrator running from both |
-| `tests/test_claude_proxy_auth.py` | Proxy authentication and localhost bind |
-| `tests/test_higiene.py` | Secrets and machine paths in committed files |
+| `tests/test_smoke.py` | Per skill: `--help`; **stdlib only** (`python -S`); packet with roles, every artifact, briefing and the `--record` command; exit 1 on missing briefing/unreadable `--input`; `--input` reused in the record command; `SKILL.md` teaches `--record`; well-formed `SPEC` (9 skills, 21 roles). Orchestrator: registry == skill dirs, `--list`, `--discipline` packet and its `--record` refusal, `--auto` order and status, sizing instructions in the governance packet. UCP: hand-calculated reference, neutral factors, validation, CLI, template. `install.sh`: dry-run plan; installed copies produce packets in the Claude and Hermes layouts |
+| `tests/test_context_persistence.py` | `.context/` resolution (explicit, env, walk-up, git-root stop, fallback), phase layout, provenance, log, curated docs untouched, briefing excerpt, exit 4. End to end: `--record` for all 9 skills (file and stdin), rejection of missing artifacts (nothing written), tolerant heading matching, empty document, record without briefing, packets read-only, **chaining in RUP order** (later never leaks into earlier, header stripped), per-phase isolation, cap on earlier artifacts, `--status`/`--auto` progress, caller's project resolution from `--discipline`, sizing artifact with clean `--json`, guard against writing into this repo |
+| `tests/test_higiene.py` | No committed secrets, no machine paths, `.env` never tracked |
 
-**What the suite does not cover**: anything that depends on an LLM response
-(the content of the artifacts) — deliberate: expensive, slow, non-deterministic.
+The host's writing quality (the artifact content) is not tested — it is the
+agent's job; the suite guarantees the contract around it.
 
 ## Test strategy
 
-The skills are self-contained CLI scripts, so the highest-return tests are the
-**CLI contract** and **error handling** — cheap, deterministic, and where the
-real bugs have been.
-
 | Level | Scope | How |
 |-------|-------|-----|
-| **Smoke (P0)** | Every skill: `--help`, `--dry-run`, exit codes | `pytest` parametrized over `skills/rup-*/scripts/run.py` |
-| **Contract (P0)** | Orchestrator registry == discipline skills; dispatch command accepted | registry parse + `--auto` run without LLM |
-| **Unit (P1)** | UCP, sizing validation, `--auto` path/context helpers | import `run.py` as a module |
-| **Integration (P1)** | `install.sh` plan and installed copies in both agent layouts | temp `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` |
+| **Smoke (P0)** | Every skill's CLI and packet | `pytest` parametrized over `skills/rup-*/scripts/run.py` |
+| **Contract (P0)** | Registry == skills; required artifacts in packet and enforced by `--record` | specs imported from `run.py` |
+| **E2E (P0)** | packet → document → record → `.context/`, chaining, status | fixed documents built from each `SPEC` (`conftest.full_document`) |
+| **Unit (P1)** | UCP, sizing validation, `.context/` helpers, heading matching | direct imports |
+| **Integration (P1)** | `install.sh` + installed copies in both agent layouts | temp `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` |
+
+Every test runs with `RUP_CONTEXT_DIR` pointing to a temp dir (`clean_env`).
 
 ## Quality checklist per change
 
-- [ ] `python skills/rup-<name>/scripts/run.py --help` returns 0
-- [ ] `python .../run.py "<briefing>" --dry-run` shows the expected plan
-- [ ] A new discipline is registered in `DISCIPLINES` and has a skill dir
-- [ ] `./scripts/install.sh --dry-run` still lists the skill
-- [ ] `.venv/bin/python -m pytest` green
-- [ ] `git status --short` checked before committing (avoids partial commits)
-- [ ] `.context/docs/` updated
-
-## Execution without a configured LLM
-
-| Scenario | Behavior |
-|----------|----------|
-| `--help` without `crewai` | works (exit 0) |
-| `--dry-run` without `crewai` | lists the planned agents from the embedded definitions (exit 0) |
-| `--dry-run` with `crewai`, no key | builds the crew and lists agents (exit 0) |
-| Real execution without key | exit 2, says which variable to set and points to `--dry-run` |
-| Real execution without `crewai` | exit 3, `pip install crewai` |
-| `--estimate`, `--sizing-template`, `--list` | never need crewai or an LLM |
+- [ ] `.venv/bin/python -m pytest` green (~3 s)
+- [ ] A role/artifact change is made in the skill's `SPEC` (not in the engine)
+- [ ] A new discipline: entry in `_shared/rup.py` `DISCIPLINES` + skill dir + `SKILL.md`
+- [ ] No third-party import in `skills/` (the `python -S` test enforces it)
+- [ ] `./scripts/install.sh --dry-run` lists the skill
+- [ ] `git status --short` before committing; `.context/docs/` updated
 
 ## Durable pitfalls (recorded lessons)
 
 1. **`git status --short` before committing** — commits come out incomplete when
    not all files were staged.
-2. **Do not let the LLM do arithmetic** — deterministic formulas go in code and
-   are offered to the agent as a tool (UCP).
+2. **Do not let the LLM do arithmetic** — deterministic formulas go in code
+   (`--estimate`) and the packet tells the agent to run them.
 3. **Shared output path in a loop** — writing every iteration to the same file
    silently keeps only the last one (the old `--auto` bug).
+6. **A second LLM is a liability** — a separate pipeline (CrewAI + key/proxy)
+   lost the host's context, broke tool calls through the proxy and cost twice;
+   the host agent is the LLM (ADR-0012).
 4. **GNU-only shell flags** — `find -printf` silently returned nothing on macOS
    (hidden by `|| true`); prefer bash globs.
 5. **"Correct code but no effect in the app"** — confirm which clone/installed
@@ -90,5 +80,5 @@ real bugs have been.
 
 ## Decisions
 
-- Prioritize smoke + contract before any crew test: testing the LLM itself is
-  expensive, non-deterministic and does not catch the bugs that actually occur.
+- Test the contract around the agent (packet, validation, persistence,
+  chaining), never the agent's prose.

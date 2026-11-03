@@ -1,4 +1,4 @@
-# INIT-02 — Persist the RUP artifacts into the target project's `.context/`
+# [Done] INIT-02 — Persist the RUP artifacts into the target project's `.context/`
 
 **Type**: initiative · **Priority**: Should · **Raised**: 2026-11-03
 
@@ -20,6 +20,12 @@ staging file for review.
 
 ## Acceptance
 
-- [ ] Mapping discipline → `.context/docs/` file recorded in an ADR
-- [ ] Opt-in flag (e.g. `--context-dir <path>`) on the orchestrator and disciplines
-- [ ] Test with a temp `.context/` and no LLM (fake crew result)
+- [x] Mapping recorded in ADR-0011: `.context/docs/<NN-phase>/rup-<discipline>.md`,
+      regenerated per run, plus `.context/tracking/rup-log.md`
+- [x] **Mandatory** (not opt-in, by the owner's decision): every real run writes;
+      `--context-dir` / `RUP_CONTEXT_DIR` only choose *where*; unwritable → exit 4
+      before the LLM call
+- [x] Tests with a temp `.context/` and no LLM (`tests/fakes/crewai`,
+      `tests/test_context_persistence.py`)
+
+Resolved 2026-11-03.

@@ -1,13 +1,13 @@
 ---
 name: rup-orchestrator
-description: "RUP-Orchestrator — single point of contact for the Rational Unified Process lifecycle. Classifies demands into RUP phases (Inception/Elaboration/Construction/Transition), maintains the Software Development Plan, Business Case and Risk List, emits formal Work Orders and dispatches the 8 discipline crews covering 20 specialized agents. Use when the user says 'run RUP', 'rational unified process', 'plan the iteration', 'manage the project', 'work orders', or wants the full RUP lifecycle governed end to end."
+description: "RUP-Orchestrator — single point of contact for the Rational Unified Process lifecycle. Classifies demands into RUP phases (Inception/Elaboration/Construction/Transition), maintains the Software Development Plan, Business Case and Risk List, emits formal Work Orders and drives the 8 discipline skills (20 specialized RUP roles) — the agent running the skill is the LLM; artifacts are recorded in .context/. Use when the user says 'run RUP', 'rational unified process', 'plan the iteration', 'manage the project', 'work orders', or wants the full RUP lifecycle governed end to end."
 ---
 
 # rup-orchestrator — RUP Lifecycle Governance
 
 Central orchestrator of the **RUP (Rational Unified Process)** family. The user
 dialogues exclusively with this skill; it plans phases and iterations, manages
-risks, formulates formal **Work Orders** and dispatches the discipline crews.
+risks, formulates formal **Work Orders** and drives the discipline skills.
 
 Grounded in *The Rational Unified Process: An Introduction* (3rd ed.), Philippe
 Kruchten. Base role: **Project Manager** (supported by the Project Reviewer).
@@ -52,54 +52,74 @@ Inception --> Elaboration --> Construction --> Transition
 - Iteration Plan & Work Orders
 - Iteration Assessment & Status Assessment
 
-## Usage
+## How to run this skill — you are the LLM
+
+This skill never calls a model: **you, the agent running it, write every
+artifact**. The script prints work packets/protocols, records your documents
+into `.context/` (mandatory) and computes Use Case Points exactly.
+
+### One step (governance or one discipline)
+
+1. Get the work packet (read-only):
+   `python scripts/run.py "<briefing>" --phase Inception` (governance) or
+   `python scripts/run.py "<briefing>" --discipline requirements`.
+2. Write ONE markdown document: `# <Role>` per role, `## <Artifact>` for every
+   artifact the packet lists.
+3. Record it — mandatory; the packet prints the exact command
+   (`… --record doc.md --phase P "<briefing>"`, or `--record -` for stdin). A
+   discipline is recorded with **its own** skill's `run.py`. Missing artifacts →
+   exit `1`, nothing written: add them and record again.
+
+### A whole iteration
+
+`python scripts/run.py "<briefing>" --auto --phase Elaboration` prints the
+protocol: governance (step 0) + the 8 disciplines, in RUP order, each with its
+packet command. Do the three steps above for each, **in order** — every packet
+embeds what the earlier steps recorded in `.context/`, which is how the
+disciplines build on each other. `--status` shows what is recorded and the next
+pending step (use it to resume).
+
+### Sizing — never compute UCP yourself
 
 ```bash
-# Governance: classify the demand, update the plan, emit Work Orders
-python scripts/run.py "clinics scheduling SaaS" --phase Inception
-
-# Inspect the plan without an LLM
-python scripts/run.py "clinics scheduling SaaS" --phase Inception --dry-run
-
-# Software Sizing & Effort Estimation — Use Case Points (no LLM needed)
-python scripts/run.py --sizing-template > sizing.json     # empty model to fill in
-python scripts/run.py --estimate --sizing sizing.json      # compute UCP + effort
-python scripts/run.py --estimate --sizing sizing.json --json   # machine-readable
-
-# Dispatch a single discipline
-python scripts/run.py "briefing" --discipline requirements
-
-# Dispatch every discipline in sequence, chained (each gets the earlier artifacts)
-python scripts/run.py "briefing" --auto --output out/iteration.md
-# -> out/iteration.01-environment.md … out/iteration.08-deployment.md
-
-# List the disciplines
-python scripts/run.py --list
+python scripts/run.py --sizing-template > sizing.json         # fill actors/use cases/factors
+python scripts/run.py --estimate --sizing sizing.json --phase Inception   # [--json]
 ```
+
+`--estimate` prints UAW/UUCW/UUCP/TCF/EF/UCP/effort and records
+`rup-orchestrator-sizing.md`; copy those numbers into the governance document.
+FPA (IFPUG/NESMA) and COCOMO II/SLOC are your estimates — show inputs and arithmetic.
 
 ## CLI contract
 
 | Argument | Meaning |
 |----------|---------|
-| `briefing` (positional) | Business demand / product direction |
-| `--input <file>` | Read the briefing from a file |
+| `briefing` (positional) / `--input <file>` | Business demand / product direction |
 | `--phase {Inception,Elaboration,Construction,Transition}` | RUP phase (default: Elaboration) |
-| `--discipline <key>` | Dispatch only this discipline |
-| `--auto` | Dispatch all disciplines in sequence, chained; stops at the first failure. With `--output F`, one file per discipline (`F-stem.NN-<key>.md`) |
-| `--list` | List disciplines and exit |
-| `--estimate` | Compute the Use Case Points sizing (no LLM) |
-| `--sizing <file>` | JSON sizing model for `--estimate` |
-| `--sizing-template` | Print an empty JSON sizing model and exit |
-| `--json` | With `--estimate`: emit the result as JSON |
-| `--output <file>` | Write the result to a file |
-| `--dry-run` | Show the plan without calling an LLM |
+| `--context-dir <dir>` | The `.context/` (default: `$RUP_CONTEXT_DIR`, else the nearest up to the git root) |
+| `--record <file\|->` | Validate your governance document and write it to `.context/` |
+| `--discipline <key>` | Print that discipline's work packet |
+| `--auto` | Print the iteration protocol (governance + 8 disciplines, in order) |
+| `--status` | Show which steps are recorded in `.context/` for the phase |
+| `--list` | List the disciplines |
+| `--estimate [--sizing F] [--json]` | Use Case Points (deterministic), recorded in `.context/` |
+| `--sizing-template` | Print an empty JSON sizing model |
 
-Exit codes: `0` success · `1` usage error · `2` no LLM configured · `3` `crewai`
-not installed. `--help`, `--list`, `--sizing-template`, `--estimate` and
-`--dry-run` always work without credentials (and without crewai).
+Exit codes: `0` success · `1` usage error / missing artifacts / invalid sizing
+model · `4` `.context/` not writable. Standard library only — no LLM key, no `crewai`.
 
-During governance the agent has the `use_case_points_calculator` tool (wrapping
-`compute_ucp`) and must call it for the UCP numbers instead of computing them.
+## Artifacts in `.context/` (mandatory)
+
+| What | File |
+|------|------|
+| Governance | `.context/docs/<NN-phase>/rup-orchestrator.md` |
+| UCP estimate | `.context/docs/<NN-phase>/rup-orchestrator-sizing.md` |
+| Each discipline | `.context/docs/<NN-phase>/rup-<discipline>.md` |
+| Every write | a row in `.context/tracking/rup-log.md` |
+
+Each file has a provenance header (skill, phase, milestone, timestamp, briefing
+excerpt) and is regenerated per run (history in git). Curated docs
+(`requirements.md`, …) are never touched.
 
 ## Reference
 

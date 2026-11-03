@@ -50,56 +50,30 @@ After copying, `__pycache__/` and `outputs/` are removed from the destination.
 
 | Item | Situation |
 |------|-----------|
-| Runtime | Python 3.11–3.13 recommended (3.12 in CI) |
-| Main dependency | `crewai>=1.15,<2` (`requirements.txt`) |
-| Interpreter used by the orchestrator | `RUP_SKILLS_PYTHON`, else the current one |
+| Runtime | Python 3.10+ (3.12 in CI) |
+| Runtime dependencies | **None** — standard library only (ADR-0012) |
+| The LLM | The agent running the skill (Claude Code, Hermes) — no key, no endpoint |
 | `install.sh` shell | bash (Git Bash on Windows) |
-| Configuration | `.env` at the root (template in `.env.example`) |
+| Configuration | Optional `RUP_CONTEXT_DIR`; nothing else |
 
 ### Pitfall — encoding on Windows
 
-The Windows console uses cp1252. The skills call `setup_console()` (DT-01,
-fixed) to force UTF-8; for other scripts, set `PYTHONUTF8=1 PYTHONIOENCODING=utf-8`.
+The Windows console uses cp1252. The skills call `setup_console()` to force
+UTF-8; for other scripts, set `PYTHONUTF8=1 PYTHONIOENCODING=utf-8`.
 
 ### Pitfall — intermittent bash relay on Windows
 
-`terminal`/`write_file` may fail with
 `execvpe(/bin/bash) failed: No such file or directory` (WSL relay). Use Git Bash
-explicitly (`"C:\Program Files\Git\bin\bash.exe" scripts/install.sh`) or pure
-Python (`subprocess`/`open`).
-
-## LLM configuration
-
-Provider-agnostic resolution (`skills/_shared/llm.py`), in this order:
-
-1. Agent env vars: `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_TEMPERATURE`, `LLM_PROVIDER`
-2. `.env` at the project root
-3. Per-provider key detection (`GEMINI_API_KEY`, `OPENAI_API_KEY`, …)
-4. Default: `gemini/gemini-2.5-flash`
-
-### Claude Code as the crews' LLM
-
-```bash
-python scripts/claude_proxy.py --port 8090   # exposes /v1/chat/completions → `claude -p`
-python scripts/claude_proxy.py --test        # tests a call
-```
-
-```env
-LLM_MODEL=openai/claude-sonnet-4
-LLM_API_BASE=http://localhost:8090/v1
-LLM_API_KEY=<any value — the proxy ignores it, CrewAI requires it>
-LLM_PROVIDER=openai
-```
-
-> The proxy listens on `127.0.0.1` (default port 8090). Set `CLAUDE_PROXY_TOKEN`
-> to require a bearer token (SEC-02).
+explicitly (`"C:\Program Files\Git\bin\bash.exe" scripts/install.sh`).
 
 ## Observability
 
 | Signal | Where |
 |--------|-------|
-| Execution log | stdout of `run.py` (phase, dispatched command, crew output) |
-| Artifacts | `--output` file; in `--auto`, `<stem>.NN-<key>.md` per discipline |
+| Work packets | stdout of `run.py` |
+| Artifacts | `.context/docs/<NN-phase>/rup-<skill>.md` |
+| Artifact log | `.context/tracking/rup-log.md` |
+| Iteration progress | `rup-orchestrator --status --phase P` |
 | Project progress | `.context/tracking/progress.md` |
 
 There are no aggregated metrics, alerts or log retention — appropriate for local use.
@@ -110,10 +84,11 @@ There are no aggregated metrics, alerts or log retention — appropriate for loc
 |-----------|--------|
 | Skill does not appear in Claude | Confirm `~/.claude/skills/<skill>/SKILL.md`; restart the agent |
 | Skill does not appear in Hermes | Confirm `$HERMES_SKILLS_DIR/creative/<skill>/`; reloads on the next turn |
-| `OPENAI_API_KEY is required` | `.env` without `LLM_*` — configure the correct provider |
+| `--record` says artifacts are missing | Add a `## <Artifact>` section for each listed artifact and record again |
+| Exit 4 | `.context/` not writable — fix permissions or set `--context-dir` / `RUP_CONTEXT_DIR` |
 | `UnicodeEncodeError` | Run with `PYTHONUTF8=1 PYTHONIOENCODING=utf-8` |
 | `ModuleNotFoundError: _shared` | `_shared/` missing in the agent — rerun the full `install.sh` |
-| A discipline failed in `--auto` | `--auto` stops there; fix and run the remaining ones with `--discipline <key>` (pass the earlier artifacts via the briefing/`--input`) |
+| Iteration interrupted | `rup-orchestrator --status --phase P` shows the next pending step; continue from its packet command |
 | `Permission denied` on install | `chmod +x scripts/install.sh` (Linux/macOS) |
 | Change "without effect" | Check which clone of the repo the process is running from |
 
