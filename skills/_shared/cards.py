@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from _shared import context, frontmatter
+from _shared import context, frontmatter, roadmap
 from _shared.discipline import fail, missing_artifacts
 
 COLUMNS = ["1-backlog", "2-todo", "3-doing", "4-review", "5-testing",
@@ -211,6 +211,7 @@ def create(context_dir, type, title, body, *, parent=None, priority="Should",
     path.write_text(frontmatter.dump(meta, card_body), encoding="utf-8")
     context.append_event(context_dir, skill="rup-backlog",
                          what=f"created {card_id} ({type}) in {COLUMNS[0]}", now=now)
+    roadmap.regenerate_views(context_dir)
     return Card(card_id, type, title, COLUMNS[0], meta, card_body.rstrip() + "\n", path)
 
 
@@ -235,6 +236,29 @@ def set_section(card: Card, name: str, text: str, now=None) -> Card:
     card.body = "\n".join(lines).rstrip() + "\n"
     card.meta["updated_at"] = (now or datetime.now()).isoformat(timespec="seconds")
     card.path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
+    roadmap.regenerate_views(card.path.parents[2])
+    return card
+
+
+def add_history(card: Card, text: str, *, now=None) -> Card:
+    """Append `- <iso> <text>` at the end of the `## History` span, bump `updated_at`, persist.
+
+    Checks consent itself; the context dir comes from the card path.
+    """
+    context.ensure_writable(card.path.parents[2])
+    stamp = (now or datetime.now()).isoformat(timespec="seconds")
+    lines = card.body.rstrip("\n").splitlines()
+    span = _section_span(lines, "History")
+    if span is None:
+        lines += ["", "## History", "", f"- {stamp} {text}"]
+    else:
+        end = span[1]
+        while end > span[0] + 1 and not lines[end - 1].strip():
+            end -= 1  # insert after the last History line, before trailing blanks
+        lines[end:end] = [f"- {stamp} {text}"]
+    card.body = "\n".join(lines).rstrip() + "\n"
+    card.meta["updated_at"] = stamp
+    card.path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
     return card
 
 
@@ -249,7 +273,7 @@ def _started(card: Card) -> bool:
 
 
 def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
-         rollup=True) -> Card:
+         rollup=True, views=True) -> Card:
     """Move a card to `column`: file, `status`, `updated_at`, History, log, roll-up.
 
     Any move is legal; skipping forward columns only adds a warning to the
@@ -267,34 +291,25 @@ def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
     if card.status == column:
         fail(f"{card_id} is already in {column}")
     now = now or datetime.now()
-    stamp = now.isoformat(timespec="seconds")
     src = card.status
-    line = f"- {stamp} {src} → {column} — {reason} ({actor})"
+    line = f"{src} → {column} — {reason} ({actor})"
     if "blocked" not in (src, column):
         a, b = COLUMNS.index(src), COLUMNS.index(column)
         if b - a > 1:
             line += " ⚠️ skipped " + ", ".join(COLUMNS[a + 1:b])
+    old_path = card.path
     card.meta["status"] = column
-    card.meta["updated_at"] = stamp
-    lines = card.body.rstrip("\n").splitlines()
-    span = _section_span(lines, "History")
-    if span is None:
-        lines += ["", "## History", "", line]
-    else:
-        end = span[1]
-        while end > span[0] + 1 and not lines[end - 1].strip():
-            end -= 1  # insert after the last History line, before trailing blanks
-        lines[end:end] = [line]
-    card.body = "\n".join(lines).rstrip() + "\n"
-    new_path = _kanban(context_dir) / column / card.path.name
-    new_path.parent.mkdir(parents=True, exist_ok=True)
-    new_path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
-    card.path.unlink()
-    card.path, card.status = new_path, column
+    card.path = _kanban(context_dir) / column / old_path.name
+    card.path.parent.mkdir(parents=True, exist_ok=True)
+    card.status = column
+    add_history(card, line, now=now)  # writes the card at its new path
+    old_path.unlink()
     context.append_event(context_dir, skill="rup-backlog",
                          what=f"moved {card_id} {src} → {column}: {reason}", now=now)
     if rollup:
         _rollup(context_dir, card, now=now)
+    if views:
+        roadmap.regenerate_views(context_dir)
     return card
 
 
@@ -320,7 +335,7 @@ def rollup(context_dir, card: Card, *, now=None) -> list:
                 target, why = "3-doing", f"roll-up: {first.id} started"
         if target:
             parent = move(context_dir, parent.id, target, why, actor="rup-backlog",
-                          now=now, rollup=False)
+                          now=now, rollup=False, views=False)
             moved.append(parent)
         card = parent
     return moved

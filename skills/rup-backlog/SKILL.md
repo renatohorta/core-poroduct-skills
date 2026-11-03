@@ -21,6 +21,9 @@ standard authorized in `.context/` (exit 5 otherwise: see `rup-context`).
    enough; skipping columns only warns in the card's History. A story/epic moves
    by itself (roll-up): to `3-doing` when its first child starts, to `7-done`
    when all children are done.
+5. Plan: `--release-new --title T`, `--iteration-new --release R1 --phase P --goal G`,
+   `--plan EP-001 --iteration R1-I1`. `docs/06-roadmap.md` and `docs/06-board.md`
+   are generated views (regenerated after every change; never edit them).
 
 ## Commands
 
@@ -28,6 +31,10 @@ standard authorized in `.context/` (exit 5 otherwise: see `rup-context`).
 - `--move ID COLUMN --reason R` — move a card (reason required; logged).
 - `--show ID` — print the card file.
 - `--list [--column C] [--type T]` — table `ID | Type | Title | Column | Parent`.
+- `--release-new --title T [--milestone M] [--goal G] [--target-date D]` — prints `R<n>`.
+- `--iteration-new --release R --phase P --goal G [--start S] [--end E]` — prints `R<n>-I<m>`.
+- `--plan EPIC --iteration I` — plan an epic into an iteration.
+- `--roadmap` — regenerate the two views.
 - `--context-dir D` — another `.context/` (default: auto-detect or `RUP_CONTEXT_DIR`).
 
 Exit codes: 0 ok · 1 invalid document/usage · 4 not writable · 5 not authorized.

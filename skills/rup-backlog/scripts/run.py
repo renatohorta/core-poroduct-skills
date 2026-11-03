@@ -7,6 +7,10 @@ Usage:
                 [--priority P] [--source S] [--context-dir D]   (prints the new ID)
   python run.py --move ID COLUMN --reason R [--context-dir D]
   python run.py --show ID [--context-dir D]
+  python run.py --release-new --title T [--milestone M] [--goal G] [--target-date D]
+  python run.py --iteration-new --release R --phase P --goal G [--start S] [--end E]
+  python run.py --plan EPIC --iteration I
+  python run.py --roadmap                  (regenerate docs/06-roadmap.md, 06-board.md)
   python run.py --list [--column C] [--type T] [--context-dir D]
 """
 
@@ -23,7 +27,7 @@ for _root in (_SKILL_DIR.parent, _SKILL_DIR.parent.parent):
             sys.path.insert(0, str(_root))
         break
 
-from _shared import cards, context  # noqa: E402
+from _shared import cards, context, roadmap  # noqa: E402
 from _shared.discipline import fail, read_document  # noqa: E402
 from _shared.rup import EXIT_OK, setup_console  # noqa: E402
 
@@ -52,6 +56,19 @@ def main(argv=None) -> int:
     p.add_argument("--list", action="store_true", help="table of cards")
     p.add_argument("--column", choices=cards.COLUMNS, help="filter --list by column")
     p.add_argument("--type", choices=list(cards.TYPES), help="filter --list by type")
+    p.add_argument("--release-new", action="store_true", help="create a release (needs --title)")
+    p.add_argument("--milestone", default="", help="RUP milestone of the release (with --release-new)")
+    p.add_argument("--goal", default="", help="goal of the release/iteration")
+    p.add_argument("--target-date", default="", help="release target date (with --release-new)")
+    p.add_argument("--iteration-new", action="store_true",
+                   help="create an iteration (needs --release --phase --goal)")
+    p.add_argument("--release", help="release ID (with --iteration-new)")
+    p.add_argument("--phase", help="RUP phase of the iteration (with --iteration-new)")
+    p.add_argument("--start", default="", help="iteration start date")
+    p.add_argument("--end", default="", help="iteration end date")
+    p.add_argument("--plan", metavar="EPIC", help="plan an epic into --iteration")
+    p.add_argument("--iteration", help="iteration ID (with --plan)")
+    p.add_argument("--roadmap", action="store_true", help="regenerate the roadmap and board views")
     p.add_argument("--context-dir", help="target .context/ (default: auto-detect)")
     args = p.parse_args(argv)
     context_dir = context.resolve_context_dir(args.context_dir)
@@ -71,6 +88,32 @@ def main(argv=None) -> int:
             fail("--move needs --reason R")
         card = cards.move(context_dir, card_id, column, args.reason)
         print(f"{card.id} -> {card.status}")
+        return EXIT_OK
+
+    if args.release_new:
+        if not args.title:
+            fail("--release-new needs --title T")
+        print(roadmap.new_release(context_dir, args.title, milestone=args.milestone,
+                                  goal=args.goal, target_date=args.target_date))
+        return EXIT_OK
+
+    if args.iteration_new:
+        if not (args.release and args.phase and args.goal):
+            fail("--iteration-new needs --release R --phase P --goal G")
+        print(roadmap.new_iteration(context_dir, args.release, args.phase, args.goal,
+                                    start=args.start, end=args.end))
+        return EXIT_OK
+
+    if args.plan:
+        if not args.iteration:
+            fail("--plan needs --iteration I")
+        epic = roadmap.plan_epic(context_dir, args.plan, args.iteration)
+        print(f"{epic.id} -> {args.iteration}")
+        return EXIT_OK
+
+    if args.roadmap:
+        for path in roadmap.regenerate_views(context_dir):
+            print(path)
         return EXIT_OK
 
     if args.show:
