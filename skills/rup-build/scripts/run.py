@@ -125,7 +125,7 @@ def finish(context_dir, card_id, source, project_root) -> None:
         sys.exit(1)
     for warning in testcheck.delivery_warnings(delivery, Path(project_root)):
         print(f"⚠️ {warning}")
-    cards.set_section(card, "Delivery", text)
+    cards.set_section(card, "Delivery", testcheck.embed_delivery(text))
     if card.type == "bug":
         cards.set_section(card, "Fix", delivery.section("What was done"))
         cards.set_section(card, "Regression test", delivery.section("Tests"))

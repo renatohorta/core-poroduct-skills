@@ -49,14 +49,9 @@ def bullets(text: str) -> list:
 
 
 def delivery_of(card):
-    """The card's stored delivery, parsed.
-
-    rup-build stores the delivery under `## Delivery` with its own `## ` headings, so
-    the delivery runs from that heading to the end of the card body.
-    """
-    lines = card.body.splitlines()
-    start = next((i for i, l in enumerate(lines) if l.strip().lower() == "## delivery"), None)
-    return testcheck.parse_delivery("\n".join(lines[start:]) if start is not None else "")
+    """The card's stored delivery (nested one heading level down), parsed."""
+    return testcheck.parse_delivery(
+        testcheck.extract_delivery(cards.section_text(card, "Delivery")))
 
 
 def parent_chain(context_dir, card) -> list:

@@ -50,6 +50,34 @@ class TestInfo:
     calls_code: bool
 
 
+# ─── embedding a delivery in a card section ──────────────────────────────
+
+def _shift_headings(text: str, delta: int) -> str:
+    """Move every heading line `delta` levels, leaving fenced code blocks untouched."""
+    out, fenced = [], False
+    for line in (text or "").split("\n"):
+        if line.startswith("```"):
+            fenced = not fenced
+        elif not fenced:
+            m = re.match(r"^(#{1,6})(\s.*)$", line)
+            if delta < 0 and m and len(m[1]) == 1:
+                pass  # cannot promote a level-1 heading
+            elif m:
+                line = "#" * max(1, min(6, len(m[1]) + delta)) + m[2]
+        out.append(line)
+    return "\n".join(out)
+
+
+def embed_delivery(text: str) -> str:
+    """Demote headings one level so the delivery nests inside the card's `## Delivery`."""
+    return _shift_headings(text, 1)
+
+
+def extract_delivery(section_text: str) -> str:
+    """Inverse of `embed_delivery`: the delivery as the agent wrote it."""
+    return _shift_headings(section_text, -1)
+
+
 # ─── parsing ─────────────────────────────────────────────────────────────
 
 def _ref(path: str, name: str) -> str:

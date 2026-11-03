@@ -6,7 +6,7 @@ import pytest
 from conftest import EXIT_OK, EXIT_USAGE
 from test_context_persistence import run_skill
 
-from _shared import cards
+from _shared import cards, testcheck
 
 SKILL = "rup-review"
 
@@ -38,7 +38,7 @@ def proj(ctx_env):
     (root / "tests").mkdir(exist_ok=True)
     (root / "tests" / "test_booking.py").write_text(GOOD_TEST, encoding="utf-8")
     task = cards.get(ctx, "TK-001")
-    cards.set_section(task, "Delivery", DELIVERY)
+    cards.set_section(task, "Delivery", testcheck.embed_delivery(DELIVERY))
     cards.move(ctx, "TK-001", "4-review", "delivered")
     return ctx, root
 
@@ -113,3 +113,38 @@ def test_invalid_verdict_exits_1(proj, ctx_env, python_cmd):
     card = cards.get(ctx, "TK-001")
     assert card.status == "4-review"
     assert card.path.read_text(encoding="utf-8") == before
+
+
+def test_embed_extract_delivery_round_trip():
+    text = (DELIVERY + "\n## Notes\n\n```\n## not a heading\n# nor this\n```\n\n### Sub\n\ntext\n")
+    embedded = testcheck.embed_delivery(text)
+    assert "### Tests" in embedded and "#### " + REF in embedded
+    assert "\n## not a heading\n" in embedded and "\n## Tests" not in embedded
+    assert testcheck.extract_delivery(embedded) == text
+
+
+def test_redelivery_replaces_delivery_and_review_shows_second(proj, ctx_env, python_cmd):
+    ctx, root = proj
+    r = run(["--record", "TK-001", "--doc", "-"], ctx_env, python_cmd,
+            stdin=doc("changes requested", "- extra file"))
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    (root / "tests" / "test_booking.py").write_text(
+        GOOD_TEST + "\n\ndef test_second_st_001_ac_1():\n    assert book('10:00') == 'booked'\n", encoding="utf-8")
+    ref2 = "tests/test_booking.py::test_second_st_001_ac_1"
+    second = ("## What was done\n\nSecond attempt SECOND-MARK.\n\n## Files changed\n\n- app/booking.py\n- app/slots.py\n\n"
+              f"## Tests\n\n- {ref2} — covers ST-001/AC-1\n\n"
+              f"## Red evidence\n\n### {ref2}\n\n```\nE   Fail\n```\n")
+    r = subprocess_finish(ctx_env, python_cmd, second)
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    body = cards.get(ctx, "TK-001").body
+    assert body.count("\n## Delivery") + body.startswith("## Delivery") == 1
+    assert "SECOND-MARK" in body and "Implemented booking." not in body
+    assert body.rstrip().splitlines().index("## History") > body.splitlines().index("## Review")
+    heads = [l for l in body.splitlines() if l.startswith("## ")]
+    assert heads[-1] == "## History"
+    out = run(["TK-001"], ctx_env, python_cmd).stdout
+    assert ref2 in out and REF + " " not in out and "Outside target files: none" in out
+
+
+def subprocess_finish(env, python_cmd, text):
+    return run_skill("rup-build", ["--finish", "TK-001", "--delivery", "-"], env, python_cmd, stdin=text)
