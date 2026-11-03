@@ -1,7 +1,8 @@
 # .context/ — Project Source of Truth
 
-**Project**: Core Product Skills — canonical repository of the `cp-*` skills of
-the Software Factory (CrewAI), propagated to the **Hermes Agent** and **Claude Code**.
+**Project**: Core Product Skills — canonical repository of the `rup-*` skills
+(Rational Unified Process as CrewAI crews), propagated to the **Hermes Agent**
+and **Claude Code**. The legacy `cp-*` family was removed (ADR-0010).
 
 This directory is the **single source of truth** for the project context. All
 agents must read and write context here, **never** in `.hermes/` or `.claude/`.
@@ -22,32 +23,37 @@ agents must read and write context here, **never** in `.hermes/` or `.claude/`.
 
 ### docs/ — RUP Operational (4 phases)
 
-| Phase | File | Content | Skill that writes |
-|-------|------|---------|-------------------|
-| `01-inception/` | `vision-and-scope.md` | Product vision, actors, business goals | `cp-software-spec` |
-| `01-inception/` | `requirements.md` | FR + NFR (incl. security/LGPD) | `cp-requirements`, `cp-competitive-analysis`, `cp-security` |
-| `02-elaboration/` | `architecture.md` | Stack, C4/Mermaid, structural decisions | `cp-architecture`, `cp-implementation`, `cp-maintenance` |
-| `02-elaboration/` | `domain-model.md` | Domain entities, aggregates, use cases | `cp-software-spec` |
-| `03-construction/` | `api-contracts.md` | OpenAPI/CLI contracts, endpoints, schemas | `cp-software-spec` |
-| `03-construction/` | `ui-spec.md` | Routes, Design System, AppShell, Generative UI | `cp-software-spec` |
-| `03-construction/` | `data-dictionary.md` | DB models, migrations, persistence rules | `cp-software-spec` |
-| `04-transition/` | `test-strategy.md` | Test pyramid, coverage, commands | `cp-testing`, `cp-quality`, `cp-bug-fix` |
-| `04-transition/` | `devops-infra.md` | Docker, CI/CD, variables, runbooks | `cp-devops`, `cp-goal-loop` |
-| `06-kanban.md` | — | Kanban/pipeline state | `cp-agile` |
+The project context of **this repository**, organized by RUP phase. Maintained
+by whoever changes the repository (human or coding agent) — the `rup-*` skills
+do not write here automatically (see `inbox/initiatives/INIT-02`).
+
+| Phase | File | Content |
+|-------|------|---------|
+| `01-inception/` | `vision-and-scope.md` | Product vision, actors, scope |
+| `01-inception/` | `requirements.md` | FR + NFR (incl. security/LGPD) |
+| `02-elaboration/` | `architecture.md` | Components, dispatch, structural decisions |
+| `02-elaboration/` | `domain-model.md` | Entities (skill, crew, artifact, card), use cases |
+| `03-construction/` | `api-contracts.md` | CLI contracts of the skills |
+| `03-construction/` | `ui-spec.md` | CLI surface and conventions |
+| `03-construction/` | `data-dictionary.md` | Filesystem structures, kanban schema |
+| `04-transition/` | `test-strategy.md` | Test levels, coverage, commands |
+| `04-transition/` | `devops-infra.md` | Install, CI, LLM config, runbook |
+| `06-kanban.md` | — | Kanban state |
 
 ### inbox/ — Work intake
 One `.md` file per item.
 
 - `initiatives/` — Product initiatives
 - `tasks/` — Tasks
-- `bugs/` — Bugs (`DT-01`, `DOC-01`)
-- `tech-debt/` — Technical debt (`DT-02` … `DT-06`)
+- `bugs/` — Bugs
+- `tech-debt/` — Technical debt
+- `processed/` — Resolved items (history)
 
 ### tracking/ — Tracking
 - `progress.md` — Overall progress and next steps
-- `decisions.md` — Decision log (ADR-0001 … ADR-0006)
+- `decisions.md` — Decision log (ADR-0001 … ADR-0010)
 
-### kanban/ — Execution pipeline (`cp-agile`)
+### kanban/ — Execution pipeline (managed by hand)
 Source of truth for the task flow; Trello, when connected, is only a
 mirror. A task is a `.md` with YAML frontmatter and the column is the folder:
 `1-backlog/` → `2-todo/` → `3-doing/` → `4-review/` → `5-testing/` →
@@ -60,7 +66,8 @@ When a card is promoted to `2-todo/`, it is refined into an **executable issue**
 
 ## Rules
 
-1. Every `cp-*` skill documents its artifacts in `docs/`, per the map above.
+1. Every change to the repository updates the affected file in `docs/`, per
+   the map above.
 2. New work enters through `inbox/`, not directly in `docs/`; once triaged,
    it moves to `kanban/1-backlog/`.
 3. A relevant decision becomes an ADR in `tracking/decisions.md` — with context

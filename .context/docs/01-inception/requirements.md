@@ -1,35 +1,33 @@
 # Requirements — Core Product Skills
 
-> Discipline: Requirements Engineering (`cp-requirements`). Updated 2026-08-18.
+> Updated 2026-11-03 (RUP family — ADR-0008/0009/0010).
 
 ## Status
 
-- [x] Done (initial requirements derived from existing code)
+- [x] Done (requirements of the RUP family)
 
 ## Context
 
-The requirements below were **derived by reverse engineering** from the existing
-code and documentation (`README.md`, `docs/`, `scripts/`, `skills/`). New
-requirements must enter through `.context/inbox/initiatives/`.
+New requirements must enter through `.context/inbox/initiatives/`.
 
 ## Functional requirements
 
 | ID | Requirement | Priority | Status |
 |----|-------------|----------|--------|
-| RF-01 | Keep the canonical source code of all `cp-*` skills in `skills/` | Must | ✅ Implemented |
+| RF-01 | Keep the canonical source code of all `rup-*` skills in `skills/` | Must | ✅ Implemented |
 | RF-02 | Propagate the skills to Hermes and Claude via `scripts/install.sh` | Must | ✅ Implemented |
 | RF-03 | Allow selective install (`--hermes`, `--claude`, `--skill`, `--dry-run`) | Must | ✅ Implemented |
 | RF-04 | Resolve the host agent's LLM without coupling to a provider | Must | ✅ Implemented (`_shared/llm.py`) |
-| RF-05 | Expose a single entry point (`cp-orchestrator`) for all skills | Must | ✅ Implemented |
-| RF-06 | Apply quality gate (PASS/WARN/FAIL) between pipeline phases | Must | ✅ Implemented |
-| RF-07 | Pass artifacts from one phase as input to the next | Must | ✅ Implemented |
-| RF-08 | Allow resuming the pipeline from a phase (`--start-phase`) | Should | ✅ Implemented |
-| RF-09 | Support pipeline simulation without running the crews (default / `--dry-run`) | Should | ✅ Implemented |
-| RF-10 | Trigger skills directly via interactive CLI (`scripts/chat.py`) | Should | ✅ Implemented |
-| RF-11 | Use Claude Code as the crews' LLM via OpenAI-compatible proxy | Could | ✅ Implemented (`scripts/claude_proxy.py`) |
-| RF-12 | Initialize a target project's documentation in `.context/` | Must | ✅ Implemented (`cp-doc-initializer`) |
-| RF-13 | Monitor backlog and dispatch tasks with bidirectional feedback | Should | ✅ Implemented (`cp-agile`) |
-| RF-14 | Run the NEXUS pipeline (7 phases, 39 agents) natively | Should | ✅ Implemented (`full-dev` mode) |
+| RF-05 | Expose a single entry point (`rup-orchestrator`) that governs the RUP lifecycle | Must | ✅ Implemented |
+| RF-06 | One skill per RUP discipline (8), with the agents and artifacts of the spec | Must | ✅ Implemented |
+| RF-07 | Dispatch one discipline (`--discipline`) or all in order (`--auto`) | Must | ✅ Implemented |
+| RF-08 | In `--auto`, pass the artifacts of earlier disciplines to the next ones and keep one artifact per discipline | Must | ✅ Implemented (2026-11-03) |
+| RF-09 | Compute Use Case Points deterministically (CLI and agent tool) | Must | ✅ Implemented |
+| RF-10 | Inspect the plan without an LLM (`--dry-run`, also without crewai) | Should | ✅ Implemented |
+| RF-11 | Trigger skills directly via CLI (`scripts/chat.py`) | Should | ✅ Implemented |
+| RF-12 | Use Claude Code as the crews' LLM via OpenAI-compatible proxy | Could | ✅ Implemented (`scripts/claude_proxy.py`) |
+| RF-13 | Persist the RUP artifacts into the target project's `.context/` | Should | ❌ Open (INIT-02) |
+| RF-14 | Compute FPA (IFPUG/NESMA) and COCOMO II deterministically | Could | ❌ Open — LLM-produced today |
 
 ## Non-functional requirements
 
@@ -39,23 +37,19 @@ requirements must enter through `.context/inbox/initiatives/`.
 | NFR-02 | **No personal data in code** | Zero fixed handles/machine names in scripts | ✅ |
 | NFR-03 | **Secrets outside the repository** | `.env` in `.gitignore`; only `.env.example` committed | ✅ |
 | NFR-04 | **Skill self-containment** | Each `run.py` embeds its agents; no external directory | ✅ |
-| NFR-05 | **UTF-8 encoding on Windows** | Run with `PYTHONUTF8=1`/`PYTHONIOENCODING=utf-8` | ⚠️ Known gap (DT-01) |
-| NFR-06 | **Per-phase timeout** | 600s per phase in `--auto` mode | ✅ |
-| NFR-07 | **Automated test coverage** | Executable suite in the repository | ❌ Gap (DT-02) |
+| NFR-05 | **UTF-8 encoding on Windows** | `setup_console()` forces UTF-8 on stdout/stderr | ✅ |
+| NFR-06 | **Works in both agent layouts** | `_shared` found in Claude (flat) and Hermes (category) installs | ✅ (tested) |
+| NFR-07 | **Automated test coverage** | Suite runs without credentials in CI | ✅ |
 
 ## Prioritized backlog (MoSCoW)
 
-**Must (still pending)**
-- No open items — the functional core is implemented.
-
 **Should**
-- DT-01: fix `UnicodeEncodeError` of `cp-orchestrator` on Windows cp1252 console.
-- DT-02: create a test suite (minimum: smoke test of each skill's `--dry-run`).
-- DT-03: automated validation of each skill's `invoke` contract.
+- INIT-02: persist RUP artifacts into `.context/`.
 
 **Could**
-- CI that runs `install.sh --dry-run` + smoke tests on every push.
+- Deterministic FPA / COCOMO II calculators (same pattern as UCP).
 - Semantic versioning of the skills and a changelog.
+- `.gitattributes` (`* text=auto eol=lf`) to avoid CRLF diffs on Windows.
 
 **Won't (for now)**
 - Publishing the skills as a distributable package (internal use).
@@ -67,14 +61,8 @@ requirements must enter through `.context/inbox/initiatives/`.
   `install.sh`).
 - **BR-02** — `_shared` is a shared helper, **not** a skill: it goes to the
   agent's skills root, not to the category.
-- **BR-03** — Every `cp-*` skill documents its artifacts in `.context/docs/`,
-  per the crew→file map defined in `.context/README.md`.
-
-## Decisions
-
-- Requirements derived from the real state of the code, not from a prior briefing;
-  `00-vision.md` is the source of the product's intent.
-
+- **BR-03** — The orchestrator registry (`DISCIPLINES`) and the `skills/rup-*`
+  directories must match (enforced by a test).
 
 ---
 
@@ -82,7 +70,7 @@ requirements must enter through `.context/inbox/initiatives/`.
 
 # Security and LGPD — Core Product Skills
 
-> Discipline: Security/Compliance (`cp-security`). Updated 2026-08-18.
+> Updated 2026-11-03.
 
 ## Status
 
@@ -112,11 +100,11 @@ requirements must enter through `.context/inbox/initiatives/`.
 | ID | Risk | Severity | Current control | Action |
 |----|------|----------|-----------------|--------|
 | SEC-01 | LLM key leaks via `.env` copied along with the skill | Medium | `install.sh` copies only `skills/`; `.env` stays at the root and is ignored by Git | Keep — do not move `.env` into `skills/` |
-| SEC-02 | `claude_proxy.py` **does not require authentication** — any local process can consume the Claude Code OAuth session | Medium | Bind restricted to `127.0.0.1` | Documented; do not run the proxy on a shared machine. See DT-04 |
+| SEC-02 | `claude_proxy.py` exposes the Claude Code OAuth session to local processes | Medium | Bind restricted to `127.0.0.1`; optional `CLAUDE_PROXY_TOKEN` bearer (DT-04) | Set `CLAUDE_PROXY_TOKEN` on shared machines |
 | SEC-03 | Briefings sent to the crews go to the configured LLM provider | Medium | Explicit provider choice via `.env` | Do not put secrets/personal data in briefings |
-| SEC-04 | Orchestrator's `subprocess.run` executes the skills' `run.py` | Low | Fixed `SKILL_PATHS` list, no `shell=True` | Keep — never build a command from a string |
+| SEC-04 | Orchestrator's `subprocess.run` executes the skills' `run.py` | Low | Fixed `DISCIPLINES` registry, argument list, no `shell=True` | Keep — never build a command from a string |
 | SEC-05 | `install.sh` does `rm -rf "$dst"` before copying | Low | Destination derived from known env vars | Never point `HERMES_SKILLS_DIR`/`CLAUDE_SKILLS_DIR` to a directory with its own content |
-| SEC-06 | Pipeline artifacts may contain code snippets from the target project | Low | `outputs/` in `.gitignore` | Keep |
+| SEC-06 | `--auto` artifacts may contain content from the target project | Low | Written only where `--output` points; chaining files live in a temp dir deleted at the end | Do not point `--output` inside a committed path with sensitive content |
 
 ## LGPD
 
@@ -140,14 +128,5 @@ Public configuration template: `.env.example` (no real values).
 
 ## Security pending items
 
-- **DT-04** — `claude_proxy.py` without authentication: evaluate a simple shared
-  token (header `Authorization`) validated against an env var.
-- **DOC-01** — Port divergence: the `README.md` recommends `--port 8090` but
-  `DEFAULT_PORT = 8080` in `scripts/claude_proxy.py`. Align (8080 conflicts with
-  common frontends).
-
-## Decisions
-
-- No SAST/dependabot scan for now: the repository has no declared dependencies
-  (no `requirements.txt`/`pyproject.toml`) — see DT-05 in
-  `.context/docs/05-devops-operations.md`.
+- None open. DT-04 (proxy token) and DOC-01 (proxy port 8090) were resolved on
+  2026-08-18 — see `.context/inbox/processed/`.

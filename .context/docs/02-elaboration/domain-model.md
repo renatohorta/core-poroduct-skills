@@ -1,48 +1,48 @@
 # Domain Model — Core Product Skills
 
-> Document managed by the `cp-software-spec` skill. Updated 2026-09-07.
+> Updated 2026-11-03 (RUP family).
 
 ## Status
 
-- [x] In progress (derived from the existing code)
+- [x] Done (derived from the existing code)
 
 ## Core entities
 
-The Software Factory is a set of **skills** orchestrated by a **pipeline**.
 There is no persistent domain model in the traditional sense — the "entities"
-are the artifacts and the flow between them.
+are the RUP concepts the skills encode and the files they exchange.
 
 | Entity | Description | Where it lives |
 |--------|-------------|----------------|
-| **Skill** (`cp-*`) | A self-contained unit: `SKILL.md` + `scripts/run.py` + `references/` | `skills/cp-<name>/` |
-| **Crew** | A CrewAI crew embedded in a skill's `run.py` | `skills/cp-<name>/scripts/run.py` |
-| **Phase artifact** | The output of a pipeline phase, passed to the next | `cp-orchestrator/outputs/pipeline_<ts>/` |
-| **Kanban card** | A task `.md` with YAML frontmatter; the column is the folder | `.context/kanban/{column}/{ID}.md` |
-| **Executable issue** | A refined card in `2-todo/` (Ready for Dev) | `.context/kanban/2-todo/{ID}.md` |
+| **Skill** (`rup-*`) | Self-contained unit: `SKILL.md` + `scripts/run.py` + `references/` | `skills/rup-<name>/` |
+| **Discipline** | One of the 8 RUP disciplines dispatched by the orchestrator | `DISCIPLINES` in `rup-orchestrator/scripts/run.py` |
+| **Agent** (RUP role) | A CrewAI agent embedded in a skill (`AGENTS` dict) — 21 in total | each `run.py` |
+| **Phase / Milestone** | Inception/LCO, Elaboration/LCA, Construction/IOC, Transition/PR | `PHASES`, `PHASE_MILESTONES` |
+| **Artifact** | Markdown output of a discipline crew (`--output`) | wherever `--output` points |
+| **Chained context** | Briefing + earlier artifacts passed to the next discipline in `--auto` | temp dir, via `--input` |
+| **Sizing model** | JSON of actors, use cases, TCF/EF factors and h/UCP | `--sizing` file / tool input |
+| **Kanban card** | Task `.md` with YAML frontmatter; the column is the folder | `.context/kanban/{column}/{ID}.md` |
 | **ADR** | Architecture Decision Record | `.context/tracking/decisions.md` |
 
 ## Aggregates
 
-- **Pipeline** aggregates the 8 phase crews (requirements → architecture →
-  implementation → testing → security → devops → documentation → quality) and
-  applies a quality gate (PASS/WARN/FAIL) between them.
-- **Kanban** aggregates cards across columns; `cp-agile` is the aggregate root
-  that scans `1-backlog/` for `status: ready` and dispatches to the orchestrator.
+- **Lifecycle** (root: `rup-orchestrator`) — phases, milestones, Work Orders,
+  sizing and the ordered set of disciplines.
+- **Discipline crew** (root: the discipline skill) — its agents and their
+  sequential tasks; one artifact section per RUP artifact the agents own.
 
 ## Core use cases
 
-1. **Initialize a project's context** — `cp-software-spec --init` scaffolds
-   `.context/` (RUP 4 phases + kanban + tracking).
-2. **Reverse-engineer a codebase** — `cp-software-spec --inspect <path>`
-   produces RUP docs from the existing code.
-3. **Refine a card into an executable issue** — `cp-software-spec --refine-card
-   <ID>` promotes a backlog card to `2-todo/` with DoR, contracts and target files.
-4. **Run the pipeline** — `cp-orchestrator` runs the crews in sequence with
-   quality gates.
-5. **Dispatch tasks** — `cp-agile --daemon` polls the backlog and dispatches
-   ready tasks to the orchestrator.
+1. **Govern an iteration** — `rup-orchestrator "<demand>" --phase P` produces
+   SDP/Business Case/Risk List updates, sizing, Iteration Plan and Work Orders.
+2. **Size the software** — `rup-orchestrator --estimate --sizing F` (no LLM), or
+   the agent calls the `use_case_points_calculator` tool during governance.
+3. **Run one discipline** — `rup-orchestrator "<briefing>" --discipline <key>`
+   or the discipline's own `run.py`.
+4. **Run the whole iteration** — `rup-orchestrator "<briefing>" --auto
+   [--output F]`: 8 disciplines in order, each one building on the previous
+   artifacts; stops at the first failure.
 
 ## Decisions
 
-- No persistent DB: the "state" is the filesystem (`.context/`, `outputs/`).
+- No persistent DB: the "state" is the filesystem (`.context/`, `--output` files).
 - The kanban is the source of truth for task flow; Trello is only a mirror.

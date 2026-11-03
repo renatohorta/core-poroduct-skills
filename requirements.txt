@@ -1,4 +1,4 @@
-# Core Product Skills — runtime dependencies of the cp-* skills
+# Core Product Skills — runtime dependencies of the rup-* skills
 #
 # Installation:
 #   python -m venv .venv && .venv/bin/pip install -r requirements.txt

@@ -2,7 +2,7 @@
 """
 claude_proxy.py — OpenAI-compatible proxy that uses Claude Code as the LLM.
 
-Lets the CrewAI crews (cp-*) use Claude as the LLM, without needing
+Lets the CrewAI crews (rup-*) use Claude as the LLM, without needing
 ANTHROPIC_API_KEY. The proxy exposes an OpenAI-compatible API (/v1/chat/completions)
 and delegates each call to the `claude -p` command (which uses the Claude Code
 OAuth authentication).

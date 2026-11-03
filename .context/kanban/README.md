@@ -1,7 +1,8 @@
 # kanban/ — Execution Pipeline
 
-Source of truth for the task flow, managed by the `cp-agile` skill. When Trello
-is configured, it is only a **mirrored view** — what matters is what is here.
+Source of truth for the task flow, managed by hand (`git mv` between columns).
+When Trello is configured, it is only a **mirrored view** — what matters is what
+is here.
 
 ## Relationship with `../inbox/`
 
@@ -13,9 +14,9 @@ filled in — move it with `git mv` to preserve history.
 
 | Folder | Meaning |
 |--------|---------|
-| `1-backlog/` | Intake. The daemon scans here for tasks with `status: ready` |
+| `1-backlog/` | Triaged work; `status: ready` marks it as ready to pick up |
 | `2-todo/` | Prioritized, waiting for execution. **Cards here are executable issues (Ready for Dev)** |
-| `3-doing/` | In execution (dispatched to the `cp-orchestrator`) |
+| `3-doing/` | In execution |
 | `4-review/` | Waiting for review |
 | `5-testing/` | In testing |
 | `6-staging/` | Staging |
@@ -26,12 +27,9 @@ filled in — move it with `git mv` to preserve history.
 
 When a card is promoted from `1-backlog/` to `2-todo/`, it is transformed and
 validated as an **Issue Executável (Ready for Dev)** with Definition of Ready
-(DoR), API contracts, schemas and target files. Use the `cp-software-spec`
-skill:
-
-```bash
-python <skills>/cp-software-spec/scripts/run.py --refine-card TASK-001
-```
+(DoR), API contracts, schemas and target files. Write it by hand (or with a
+coding agent) following the sections in
+`.context/docs/03-construction/data-dictionary.md` (executable issue schema).
 
 ## Task format
 
@@ -60,14 +58,4 @@ tags: []
 ```
 
 Valid `status:` values: `backlog`, `ready`, `todo`, `doing`, `review`, `testing`,
-`staging`, `done`, `blocked`. Only `ready` in `1-backlog/` is dispatched.
-
-## Commands
-
-```bash
-# Monitor the backlog and dispatch tasks
-python <skills>/cp-agile/scripts/run.py --daemon
-
-# Document the current kanban state in ../docs/06-kanban.md
-python <skills>/cp-agile/scripts/run.py --doc
-```
+`staging`, `done`, `blocked`.

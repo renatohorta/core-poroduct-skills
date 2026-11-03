@@ -1,14 +1,8 @@
 # Installation and Update
 
-The repository hosts two skill families under `skills/`:
-
-- **Active**: `skills/rup/` (Rational Unified Process) — **installed by default**.
-- **Deprecated**: `skills/deprecated/` (the legacy `cp-*` Software Factory) —
-  installed **only** with `--deprecated`.
-
-The `scripts/install.sh` script propagates the skills to the agents (Hermes and
-Claude). A plain run installs the active `rup` family; `--deprecated` adds the
-legacy `cp-*` family on top.
+The skills live directly under `skills/` (`rup-*`, plus the `_shared/` helper).
+`scripts/install.sh` propagates every directory that has a `SKILL.md` to the
+agents (Hermes and Claude), and copies `_shared/` to the agents' skills root.
 
 ## Prerequisites
 
@@ -18,8 +12,8 @@ To **propagate** the skills (normal use):
 - Write access to the agents' skills directories
 
 To **run** the skills, the host agent needs `crewai` installed. Without it,
-`--help` still works and execution exits with code 3 and an install instruction
-(never with a traceback).
+`--help` and `--dry-run` still work and execution exits with code 3 and an
+install instruction (never with a traceback).
 
 ## Development environment
 
@@ -36,7 +30,7 @@ uv pip install --python .venv -r requirements-dev.txt
 ## Installation
 
 ```bash
-# Default: installs/updates the ACTIVE RUP family in Hermes and Claude
+# Installs/updates every skill in Hermes and Claude
 ./scripts/install.sh
 
 # Only in Hermes / only in Claude
@@ -48,9 +42,6 @@ uv pip install --python .venv -r requirements-dev.txt
 
 # Simulation (shows what it would do, without copying)
 ./scripts/install.sh --dry-run
-
-# ALSO install the deprecated cp-* family (adds it on top of the rup family)
-./scripts/install.sh --deprecated
 ```
 
 ## Destination directories
@@ -65,9 +56,13 @@ The script detects the destination automatically, but you can override it via en
 ### Destination structure
 
 - **Hermes**: the skills are installed in the `creative` category:
-  `$HERMES_SKILLS_DIR/creative/<skill>/`
+  `$HERMES_SKILLS_DIR/creative/<skill>/`, with `_shared/` at
+  `$HERMES_SKILLS_DIR/_shared/`
 - **Claude**: the skills are installed flat:
-  `$CLAUDE_SKILLS_DIR/<skill>/`
+  `$CLAUDE_SKILLS_DIR/<skill>/`, with `_shared/` at `$CLAUDE_SKILLS_DIR/_shared/`
+
+Each `run.py` finds `_shared/` next to the skill or one level up, so both layouts
+work.
 
 ## Update flow
 
@@ -80,7 +75,7 @@ The script detects the destination automatically, but you can override it via en
 
 ```bash
 # Updates only the orchestrator in Hermes
-./scripts/install.sh --hermes --skill cp-orchestrator
+./scripts/install.sh --hermes --skill rup-orchestrator
 
 # Updates everything in Claude
 ./scripts/install.sh --claude
@@ -88,9 +83,11 @@ The script detects the destination automatically, but you can override it via en
 
 ## Troubleshooting
 
-- **"No skill found"**: confirm that `skills/rup/` exists in the repository.
-- **The cp-* skills are not installed**: that is intended — they are deprecated;
-  pass `--deprecated` to include them.
+- **"No skills found"**: confirm that `skills/rup-*/SKILL.md` exists in the
+  repository (only directories with a `SKILL.md` are installed).
+- **`--skill X` not found**: use the directory name, e.g. `rup-requirements`.
+- **`ModuleNotFoundError: _shared`**: `_shared/` was not propagated — rerun the
+  full install (not only `--skill`) once.
 - **Permission denied**: on Linux/macOS, run `chmod +x scripts/install.sh`.
 - **Claude does not see the skill**: confirm that `~/.claude/skills/<skill>/SKILL.md`
   exists and that Claude was restarted.

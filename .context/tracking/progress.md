@@ -1,14 +1,28 @@
 # Project Progress — Core Product Skills
 
-> Updated by the orchestrator after each completed phase. Last update: 2026-10-04.
+> Last update: 2026-11-03.
 
-## New active family — RUP (2026-10-04)
+## `cp-*` removed, RUP flattened into `skills/` (2026-11-03)
 
 | Change | Status | Date |
 |--------|--------|------|
-| `skills/rup/` created: 9 skills (orchestrator + 8 disciplines), 21 agents | ✅ Done | 2026-10-04 |
+| `skills/deprecated/` deleted; `skills/rup/*` moved to `skills/` | ✅ Done | 2026-11-03 |
+| `install.sh`: flat layout, no `--deprecated`, portable listing (no `find -printf`) | ✅ Done | 2026-11-03 |
+| `_shared` found in Claude (flat) and Hermes (category) installs | ✅ Done | 2026-11-03 |
+| `--auto`: chained context, one artifact per discipline, stop on failure | ✅ Done | 2026-11-03 |
+| UCP as a CrewAI tool for the governance agent + sizing validation | ✅ Done | 2026-11-03 |
+| `--dry-run` without crewai; exit 1 on unreadable `--input` | ✅ Done | 2026-11-03 |
+| CI on `main`; `chat.py` on `rup-*`; docs and `.context/` rewritten | ✅ Done | 2026-11-03 |
+| Suite | ✅ 108 passed | 2026-11-03 |
+
+ADR: `.context/tracking/decisions.md` (ADR-0010).
+
+## RUP family created (2026-10-04)
+
+| Change | Status | Date |
+|--------|--------|------|
+| `skills/rup/` created (flattened on 2026-11-03): 9 skills (orchestrator + 8 disciplines), 21 agents | ✅ Done | 2026-10-04 |
 | `install.sh` installs the active `rup` family by default | ✅ Done | 2026-10-04 |
-| `--deprecated` adds the legacy `cp-*` family | ✅ Done | 2026-10-04 |
 | `tests/test_rup_smoke.py` + conftest RUP helpers | ✅ Done | 2026-10-04 |
 | Software Sizing & Effort Estimation (Use Case Points) + `--estimate` CLI | ✅ Done | 2026-10-04 |
 | Docs updated (README, docs/, .context) | ✅ Done | 2026-10-04 |
@@ -45,25 +59,17 @@ ADR: `.context/tracking/decisions.md` (ADR-0007).
 
 | Area | State |
 |------|-------|
-| `cp-*` skills | ✅ 15 skills implemented and propagable |
-| Orchestration | ✅ Single entry point with quality gates and 12 modes |
-| LLM resolution | ✅ Provider-agnostic, with actionable failure (`require_llm`) |
-| Distribution | ✅ `install.sh` (Hermes + Claude) |
-| Automated tests | ✅ 158 tests, no LLM credential (DT-02/DT-03) |
-| CI/CD | ✅ GitHub Actions: Linux 3.12/3.13 + Windows informative (DT-06) |
-| Declared dependencies | ✅ `requirements.txt` / `requirements-dev.txt` (DT-05) |
+| `rup-*` skills | ✅ 9 skills (orchestrator + 8 disciplines), 21 agents |
+| Orchestration | ✅ Governance crew, `--discipline`, chained `--auto` |
+| Sizing | ✅ UCP deterministic (CLI + agent tool); FPA/COCOMO II LLM-produced |
+| LLM resolution | ✅ Provider-agnostic, actionable failure (`require_llm`) |
+| Distribution | ✅ `install.sh` (Hermes + Claude), tested in both layouts |
+| Automated tests | ✅ 108 tests, no LLM credential |
+| CI/CD | ✅ GitHub Actions on `main` + PRs: Linux 3.12/3.13 + Windows informative |
 
 ## Suggested next steps
 
-The backlog raised at initialization was fully completed on 2026-08-18.
-There is no open item. Suggestions for when there is appetite:
-
-1. **`.gitattributes`** — the repo does not have one, and Git converts LF->CRLF
-   in the `.md` files on Windows. Another machine (or the Windows CI job) will
-   see whole-file diffs with no real change. `* text=auto eol=lf` fixes it.
-2. **Code coverage** — the suite covers contract and error handling; the
-   internal logic of the crews (task assembly, chaining) remains untested.
-3. **Skill versioning** — without a version or changelog, there is no way to know
-   which version of a skill is installed in an agent.
-
-Full backlog: `.context/docs/06-kanban.md`.
+1. **INIT-02** — persist the RUP artifacts into the target project's `.context/`.
+2. **Deterministic FPA / COCOMO II** — same pattern as UCP (code + agent tool).
+3. **`.gitattributes`** (`* text=auto eol=lf`) — avoids whole-file CRLF diffs on Windows.
+4. **Skill versioning** — no way to know which version is installed in an agent.

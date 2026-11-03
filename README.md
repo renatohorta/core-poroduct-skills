@@ -1,18 +1,17 @@
 # Core Product Skills
 
 Central repository for the **skills** propagated to the **Hermes Agent** and
-**Claude Code**. It hosts two families under `skills/`:
+**Claude Code** — the **single source of truth**: any change is made here and then
+propagated to the agents via `scripts/install.sh`.
 
-| Family | Path | Status | Installed by default? |
-|--------|------|--------|-----------------------|
-| **RUP** (`rup-*`) | `skills/rup/` | ✅ Active | ✅ Yes |
-| **Software Factory** (`cp-*`) | `skills/deprecated/` | ⚠️ Deprecated | ❌ Only with `--deprecated` |
+The skills implement the **Rational Unified Process (RUP)** as an autonomous team
+of CrewAI agents, grounded in *The Rational Unified Process: An Introduction*
+(3rd ed.), Philippe Kruchten.
 
-## Active family — RUP (`skills/rup/`)
+> The legacy Software Factory family (`cp-*`) was removed from the repository
+> (ADR-0010). It is still available in the git history (up to commit `6490694`).
 
-A family of CrewAI skills implementing the **Rational Unified Process** as an
-autonomous team of agents, grounded in *The Rational Unified Process: An
-Introduction* (3rd ed.), Philippe Kruchten.
+## The RUP skills (`skills/rup-*`)
 
 The user interacts exclusively with `rup-orchestrator`, which governs the
 lifecycle (Inception → Elaboration → Construction → Transition) and dispatches
@@ -30,85 +29,46 @@ the 8 discipline skills — **9 RUP disciplines, 21 agents**.
 | `rup-ccm` | Configuration & Change Management | 2 |
 | `rup-deployment` | Deployment | 2 |
 
-Full details: [`skills/rup/README.md`](skills/rup/README.md) and
+Full details: [`skills/README.md`](skills/README.md) and
 [`docs/SKILLS.md`](docs/SKILLS.md).
 
-## Deprecated family — Software Factory (`skills/deprecated/`)
-
-> ⚠️ The `cp-*` skills live in **`skills/deprecated/`** and are **not** installed
-> or used by default. They are kept for historical reference only. Add
-> `--deprecated` to `./scripts/install.sh` to install them anyway.
-
-This is the **canonical source code** of the `cp-*` skills — from here you
-install/update the skills in both the **Hermes Agent** and **Claude Code**.
-
-## What it is
-
-This repository contains the base code (SKILL.md + scripts + references) of the
-`cp-*` skills of the Software Factory. It serves as the **single source of
-truth**: any change is made here and then propagated to the agents (Hermes and
-Claude) via the install script.
-
-## Included skills
-
-> **Deprecated:** every skill below lives in `skills/deprecated/`. They are no
-> longer installed or orchestrated by default — see the banner at the top and
-> `docs/INSTALLATION.md`.
-
-Complete development pipeline orchestrated by crews of CrewAI agents.
-
-| Skill | Function |
-|-------|----------|
-| `cp-orchestrator` | **Factory manager** — coordinates all crews in sequence, manages artifacts and applies quality gates. Includes the native NEXUS pipeline (merge of `cp-full-dev`). |
-| `cp-requirements` | Requirements Engineering (Business Analyst, Specifier, Validator, PO Proxy) |
-| `cp-architecture` | Architecture and Design (Software, Data, API, UX Architect, Reviewer) |
-| `cp-implementation` | Implementation (Backend, Frontend, Mobile Dev, Reviewer, Integrator) |
-| `cp-testing` | Testing (Unit, Integration, E2E, Performance, Analyst) |
-| `cp-security` | Security (Analyst, Pentester, Compliance, Fix Engineer) |
-| `cp-devops` | DevOps and Infra (CI/CD, Infra, Monitoring, Infra Security) |
-| `cp-software-spec` | Software Spec & Knowledge Base — unifies initialization, reverse engineering and card refinement (Backlog → ToDo) in a concise RUP model (`.context/`) |
-| `cp-quality` | Quality (Auditor, Metrics, Continuous Improvement, Validator) |
-| `cp-bug-fix` | Bug fixing (Developer → QA → Evidence Collector, max. 3 retries) |
-| `cp-competitive-analysis` | Competitive intelligence (Market, Competitors, Pricing, Strategist) |
-| `cp-goal-loop` | Autonomous try-and-correct loop until success is reached |
-| `cp-maintenance` | Maintenance and evolution (bug-fix, refactor, improvement, full) |
-| `cp-agile` | Execution pipeline — monitors backlog, dispatches tasks and manages bidirectional feedback (questions, blockers, resume) |
-
 ## Repository structure
+
 ```
 core-poroduct-skills/
 ├── README.md                 # This file
+├── CLAUDE.md / AGENT.md      # Context for coding agents working on this repo
 ├── requirements.txt          # Runtime dependencies (crewai)
 ├── requirements-dev.txt      # + pytest
 ├── pytest.ini
 ├── .github/workflows/ci.yml  # CI
+├── .context/                 # Operational context (source of truth for agents)
 ├── tests/                    # Suite (does not use LLM credentials)
 ├── docs/
 │   ├── INSTALLATION.md       # How to install/update in Hermes and Claude
-│   ├── ARCHITECTURE.md       # Architecture of both skill families
+│   ├── ARCHITECTURE.md       # Architecture of the skills
 │   └── SKILLS.md             # Detailed catalog of each skill
 ├── scripts/
-│   └── install.sh            # Installs/updates the skills in the agents
+│   ├── install.sh            # Installs/updates the skills in the agents
+│   ├── chat.py               # Runs a skill directly with the .env LLM
+│   └── claude_proxy.py       # OpenAI-compatible proxy backed by `claude -p`
 └── skills/
-    ├── rup/                  # ACTIVE family — Rational Unified Process
-    │   ├── README.md         # Family overview
-    │   ├── _shared/llm.py    # shared LLM helper (not a skill)
-    │   ├── rup-orchestrator/ # governance + dispatcher
-    │   │   ├── SKILL.md
-    │   │   ├── scripts/run.py
-    │   │   └── references/lifecycle.md
-    │   └── rup-<discipline>/ # 8 discipline skills (environment … deployment)
-    └── deprecated/           # DEPRECATED family — the legacy cp-* skills
-        ├── cp-orchestrator/
-        ├── ...
-        ├── _shared/
-        └── cp-testing/
+    ├── README.md             # Family overview
+    ├── _shared/llm.py        # shared LLM helper (not a skill)
+    ├── rup-orchestrator/     # governance + dispatcher
+    │   ├── SKILL.md
+    │   ├── scripts/run.py
+    │   └── references/       # lifecycle.md, sizing-estimation.md
+    └── rup-<discipline>/     # 8 discipline skills (environment … deployment)
+        ├── SKILL.md
+        ├── scripts/run.py
+        └── references/agents.md
 ```
 
 ## Quick install
 
 ```bash
-# Default: installs/updates the ACTIVE RUP family in Hermes and Claude
+# Installs/updates every skill in Hermes and Claude
 ./scripts/install.sh
 
 # Only in Hermes / only in Claude
@@ -120,12 +80,24 @@ core-poroduct-skills/
 
 # Simulation (shows what it would do, without copying)
 ./scripts/install.sh --dry-run
-
-# ALSO install the deprecated cp-* family (adds it on top of the rup family)
-./scripts/install.sh --deprecated
 ```
 
 See [docs/INSTALLATION.md](docs/INSTALLATION.md) for details.
+
+## Using the orchestrator
+
+```bash
+cd skills/rup-orchestrator
+python scripts/run.py "clinics scheduling SaaS" --phase Inception        # governance
+python scripts/run.py "briefing" --discipline requirements               # one discipline
+python scripts/run.py "briefing" --auto --output out/iteration.md        # all, chained
+python scripts/run.py --estimate --sizing sizing.json                    # UCP, no LLM
+```
+
+`--auto` runs the 8 disciplines in order and **chains** them: each discipline
+receives the briefing plus the artifacts of the previous ones. With `--output
+out/iteration.md` each discipline writes its own file (`out/iteration.01-environment.md`
+… `out/iteration.08-deployment.md`). It stops at the first failing discipline.
 
 ## Development and testing
 
@@ -145,40 +117,41 @@ are about CLI contract and error handling.
 
 | File | What it guarantees |
 |------|--------------------|
-| `tests/test_rup_smoke.py` | The active RUP family: `--help`/`--dry-run` without credentials, exit codes 2/3, orchestrator registry == discipline skills |
-| `tests/test_smoke.py` | The cp-* smoke guarantees + the install contract (default installs `rup`, `--deprecated` adds `cp-*`) |
-| `tests/test_contrato_invoke.py` | The orchestrator's `invoke` metadata matches the real `argparse` — including running the command line the orchestrator would build |
-| `tests/test_quality_gate.py` | The quality gate fails on exit code and does not approve by substring |
+| `tests/test_smoke.py` | Every skill: `--help`/`--dry-run` without credentials (and without crewai), exit codes 1/2/3; orchestrator registry == discipline skills; `--auto` chaining, per-discipline output and stop-on-failure; UCP calculator, validation and agent tool; `install.sh` plan and installed copies running in the Claude and Hermes layouts |
 | `tests/test_claude_proxy_auth.py` | Proxy authentication and bind restricted to localhost |
 | `tests/test_higiene.py` | No committed secrets, no machine paths in code |
 
 CI in `.github/workflows/ci.yml`: runs the suite on Python 3.12 and 3.13 on
-Linux (blocking) and Windows (informative), plus `install.sh --dry-run`.
+Linux (blocking) and Windows (informative), plus `install.sh --dry-run`, on
+pushes to `main` and on pull requests.
 
 ### Skill exit codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Usage error (missing briefing, invalid argument) |
+| 1 | Usage error (missing briefing, unreadable `--input`, invalid sizing model) |
 | 2 | No LLM configured |
 | 3 | `crewai` not installed |
 
-`--help` always works, and `--dry-run` inspects the crew without credentials.
+`--help` always works, and `--dry-run` shows the plan without credentials (and
+without crewai, in which case the crew itself is not built).
 
 ## Portability
 
 The skills are **portable** — they contain no hardcoded OS/machine paths or
-fixed personal values. Project paths use env vars + relative defaults.
+fixed personal values. Each `run.py` finds `_shared/` either next to the skill
+(repository, Claude Code) or one level up (Hermes, which nests skills in a
+category directory).
 
 ## Skill LLM (provider-agnostic)
 
 The CrewAI skills use the **LLM of the agent where they are being called**
-(Hermes/Claude), with a fallback to a local `.env`. The `skills/rup/_shared/llm.py`
-helper (identical to the deprecated family's) resolves the LLM in this order:
+(Hermes/Claude), with a fallback to a local `.env`. The `skills/_shared/llm.py`
+helper resolves the LLM in this order:
 
 1. Agent env vars (`LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, `LLM_PROVIDER`)
-2. `.env` at the project root (same convention as crewbotics-back)
+2. `.env` at the project root
 3. Per-provider key detection (`GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.)
 4. Default: `gemini/gemini-2.5-flash`
 
@@ -187,22 +160,22 @@ This prevents the skills from falling into the CrewAI OpenAI default
 
 ## Direct conversation with the skills (scripts/chat.py)
 
-The `scripts/chat.py` lets you trigger any cp-* skill interactively, using the
-`.env` LLM (without depending on the agent):
+`scripts/chat.py` runs any `rup-*` skill directly, using the `.env` LLM (without
+depending on the agent). Unknown flags are forwarded to the skill:
 
 ```bash
-python scripts/chat.py --list                          # lists the skills
-python scripts/chat.py cp-requirements "scheduling system"
-python scripts/chat.py cp-requirements "briefing" --dry-run
+python scripts/chat.py --list
+python scripts/chat.py rup-requirements "scheduling system"
+python scripts/chat.py rup-orchestrator "briefing" --phase Inception --dry-run
 ```
 
-The script automatically detects the Python with `crewai` installed (project
-`.venv`) and loads the `.env`.
+It picks the Python with `crewai` (`RUP_SKILLS_PYTHON`, else the project
+`.venv`/`venv`) and loads the `.env`.
 
 ## Use Claude Code as the LLM of the crews (scripts/claude_proxy.py)
 
 The CrewAI crews can use **Claude Code as LLM** (via OAuth, without needing
-`ANTHROPIC_API_KEY`). The `scripts/claude_proxy.py` exposes an OpenAI-compatible
+`ANTHROPIC_API_KEY`). `scripts/claude_proxy.py` exposes an OpenAI-compatible
 API that delegates each call to the `claude -p` command:
 
 ```bash

@@ -1,6 +1,6 @@
 # Data Dictionary — Core Product Skills
 
-> Document managed by the `cp-software-spec` skill. Updated 2026-09-07.
+> Updated 2026-11-03.
 
 ## Status
 
@@ -9,7 +9,7 @@
 ## Overview
 
 This repository has **no database**. The "data" is the **filesystem state**:
-`.context/` (the source of truth) and the pipeline `outputs/`. This file
+`.context/` (the source of truth) and the artifacts the skills write to `--output`. This file
 documents the persistent structures that agents read/write.
 
 ## Persistent structures
@@ -18,14 +18,14 @@ documents the persistent structures that agents read/write.
 
 | Path | Content | Written by |
 |------|---------|-----------|
-| `.context/README.md` | Index + system prompt for agents | `cp-software-spec` |
-| `.context/docs/01-inception/` | Vision, requirements | `cp-software-spec`, `cp-requirements` |
-| `.context/docs/02-elaboration/` | Architecture, domain model | `cp-software-spec`, `cp-architecture` |
-| `.context/docs/03-construction/` | API contracts, UI spec, data dictionary | `cp-software-spec` |
-| `.context/docs/04-transition/` | Test strategy, devops infra | `cp-software-spec`, `cp-testing`, `cp-devops` |
+| `.context/README.md` | Index + system prompt for agents | maintainer / coding agent |
+| `.context/docs/01-inception/` | Vision, requirements | maintainer / coding agent |
+| `.context/docs/02-elaboration/` | Architecture, domain model | maintainer / coding agent |
+| `.context/docs/03-construction/` | API contracts, UI spec, data dictionary | maintainer / coding agent |
+| `.context/docs/04-transition/` | Test strategy, devops infra | maintainer / coding agent |
 | `.context/inbox/{initiatives,tasks,bugs,tech-debt}/` | Raw intake (drafts) | manual / agent |
-| `.context/kanban/{1-backlog..7-done,blocked}/` | Task cards (`.md` + YAML frontmatter) | `cp-agile` |
-| `.context/tracking/progress.md` | Overall progress | orchestrator |
+| `.context/kanban/{1-backlog..7-done,blocked}/` | Task cards (`.md` + YAML frontmatter) | manual (`git mv` between columns) |
+| `.context/tracking/progress.md` | Overall progress | maintainer / coding agent |
 | `.context/tracking/decisions.md` | ADR record | any agent |
 
 ### Kanban card schema (`.context/kanban/{column}/{ID}.md`)
@@ -51,18 +51,19 @@ When a card is promoted to `2-todo/`, it is refined into an executable issue
 with: Contexto & Objetivo, Arquivos Alvo, Critérios de Aceite (DoR/DoD),
 Insumos Técnicos e Contratos de Dados, and Passos de Validação e Execução.
 
-### Pipeline outputs (`skills/deprecated/cp-orchestrator/outputs/`)
+### Skill artifacts
 
 | Path | Content |
 |------|---------|
-| `pipeline_<timestamp>/<phase>.md` | Per-phase artifact |
-| `pipeline_<timestamp>/pipeline_report.json` | Structured report |
+| `--output F` | Result of one crew (markdown) |
+| `<stem>.NN-<key>.md` next to `--output` in `--auto` | One artifact per discipline |
+| temp `rup-auto-*` dir | `--auto` chained context files (deleted at the end) |
 
 ## Persistence rules
 
 - `.context/` is the **single source of truth**; `.hermes/`/`.claude/` are forbidden.
 - The kanban column (folder) must match the card's `status:` frontmatter.
-- `outputs/` is disposable and git-ignored.
+- `outputs/` is git-ignored — a good default target for `--output`.
 - No secrets in committed files; `.env` stays at the root and is git-ignored.
 
 ## Decisions

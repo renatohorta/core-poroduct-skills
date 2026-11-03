@@ -23,7 +23,7 @@ divergence, `.context/` prevails.
 
 ## ADR-0002 — `cp-full-dev` merged into `cp-orchestrator`
 
-**Date**: before 2026-08-18 · **Status**: Accepted
+**Date**: before 2026-08-18 · **Status**: Superseded by ADR-0010 (the `cp-*` family was removed)
 
 **Context**: The NEXUS pipeline (7 phases, 39 agents) lived in a separate skill,
 triggered by the orchestrator via subprocess — an extra hop and two surfaces to
@@ -91,7 +91,7 @@ local edits are discarded by design. Risk: pointing `HERMES_SKILLS_DIR`/
 
 ## ADR-0006 — Mode auto-detection instead of an optional flag
 
-**Date**: before 2026-08-18 · **Status**: Accepted
+**Date**: before 2026-08-18 · **Status**: Superseded by ADR-0010 (applied to the removed `cp-*` family)
 
 **Context**: Alternative skill modes controlled by an optional flag with
 `default=False` were never triggered — the LLM calls the skill via function
@@ -108,7 +108,7 @@ into a generic template without a signal that detection failed.
 
 ## ADR-0007 — All cp-* skills moved to `skills/deprecated/` (deprecated mode)
 
-**Date**: 2026-10-04 · **Status**: Accepted
+**Date**: 2026-10-04 · **Status**: Superseded by ADR-0010
 
 **Context**: The 15 `cp-*` skills were the active product of the repository, but
 the whole `cp-*` pipeline is being retired. Keeping them at the top of `skills/`
@@ -139,7 +139,7 @@ installs **nothing** by default and only propagates them when given the explicit
 
 ## ADR-0008 — New active family: RUP skills under `skills/rup/`
 
-**Date**: 2026-10-04 · **Status**: Accepted
+**Date**: 2026-10-04 · **Status**: Accepted — layout (`skills/rup/`) amended by ADR-0010
 
 **Context**: With the `cp-*` family retired (ADR-0007), the repository needed an
 active skill family. The specification `~/Downloads/especificacao_agentes_rup.md`
@@ -216,3 +216,51 @@ Task; UCP is computed exactly in code because it is a deterministic formula.
   empty-factor behavior, and CLI `--estimate`/`--sizing-template` without an LLM.
 - SKILL/docs updated (orchestrator SKILL.md, `skills/rup/README.md`,
   `docs/SKILLS.md`, `docs/ARCHITECTURE.md`).
+
+---
+
+## ADR-0010 — `cp-*` family removed; RUP skills flattened into `skills/`
+
+**Date**: 2026-11-03 · **Status**: Accepted
+
+**Context**: After ADR-0007/0008 the repository kept two families: the retired
+`cp-*` skills under `skills/deprecated/` and the active RUP skills under
+`skills/rup/`, each with its own copy of `_shared/`. The deprecated family was
+dead weight — tests, `chat.py`, CI and docs still revolved around it — and the
+extra `rup/` level only existed to separate the two. A review of the RUP family
+also found defects: `--auto` wrote every discipline to the same `--output` (only
+the last survived) and passed only the original briefing (no traceability
+between disciplines); the governance prompt told the agent to use `compute_ucp`
+without giving it any way to call it; `--dry-run` required crewai; `install.sh`
+listed skills with GNU-only `find -printf` (nothing on macOS); installed skills
+could not find `_shared` in Hermes' `skills/<category>/` layout; CI only ran on
+pushes to `master` (the branch is `main`).
+
+**Decision**:
+
+- Delete `skills/deprecated/` (all `cp-*` skills and their `_shared`). They stay
+  in the git history up to commit `6490694`.
+- Move `skills/rup/*` to `skills/` (`skills/rup-*`, `skills/_shared/`,
+  `skills/README.md`). `install.sh` installs every `skills/*` dir that has a
+  `SKILL.md`; the `--deprecated` flag is gone.
+- Each `run.py` looks for `_shared/` next to the skill and one level up, so the
+  same copy works in the repo, in Claude Code (flat) and in Hermes (category).
+- `--auto` chains the disciplines: each receives the briefing plus the earlier
+  artifacts (`--input`, capped at 12 000 chars each), writes its own file
+  (`<stem>.NN-<key>.md`) and the run stops at the first failure.
+- The governance agent gets the `use_case_points_calculator` CrewAI tool
+  (wrapping `compute_ucp`, with input validation); the task orders it to call
+  the tool instead of computing by hand.
+- `--dry-run` works without crewai (lists the planned agents); unreadable
+  `--input` and invalid sizing models exit 1; `--output` creates parent dirs.
+- CI triggers on `main`; `chat.py` targets the `rup-*` skills.
+
+**Consequences**:
+
+- The suite dropped the `cp-*` tests (contract `invoke`, quality gate, internal
+  units, kanban flow) and gained coverage for the items above: 108 tests, no
+  credentials. `tests/test_rup_smoke.py` became `tests/test_smoke.py`;
+  `conftest.SKILLS_DIR` is `skills/`.
+- The `.context/kanban/` flow is manual — the `cp-agile` daemon no longer exists.
+- Writing the RUP artifacts into a target project's `.context/` is still open
+  (INIT-02).

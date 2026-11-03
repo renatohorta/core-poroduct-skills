@@ -2,14 +2,12 @@
 # =============================================================================
 # install.sh — Installs/updates the skills in the agents.
 #
-# The repository hosts TWO families under skills/:
-#   • skills/rup/         — the ACTIVE family (Rational Unified Process), installed
-#                           by default.
-#   • skills/deprecated/  — the legacy cp-* family, only installed with --deprecated.
+# Every directory under skills/ that has a SKILL.md is a skill (the RUP family,
+# rup-*). skills/_shared/ is a helper, not a skill: it goes to the agent's skills
+# root, never into a category.
 #
 # Usage:
-#   ./scripts/install.sh                       # installs the active rup family
-#   ./scripts/install.sh --deprecated          # ALSO installs the deprecated cp-* family
+#   ./scripts/install.sh                       # installs every skill
 #   ./scripts/install.sh --hermes              # Hermes only
 #   ./scripts/install.sh --claude              # Claude only
 #   ./scripts/install.sh --skill rup-requirements   # one skill only
@@ -27,26 +25,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_SRC="$REPO_ROOT/skills"
-ACTIVE_SRC="$SKILLS_SRC/rup"          # active family (RUP)
-DEPRECATED_SRC="$SKILLS_SRC/deprecated"  # legacy cp-* family
 
 # ── Flags ──
 DO_HERMES=1
 DO_CLAUDE=1
 ONLY_SKILL=""
 DRY_RUN=0
-WITH_DEPRECATED=0
 
 usage() {
   cat <<'EOF'
 install.sh — Installs/updates the skills in the agents.
 
-Active family: skills/rup/ (installed by default).
-Deprecated family: skills/deprecated/ (cp-* — only with --deprecated).
+Source: skills/ (every directory with a SKILL.md; _shared goes to the skills root).
 
 Usage:
-  ./scripts/install.sh                          # installs the active rup family
-  ./scripts/install.sh --deprecated             # ALSO installs the deprecated cp-* family
+  ./scripts/install.sh                          # installs every skill
   ./scripts/install.sh --hermes                 # Hermes only
   ./scripts/install.sh --claude                 # Claude only
   ./scripts/install.sh --skill rup-requirements # one skill only
@@ -57,7 +50,6 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --deprecated) WITH_DEPRECATED=1 ;;
     --hermes) DO_CLAUDE=0 ;;
     --claude) DO_HERMES=0 ;;
     --skill) ONLY_SKILL="$2"; shift ;;
@@ -93,15 +85,8 @@ CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 # The skills live in the "creative" category in Hermes.
 HERMES_CATEGORY="creative"
 
-# ── Roots to install ──
-ROOTS=()
-[[ -d "$ACTIVE_SRC" ]] && ROOTS+=("$ACTIVE_SRC")
-if [[ "$WITH_DEPRECATED" -eq 1 && -d "$DEPRECATED_SRC" ]]; then
-  ROOTS+=("$DEPRECATED_SRC")
-fi
-
-if [[ ${#ROOTS[@]} -eq 0 ]]; then
-  echo "❌ No skills found in $SKILLS_SRC"
+if [[ ! -d "$SKILLS_SRC" ]]; then
+  echo "❌ Skills directory not found: $SKILLS_SRC"
   exit 1
 fi
 
@@ -120,49 +105,49 @@ copy_skill() {
   echo "  ✅ $name → $dst"
 }
 
-# Lists the skill directories of a root (excludes _shared, which is a helper, not a
-# skill; and top-level files such as the family README).
+# Lists the skills of a root: directories with a SKILL.md (so _shared, hidden dirs
+# and top-level files such as README.md are skipped). Pure bash glob — `find
+# -printf` is GNU-only and silently returned nothing on macOS/BSD.
 skills_in() {
-  find "$1" -mindepth 1 -maxdepth 1 -type d ! -name '_shared' ! -name '.*' \
-    -printf '%f\n' 2>/dev/null | sort || true
+  local d name
+  for d in "$1"/*/; do
+    [[ -d "$d" ]] || continue
+    name="${d%/}"; name="${name##*/}"
+    [[ "$name" == "_shared" ]] && continue
+    [[ -f "$d/SKILL.md" ]] || continue
+    echo "$name"
+  done | sort
 }
 
 # ── Banner ──
 echo "════════════════════════════════════════════════════════"
 echo "  Core Product Skills — Installation"
-echo "  Source: ${ROOTS[*]}"
-if [[ "$WITH_DEPRECATED" -eq 0 ]]; then
-  echo "  (deprecated cp-* family omitted — pass --deprecated to include it)"
-fi
+echo "  Source: $SKILLS_SRC"
 echo "════════════════════════════════════════════════════════"
 echo ""
 
 # ── Collect the planned skills (across the selected roots) ──
 PLANNED=()
-for root in "${ROOTS[@]}"; do
-  while IFS= read -r s; do
-    [[ -z "$s" ]] && continue
-    if [[ -n "$ONLY_SKILL" && "$s" != "$ONLY_SKILL" ]]; then
-      continue
-    fi
-    PLANNED+=("$root::$s")
-  done < <(skills_in "$root")
-done
+while IFS= read -r s; do
+  [[ -z "$s" ]] && continue
+  if [[ -n "$ONLY_SKILL" && "$s" != "$ONLY_SKILL" ]]; then
+    continue
+  fi
+  PLANNED+=("$s")
+done < <(skills_in "$SKILLS_SRC")
 
 if [[ ${#PLANNED[@]} -eq 0 ]]; then
   if [[ -n "$ONLY_SKILL" ]]; then
-    echo "❌ Skill '$ONLY_SKILL' not found in ${ROOTS[*]}"
+    echo "❌ Skill '$ONLY_SKILL' not found in $SKILLS_SRC"
   else
-    echo "❌ No skills found in ${ROOTS[*]}"
+    echo "❌ No skills found in $SKILLS_SRC"
   fi
   exit 1
 fi
 
 # ── Shared helper (_shared): it is NOT a skill — it goes to the skills root ──
 SHARED_SRC=""
-for root in "${ROOTS[@]}"; do
-  if [[ -d "$root/_shared" ]]; then SHARED_SRC="$root/_shared"; break; fi
-done
+[[ -d "$SKILLS_SRC/_shared" ]] && SHARED_SRC="$SKILLS_SRC/_shared"
 
 # ── Runs ──
 if [[ "$DO_HERMES" -eq 1 ]]; then
@@ -170,9 +155,8 @@ if [[ "$DO_HERMES" -eq 1 ]]; then
   if [[ -n "$SHARED_SRC" ]]; then
     copy_skill "$SHARED_SRC" "$HERMES_SKILLS_DIR/_shared" "_shared"
   fi
-  for entry in "${PLANNED[@]}"; do
-    root="${entry%%::*}"; s="${entry##*::}"
-    copy_skill "$root/$s" "$HERMES_SKILLS_DIR/$HERMES_CATEGORY/$s" "$s"
+  for s in "${PLANNED[@]}"; do
+    copy_skill "$SKILLS_SRC/$s" "$HERMES_SKILLS_DIR/$HERMES_CATEGORY/$s" "$s"
   done
   echo ""
 fi
@@ -182,9 +166,8 @@ if [[ "$DO_CLAUDE" -eq 1 ]]; then
   if [[ -n "$SHARED_SRC" ]]; then
     copy_skill "$SHARED_SRC" "$CLAUDE_SKILLS_DIR/_shared" "_shared"
   fi
-  for entry in "${PLANNED[@]}"; do
-    root="${entry%%::*}"; s="${entry##*::}"
-    copy_skill "$root/$s" "$CLAUDE_SKILLS_DIR/$s" "$s"
+  for s in "${PLANNED[@]}"; do
+    copy_skill "$SKILLS_SRC/$s" "$CLAUDE_SKILLS_DIR/$s" "$s"
   done
   echo ""
 fi

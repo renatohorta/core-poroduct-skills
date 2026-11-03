@@ -12,10 +12,8 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# Legacy cp-* skills live in DEPRECATED mode under skills/deprecated/ (see README).
-SKILLS_DIR = REPO_ROOT / "skills" / "deprecated"
-# Active family: the Rational Unified Process skills under skills/rup/.
-RUP_SKILLS_DIR = REPO_ROOT / "skills" / "rup"
+# The RUP (rup-*) skills live directly under skills/ (plus the _shared helper).
+SKILLS_DIR = REPO_ROOT / "skills"
 
 # Every variable capable of configuring an LLM — removed in all tests.
 LLM_ENV_VARS = (
@@ -25,29 +23,20 @@ LLM_ENV_VARS = (
     "COHERE_API_KEY", "TOGETHER_API_KEY", "XAI_API_KEY",
 )
 
-# Exit codes standardized by the skills (see .context/docs/04-quality-qa.md)
+# Exit codes standardized by the skills (see .context/docs/04-transition/test-strategy.md)
 EXIT_OK = 0
 EXIT_NO_LLM = 2
 EXIT_NO_CREWAI = 3
 
 
 def skill_names():
-    """Names of the cp-* skills present in the repository."""
-    return sorted(d.name for d in SKILLS_DIR.glob("cp-*") if (d / "scripts" / "run.py").is_file())
+    """Names of the RUP (rup-*) skills present in the repository."""
+    return sorted(d.name for d in SKILLS_DIR.glob("rup-*")
+                  if (d / "scripts" / "run.py").is_file())
 
 
 def skill_script(name: str) -> Path:
     return SKILLS_DIR / name / "scripts" / "run.py"
-
-
-def rup_skill_names():
-    """Names of the RUP (rup-*) skills present in the repository."""
-    return sorted(d.name for d in RUP_SKILLS_DIR.glob("rup-*")
-                  if (d / "scripts" / "run.py").is_file())
-
-
-def rup_skill_script(name: str) -> Path:
-    return RUP_SKILLS_DIR / name / "scripts" / "run.py"
 
 
 @pytest.fixture(scope="session")
@@ -71,7 +60,7 @@ def bash_cmd():
 
     On Windows, `bash` on the PATH resolves to the WSL relay, which fails
     intermittently with `execvpe(/bin/bash) failed`. Git Bash is the real target
-    of install.sh — see skills/deprecated/cp-orchestrator/references/windows-wsl-bash-relay-workaround.md
+    of install.sh on Windows.
     """
     import shutil
     import subprocess
