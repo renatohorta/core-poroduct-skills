@@ -13,11 +13,11 @@ import subprocess
 
 import pytest
 
-from conftest import (EXIT_OK, EXIT_USAGE, ORCHESTRATOR, REPO_ROOT, SKILLS_DIR,
+from conftest import (DOCUMENT_SKILLS, EXECUTION_SKILLS, EXIT_OK, EXIT_USAGE, ORCHESTRATOR, REPO_ROOT, SKILLS_DIR,
                       discipline_names, load_skill, skill_names, skill_script)
 from _shared.rup import DISCIPLINES
 
-SKILLS = skill_names()
+SKILLS = DOCUMENT_SKILLS
 DISCIPLINE_SKILLS = discipline_names()
 BRIEFING = ["clinics scheduling SaaS"]
 
@@ -113,7 +113,7 @@ def test_spec_is_well_formed(skill):
 def test_agent_count_matches_the_rup_specification():
     """9 skills, 21 agents (1 orchestrator + 20 specialists)."""
     total = 1 + sum(len(load_skill(s).SPEC["agents"]) for s in DISCIPLINE_SKILLS)
-    assert len(SKILLS) == 9 and total == 21
+    assert len(DOCUMENT_SKILLS) == 9 and total == 21
 
 
 # ─── orchestrator ────────────────────────────────────────────────────────
@@ -263,3 +263,14 @@ def test_installed_skills_run_in_both_agent_layouts(clean_env, tmp_path, bash_cm
                                encoding="utf-8", errors="replace")
             assert r.returncode == EXIT_OK, f"{run_py}:\n{r.stdout}\n{r.stderr}"
             assert r.stdout.startswith("# RUP work packet")
+
+
+@pytest.mark.parametrize("skill", EXECUTION_SKILLS)
+def test_execution_skills_help_and_stdlib(skill, clean_env, python_cmd):
+    for isolated in (False, True):
+        r = run_skill(skill, ["--help"], clean_env, python_cmd, isolated=isolated)
+        assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    d = SKILLS_DIR / skill
+    text = (d / "SKILL.md").read_text(encoding="utf-8")
+    assert text.startswith("---\nname: " + skill), f"{skill}: frontmatter name"
+    assert list((d / "references").glob("*.md")), f"{skill}: no references/*.md"

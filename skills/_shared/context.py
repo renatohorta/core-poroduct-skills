@@ -84,19 +84,30 @@ def artifact_path(context_dir, phase: str, skill: str, suffix: str = "") -> Path
 
 
 def has_consent(context_dir) -> bool:
-    """True when the user authorized the RUP standard in this `.context/`."""
-    return (Path(context_dir) / MARKER).is_file()
+    """True when the user authorized the RUP standard in this `.context/`:
+    the marker exists and carries a `version:` line."""
+    marker = Path(context_dir) / MARKER
+    try:
+        text = marker.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return any(line.strip().startswith("version:") for line in text.splitlines())
 
 
 def require_consent(context_dir) -> None:
     """Exit 5 (writing nothing) unless `<context>/.rup-standard` exists."""
     if has_consent(context_dir):
         return
+    from _shared import consent  # lazy: consent imports context
     context_dir = Path(context_dir)
-    found = (".context/ without the .rup-standard marker" if context_dir.is_dir()
-             else "no .context/")
+    state = consent.detect(context_dir)
     print()
-    print(f"[!] {context_dir} is not authorized for the RUP standard (found: {found}).")
+    print(f"[!] {context_dir} is not authorized for the RUP standard.")
+    print(f"    .context/ exists: {'yes' if state.exists else 'no'}; "
+          "the .rup-standard marker is missing or invalid.")
+    print("    other doc dirs found: "
+          f"{', '.join(state.other_doc_dirs) if state.other_doc_dirs else 'none'}")
+    print(f"    `--init` would create {len(state.missing)} standard entries (nothing is overwritten).")
     print("    Nothing was written. To adopt the RUP standard in .context/: ask the user;")
     print("    on approval run `rup-context --init`.")
     sys.exit(EXIT_NEEDS_CONSENT)
@@ -162,6 +173,18 @@ def render_artifact(content, *, skill, title, phase, briefing, now=None) -> str:
 def append_log(context_dir, *, phase, skill, path, now=None) -> Path:
     """Append one line to `.context/tracking/rup-log.md` (created with a header)."""
     now = now or datetime.now()
+    log = _ensure_log_header(context_dir)
+    try:
+        rel = Path(path).resolve().relative_to(Path(context_dir).resolve())
+    except ValueError:
+        rel = Path(path)
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write(f"| {now.isoformat(timespec='seconds')} | {phase} | `{skill}` | "
+                 f"`{rel.as_posix()}` |\n")
+    return log
+
+
+def _ensure_log_header(context_dir) -> Path:
     log = Path(context_dir) / LOG_RELATIVE
     log.parent.mkdir(parents=True, exist_ok=True)
     if not log.exists():
@@ -172,13 +195,15 @@ def append_log(context_dir, *, phase, skill, path, now=None) -> Path:
             "|------|-------|-------|----------|\n",
             encoding="utf-8",
         )
-    try:
-        rel = Path(path).resolve().relative_to(Path(context_dir).resolve())
-    except ValueError:
-        rel = Path(path)
+    return log
+
+
+def append_event(context_dir, *, skill: str, what: str, now=None) -> Path:
+    """Append a non-artifact event (init, import, card moves) to the log table."""
+    now = now or datetime.now()
+    log = _ensure_log_header(context_dir)
     with log.open("a", encoding="utf-8") as fh:
-        fh.write(f"| {now.isoformat(timespec='seconds')} | {phase} | `{skill}` | "
-                 f"`{rel.as_posix()}` |\n")
+        fh.write(f"| {now.isoformat(timespec='seconds')} | — | `{skill}` | {what} |\n")
     return log
 
 

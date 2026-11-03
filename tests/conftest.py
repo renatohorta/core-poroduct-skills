@@ -34,7 +34,20 @@ def skill_names():
 
 
 def discipline_names():
-    return [s for s in skill_names() if s != ORCHESTRATOR]
+    """The discipline skills, from the registry (not from the directory listing)."""
+    from _shared.rup import DISCIPLINES
+    return sorted(d["skill"] for d in DISCIPLINES.values())
+
+
+def _document_skills():
+    from _shared.rup import DISCIPLINES, ORCHESTRATOR_SKILL
+    return sorted([ORCHESTRATOR_SKILL] + [d["skill"] for d in DISCIPLINES.values()])
+
+
+# Skills that print a work packet and record a document (orchestrator + disciplines).
+DOCUMENT_SKILLS = _document_skills()
+# Every other rup-* skill with a run.py (context, backlog, build, ...).
+EXECUTION_SKILLS = [s for s in skill_names() if s not in DOCUMENT_SKILLS]
 
 
 def skill_script(name: str) -> Path:
