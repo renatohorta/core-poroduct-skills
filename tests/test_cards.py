@@ -208,6 +208,22 @@ def test_skip_columns_warns_but_moves(ctx):
     assert text.count("⚠️") == 1
 
 
+def test_set_section_adds_before_history_and_move_stays_in_history(ctx):
+    card = cards.create(ctx, "epic", "A", EPIC)
+    card = cards.set_section(card, "Delivery", "Done it.")
+    sections = [l for l in card.body.splitlines() if l.startswith("## ")]
+    assert sections == ["## Goal", "## Scope", "## Delivery", "## History"]
+    cards.set_section(card, "Delivery", "Done again.")
+    moved = cards.move(ctx, "EP-001", "4-review", "finish")
+    text = moved.path.read_text(encoding="utf-8")
+    sections = [l for l in text.splitlines() if l.startswith("## ")]
+    assert sections[-1] == "## History"
+    delivery = text.split("## Delivery")[1].split("## History")[0]
+    assert "Done again." in delivery and "finish" not in delivery
+    assert "→ 4-review — finish (agent)" in text.split("## History")[1]
+    assert "created in 1-backlog" in text.split("## History")[1]
+
+
 def test_story_rolls_to_doing_when_first_task_starts(ctx):
     story_with_tasks(ctx)
     cards.move(ctx, "TK-001", "3-doing", "start")

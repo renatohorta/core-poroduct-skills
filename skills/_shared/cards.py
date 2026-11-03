@@ -227,7 +227,11 @@ def set_section(card: Card, name: str, text: str, now=None) -> Card:
     if span:
         lines[span[0]:span[1]] = block
     else:
-        lines += ([""] if lines else []) + block
+        hist = _section_span(lines, "History")
+        if hist:  # History stays the last section
+            lines[hist[0]:hist[0]] = block
+        else:
+            lines += ([""] if lines else []) + block
     card.body = "\n".join(lines).rstrip() + "\n"
     card.meta["updated_at"] = (now or datetime.now()).isoformat(timespec="seconds")
     card.path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
@@ -272,10 +276,16 @@ def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
             line += " ⚠️ skipped " + ", ".join(COLUMNS[a + 1:b])
     card.meta["status"] = column
     card.meta["updated_at"] = stamp
-    body = card.body.rstrip("\n")
-    if not _section_span(body.splitlines(), "History"):
-        body += "\n\n## History\n"
-    card.body = body + "\n" + line + "\n"
+    lines = card.body.rstrip("\n").splitlines()
+    span = _section_span(lines, "History")
+    if span is None:
+        lines += ["", "## History", "", line]
+    else:
+        end = span[1]
+        while end > span[0] + 1 and not lines[end - 1].strip():
+            end -= 1  # insert after the last History line, before trailing blanks
+        lines[end:end] = [line]
+    card.body = "\n".join(lines).rstrip() + "\n"
     new_path = _kanban(context_dir) / column / card.path.name
     new_path.parent.mkdir(parents=True, exist_ok=True)
     new_path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
