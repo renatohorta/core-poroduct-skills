@@ -192,16 +192,15 @@ def _parse_import(text: str) -> list:
     """[(target, sources, body)]. Exits 1 on any invalid section."""
     import re
     import sys
-    sections = re.split(r"(?m)^## +(.+?)\s*$", text)
+    targets = "|".join(re.escape(t) for t in IMPORT_TARGETS.values())
+    # only a heading naming a known target starts a section; any other `##` is content
+    sections = re.split(rf"(?m)^## +({targets})[ \t]*$", text)
     pairs = list(zip(sections[1::2], sections[2::2]))
     errors = []
     parsed = []
     if not pairs:
         errors.append("no `## <target path>` sections found")
     for heading, body in pairs:
-        if heading not in IMPORT_TARGETS.values():
-            errors.append(f"unknown target `## {heading}`")
-            continue
         body = body.strip()
         first = next((l for l in body.splitlines() if l.strip()), "")
         if not first.startswith("Source:") or not first[len("Source:"):].strip():
