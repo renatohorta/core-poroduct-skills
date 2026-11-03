@@ -135,17 +135,23 @@ def covers(card: Card) -> list:
     return AC_ID.findall("\n".join(_section_lines(card.body, "Covers")))
 
 
-def _validate(context_dir, type, title, body, parent, priority) -> None:
+def _check_line(label: str, value: str) -> None:
+    """A frontmatter value: single line and not parseable as a `[...]` list."""
+    if "\n" in value or "\r" in value:
+        fail(f"the card {label} must be a single line")
+    if value.startswith("[") and value.endswith("]"):
+        fail(f"the card {label} must not start with '[' and end with ']' "
+             "(it would be parsed as a list)")
+
+
+def _validate(context_dir, type, title, body, parent, priority, source="") -> None:
     if type not in TYPES:
         fail(f"unknown card type {type!r} (valid: {', '.join(TYPES)})")
     title = (title or "").strip()
     if not title:
         fail("the card title is empty")
-    if "\n" in title or "\r" in title:
-        fail("the card title must be a single line")
-    if title.startswith("[") and title.endswith("]"):
-        fail("the card title must not start with '[' and end with ']' "
-             "(it would be parsed as a list)")
+    _check_line("title", title)
+    _check_line("source", (source or "").strip())
     if priority not in PRIORITIES:
         fail(f"invalid priority {priority!r} (valid: {', '.join(PRIORITIES)})")
     missing = missing_artifacts(body, REQUIRED_SECTIONS[type])
@@ -154,6 +160,12 @@ def _validate(context_dir, type, title, body, parent, priority) -> None:
              + ", ".join(f"## {m}" for m in missing))
     if _section_span(body.splitlines(), "History"):
         fail("the document must not contain `## History` (the skill writes it)")
+    if type == "story":
+        bullets = [l for l in _section_lines(body, "Acceptance criteria")
+                   if l.startswith("- ")]
+        if not bullets:
+            fail("a story needs at least one acceptance criterion "
+                 "(a `- ` bullet under `## Acceptance criteria`)")
 
     parent_type = PARENT_TYPE.get(type)
     if parent_type is None:
@@ -167,6 +179,8 @@ def _validate(context_dir, type, title, body, parent, priority) -> None:
         fail(f"parent {parent} is a {parent_card.type}; a {type} needs a {parent_type}")
     if type == "task":
         probe = Card("", "task", "", "", {}, body, Path())
+        if not covers(probe):
+            fail("a task's `## Covers` must list at least one ST-NNN/AC-n criterion")
         unknown = [c for c in covers(probe) if c not in acceptance_criteria(parent_card)]
         if unknown:
             fail(f"Covers lists criteria not in {parent}: {', '.join(unknown)}")
@@ -174,8 +188,9 @@ def _validate(context_dir, type, title, body, parent, priority) -> None:
 
 def create(context_dir, type, title, body, *, parent=None, priority="Should",
            source="", now=None) -> Card:
-    """Validate, then write `kanban/1-backlog/<ID>.md` and log it."""
-    _validate(context_dir, type, title, body, parent, priority)
+    """Check consent (exit 5), validate, then write `kanban/1-backlog/<ID>.md` and log it."""
+    context.ensure_writable(context_dir)
+    _validate(context_dir, type, title, body, parent, priority, source)
     title = title.strip()
     now = now or datetime.now()
     stamp = now.isoformat(timespec="seconds")
@@ -200,7 +215,12 @@ def create(context_dir, type, title, body, *, parent=None, priority="Should",
 
 
 def set_section(card: Card, name: str, text: str, now=None) -> Card:
-    """Replace (or append) `## <name>` in the card, persist, bump `updated_at`."""
+    """Replace (or append) `## <name>` in the card, persist, bump `updated_at`.
+
+    Checks consent itself; the context dir is derived from the card path
+    (`<context>/kanban/<column>/<ID>.md` -> `card.path.parents[2]`).
+    """
+    context.ensure_writable(card.path.parents[2])
     lines = card.body.rstrip("\n").splitlines()
     block = [f"## {name}", "", *text.strip().splitlines(), ""]
     span = _section_span(lines, name)
@@ -212,3 +232,88 @@ def set_section(card: Card, name: str, text: str, now=None) -> Card:
     card.meta["updated_at"] = (now or datetime.now()).isoformat(timespec="seconds")
     card.path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
     return card
+
+
+def _children(context_dir, parent: Card) -> list:
+    kinds = {"epic": ("story",), "story": ("task", "bug")}.get(parent.type, ())
+    return [c for c in load_all(context_dir).values()
+            if c.meta.get("parent") == parent.id and c.type in kinds]
+
+
+def _started(card: Card) -> bool:
+    return card.status != "blocked" and COLUMNS.index(card.status) >= COLUMNS.index("3-doing")
+
+
+def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
+         rollup=True) -> Card:
+    """Move a card to `column`: file, `status`, `updated_at`, History, log, roll-up.
+
+    Any move is legal; skipping forward columns only adds a warning to the
+    History line. Checks consent itself (exit 5).
+    """
+    context.ensure_writable(context_dir)
+    reason = (reason or "").strip()
+    if not reason:
+        fail("a move needs a reason (--reason)")
+    if "\n" in reason or "\r" in reason:
+        fail("the move reason must be a single line")
+    if column not in COLUMNS:
+        fail(f"unknown column {column!r} (valid: {', '.join(COLUMNS)})")
+    card = get(context_dir, card_id)
+    if card.status == column:
+        fail(f"{card_id} is already in {column}")
+    now = now or datetime.now()
+    stamp = now.isoformat(timespec="seconds")
+    src = card.status
+    line = f"- {stamp} {src} → {column} — {reason} ({actor})"
+    if "blocked" not in (src, column):
+        a, b = COLUMNS.index(src), COLUMNS.index(column)
+        if b - a > 1:
+            line += " ⚠️ skipped " + ", ".join(COLUMNS[a + 1:b])
+    card.meta["status"] = column
+    card.meta["updated_at"] = stamp
+    body = card.body.rstrip("\n")
+    if not _section_span(body.splitlines(), "History"):
+        body += "\n\n## History\n"
+    card.body = body + "\n" + line + "\n"
+    new_path = _kanban(context_dir) / column / card.path.name
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    new_path.write_text(frontmatter.dump(card.meta, card.body), encoding="utf-8")
+    card.path.unlink()
+    card.path, card.status = new_path, column
+    context.append_event(context_dir, skill="rup-backlog",
+                         what=f"moved {card_id} {src} → {column}: {reason}", now=now)
+    if rollup:
+        _rollup(context_dir, card, now=now)
+    return card
+
+
+def rollup(context_dir, card: Card, *, now=None) -> list:
+    """Move the parent (then the grandparent) after `card` changed column.
+
+    Parent in 1-backlog/2-todo and a child started -> `3-doing`; parent with
+    children all in `7-done` -> `7-done`. Returns the cards moved.
+    """
+    moved: list = []
+    while card.meta.get("parent"):
+        parent = load_all(context_dir).get(card.meta["parent"])
+        if parent is None:
+            break
+        kids = _children(context_dir, parent)
+        target, why = None, ""
+        if kids and all(k.status == "7-done" for k in kids):
+            if parent.status != "7-done":
+                target, why = "7-done", "roll-up: all children done"
+        elif parent.status in ("1-backlog", "2-todo"):
+            first = next((k for k in kids if _started(k)), None)
+            if first:
+                target, why = "3-doing", f"roll-up: {first.id} started"
+        if target:
+            parent = move(context_dir, parent.id, target, why, actor="rup-backlog",
+                          now=now, rollup=False)
+            moved.append(parent)
+        card = parent
+    return moved
+
+
+_rollup = rollup  # `move` has a parameter named `rollup`

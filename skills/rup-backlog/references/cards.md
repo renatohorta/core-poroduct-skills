@@ -32,4 +32,24 @@ MoSCoW: `Must`, `Should` (default), `Could`, `Won't`.
 
 ## Title rules
 
-Single line, non-empty, not of the form `[...]`.
+Single line, non-empty, not of the form `[...]` (title; `source` also single line, not `[...]`).
+
+## Moves and roll-up
+
+`--move ID COLUMN --reason R` moves the file, sets `status`/`updated_at`,
+appends to `## History` the line `- <iso> <from> → <to> — <reason> (<actor>)`
+and a row to `tracking/rup-log.md`. Any move is legal; a forward jump over
+columns adds ` ⚠️ skipped <columns>` to the line (moves to/from `blocked` never
+warn). Unknown ID/column, same column, or an empty reason: exit 1, nothing changed.
+
+Roll-up (actor `rup-backlog`) applies to a story (children: its tasks and bugs)
+and to an epic (children: its stories), and cascades upward:
+
+- a child in `3-doing` or later (not `blocked`) moves a parent in `1-backlog` or
+  `2-todo` to `3-doing` (`roll-up: <child> started`);
+- a parent with at least one child, all in `7-done`, moves to `7-done`
+  (`roll-up: all children done`).
+
+Every writing call (`create`, `move`, `set_section`) checks the consent marker.
+A story needs at least one acceptance criterion; a task's `## Covers` at least one
+`ST-NNN/AC-n`. `source` follows the title rules.

@@ -155,6 +155,143 @@ def test_get_unknown_exits_1(ctx):
     assert e.value.code == EXIT_USAGE
 
 
+# ─── Moves and roll-up ───
+
+def story_with_tasks(ctx, n=2):
+    make_story(ctx)
+    for i in range(n):
+        cards.create(ctx, "task", f"T{i}", task_doc(), parent="ST-001")
+
+
+def col(ctx, card_id):
+    return cards.get(ctx, card_id).status
+
+
+def test_move_updates_folder_status_history_and_log(ctx):
+    cards.create(ctx, "epic", "A", EPIC)
+    card = cards.move(ctx, "EP-001", "2-todo", "planned", actor="renato")
+    assert card.status == "2-todo"
+    assert not (ctx / "kanban" / "1-backlog" / "EP-001.md").exists()
+    path = ctx / "kanban" / "2-todo" / "EP-001.md"
+    meta, body = frontmatter.parse(path.read_text(encoding="utf-8"))
+    assert meta["status"] == "2-todo"
+    assert "1-backlog → 2-todo — planned (renato)" in body.split("## History")[1]
+    assert "⚠️" not in body
+    assert "moved EP-001 1-backlog → 2-todo: planned" in (
+        ctx / "tracking" / "rup-log.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("card_id,column,reason", [
+    ("EP-001", "9-nope", "x"), ("EP-404", "2-todo", "x"),
+    ("EP-001", "1-backlog", "x"), ("EP-001", "2-todo", "  ")])
+def test_move_unknown_column_or_id_changes_nothing(ctx, card_id, column, reason):
+    cards.create(ctx, "epic", "A", EPIC)
+    before = (ctx / "kanban" / "1-backlog" / "EP-001.md").read_text(encoding="utf-8")
+    log = (ctx / "tracking" / "rup-log.md").read_text(encoding="utf-8")
+    with pytest.raises(SystemExit) as e:
+        cards.move(ctx, card_id, column, reason)
+    assert e.value.code == EXIT_USAGE
+    assert (ctx / "kanban" / "1-backlog" / "EP-001.md").read_text(encoding="utf-8") == before
+    assert (ctx / "tracking" / "rup-log.md").read_text(encoding="utf-8") == log
+    assert [p.name for p in (ctx / "kanban").rglob("*.md")] == ["EP-001.md"]
+
+
+def test_skip_columns_warns_but_moves(ctx):
+    cards.create(ctx, "epic", "A", EPIC)
+    cards.move(ctx, "EP-001", "5-testing", "jump")
+    text = cards.get(ctx, "EP-001").path.read_text(encoding="utf-8")
+    assert "(agent) ⚠️ skipped 2-todo, 3-doing, 4-review" in text
+    cards.move(ctx, "EP-001", "blocked", "stuck")
+    cards.move(ctx, "EP-001", "1-backlog", "unstuck")
+    cards.move(ctx, "EP-001", "2-todo", "back")  # forward by one: no warning
+    text = cards.get(ctx, "EP-001").path.read_text(encoding="utf-8")
+    assert text.count("⚠️") == 1
+
+
+def test_story_rolls_to_doing_when_first_task_starts(ctx):
+    story_with_tasks(ctx)
+    cards.move(ctx, "TK-001", "3-doing", "start")
+    assert col(ctx, "ST-001") == "3-doing" and col(ctx, "EP-001") == "3-doing"
+    text = cards.get(ctx, "ST-001").path.read_text(encoding="utf-8")
+    assert "roll-up: TK-001 started (rup-backlog)" in text
+    cards.move(ctx, "TK-002", "4-review", "go")
+    assert col(ctx, "ST-001") == "3-doing"
+    assert text.count("roll-up") == 1
+
+
+def test_blocked_child_does_not_start_parent(ctx):
+    story_with_tasks(ctx)
+    cards.move(ctx, "TK-001", "blocked", "waiting")
+    assert col(ctx, "ST-001") == "1-backlog"
+
+
+def test_story_and_epic_roll_to_done_when_all_children_done(ctx):
+    story_with_tasks(ctx)
+    cards.create(ctx, "bug", "B", "## Symptom\n\nx\n\n## Reproduction\n\ny\n",
+                 parent="ST-001")
+    cards.move(ctx, "TK-001", "7-done", "ok")
+    assert col(ctx, "ST-001") == "3-doing"
+    cards.move(ctx, "TK-002", "7-done", "ok")
+    assert col(ctx, "ST-001") == "3-doing"  # the bug child is still open
+    cards.move(ctx, "BUG-001", "7-done", "ok")
+    assert col(ctx, "ST-001") == "7-done" and col(ctx, "EP-001") == "7-done"
+    text = cards.get(ctx, "EP-001").path.read_text(encoding="utf-8")
+    assert "roll-up: all children done (rup-backlog)" in text
+
+
+def test_move_without_rollup_leaves_parent(ctx):
+    story_with_tasks(ctx)
+    cards.move(ctx, "TK-001", "3-doing", "start", rollup=False)
+    assert col(ctx, "ST-001") == "1-backlog"
+
+
+def test_move_requires_consent(tmp_path, capsys):
+    d = tmp_path / ".context"
+    authorize(d)
+    cards.create(d, "epic", "A", EPIC)
+    (d / ".rup-standard").unlink()
+    with pytest.raises(SystemExit) as e:
+        cards.move(d, "EP-001", "2-todo", "x")
+    assert e.value.code == EXIT_NEEDS_CONSENT
+    assert (d / "kanban" / "1-backlog" / "EP-001.md").exists()
+
+
+def test_library_calls_require_consent(tmp_path):
+    d = tmp_path / ".context"
+    with pytest.raises(SystemExit) as e:
+        cards.create(d, "epic", "A", EPIC)
+    assert e.value.code == EXIT_NEEDS_CONSENT
+    assert not (d / "kanban").exists() and not (d / "tracking").exists()
+    authorize(d)
+    card = cards.create(d, "epic", "A", EPIC)
+    (d / ".rup-standard").unlink()
+    with pytest.raises(SystemExit) as e:
+        cards.set_section(card, "Goal", "changed")
+    assert e.value.code == EXIT_NEEDS_CONSENT
+    assert "changed" not in card.path.read_text(encoding="utf-8")
+
+
+def test_story_needs_criteria_and_task_needs_covers(ctx):
+    cards.create(ctx, "epic", "A", EPIC)
+    no_ac = STORY.replace("- Patient picks a slot\n- Patient gets a confirmation\n", "")
+    with pytest.raises(SystemExit) as e:
+        cards.create(ctx, "story", "S", no_ac, parent="EP-001")
+    assert e.value.code == EXIT_USAGE
+    cards.create(ctx, "story", "S", STORY, parent="EP-001")
+    with pytest.raises(SystemExit) as e:
+        cards.create(ctx, "task", "T", task_doc("none\n"), parent="ST-001")
+    assert e.value.code == EXIT_USAGE
+    assert sorted(p.name for p in (ctx / "kanban").rglob("*.md")) == ["EP-001.md", "ST-001.md"]
+
+
+@pytest.mark.parametrize("source", ["[x]", "a\nb"])
+def test_bad_source_rejected(ctx, source):
+    with pytest.raises(SystemExit) as e:
+        cards.create(ctx, "epic", "A", EPIC, source=source)
+    assert e.value.code == EXIT_USAGE
+    assert not list((ctx / "kanban").rglob("*.md"))
+
+
 # ─── CLI ───
 
 def new(env, python_cmd, tmp_path, kind, title, doc, extra=()):
@@ -196,3 +333,16 @@ def test_new_requires_consent(clean_env, python_cmd, tmp_path):
     r = new(env, python_cmd, tmp_path, "epic", "E", EPIC)
     assert r.returncode == EXIT_NEEDS_CONSENT, r.stdout + r.stderr
     assert not (tmp_path / "nope" / ".context" / "kanban").exists()
+
+
+def test_cli_move(ctx_env, python_cmd, tmp_path):
+    new(ctx_env, python_cmd, tmp_path, "epic", "Booking", EPIC)
+    r = run_skill(SKILL, ["--move", "EP-001", "3-doing", "--reason", "start"], ctx_env, python_cmd)
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    assert "EP-001 -> 3-doing" in r.stdout
+    r = run_skill(SKILL, ["--list", "--column", "3-doing"], ctx_env, python_cmd)
+    assert "EP-001" in r.stdout
+    r = run_skill(SKILL, ["--move", "EP-001", "7-done"], ctx_env, python_cmd)
+    assert r.returncode == EXIT_USAGE
+    r = run_skill(SKILL, ["--move", "EP-001", "nope", "--reason", "x"], ctx_env, python_cmd)
+    assert r.returncode == EXIT_USAGE

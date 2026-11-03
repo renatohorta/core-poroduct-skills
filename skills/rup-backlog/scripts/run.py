@@ -5,6 +5,7 @@ rup-backlog — kanban cards (epics, stories, tasks) in `.context/kanban/`.
 Usage:
   python run.py --new {epic,story,task} --title T --doc FILE|- [--parent ID]
                 [--priority P] [--source S] [--context-dir D]   (prints the new ID)
+  python run.py --move ID COLUMN --reason R [--context-dir D]
   python run.py --show ID [--context-dir D]
   python run.py --list [--column C] [--type T] [--context-dir D]
 """
@@ -45,6 +46,8 @@ def main(argv=None) -> int:
     p.add_argument("--parent", help="parent card ID (story -> epic, task -> story)")
     p.add_argument("--priority", default="Should", help="Must | Should | Could | Won't")
     p.add_argument("--source", default="", help="RUP artifact path + section")
+    p.add_argument("--move", nargs=2, metavar=("ID", "COLUMN"), help="move a card to a column")
+    p.add_argument("--reason", help="why (required with --move)")
     p.add_argument("--show", metavar="ID", help="print a card")
     p.add_argument("--list", action="store_true", help="table of cards")
     p.add_argument("--column", choices=cards.COLUMNS, help="filter --list by column")
@@ -60,6 +63,14 @@ def main(argv=None) -> int:
         card = cards.create(context_dir, args.new, args.title, read_document(args.doc),
                             parent=args.parent, priority=args.priority, source=args.source)
         print(card.id)
+        return EXIT_OK
+
+    if args.move:
+        card_id, column = args.move
+        if not args.reason:
+            fail("--move needs --reason R")
+        card = cards.move(context_dir, card_id, column, args.reason)
+        print(f"{card.id} -> {card.status}")
         return EXIT_OK
 
     if args.show:

@@ -17,10 +17,15 @@ standard authorized in `.context/` (exit 5 otherwise: see `rup-context`).
    It prints the new ID. Stories get numbered criteria `ST-NNN/AC-n`; a task's
    `## Covers` must list criteria of its parent story.
 3. Inspect with `--list` and `--show ID`.
+4. Move cards as work progresses: `--move ID COLUMN --reason "..."`. Declaring is
+   enough; skipping columns only warns in the card's History. A story/epic moves
+   by itself (roll-up): to `3-doing` when its first child starts, to `7-done`
+   when all children are done.
 
 ## Commands
 
 - `--new {epic,story,task} --title T --doc FILE|- [--parent ID] [--priority P] [--source S]`
+- `--move ID COLUMN --reason R` — move a card (reason required; logged).
 - `--show ID` — print the card file.
 - `--list [--column C] [--type T]` — table `ID | Type | Title | Column | Parent`.
 - `--context-dir D` — another `.context/` (default: auto-detect or `RUP_CONTEXT_DIR`).
