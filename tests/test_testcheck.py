@@ -109,8 +109,8 @@ def test_no_project_call_rejected(tmp_path):
 
 def test_test_without_criterion_reference_rejected(tmp_path):
     problems = bad_test(tmp_path, "    assert book('a') == 'booked'", name="test_unlinked")
-    assert problems == ["tests/test_x.py::test_unlinked: references none of its covered IDs "
-                        "(ST-001/AC-1) in its name, docstring or comments"]
+    assert problems == ["tests/test_x.py::test_unlinked: does not reference ST-001/AC-1",
+                        "Criterion ST-001/AC-1 (task Covers) has no test."]
     # declaring an ID that is not a criterion of the story
     write(tmp_path, "tests/test_y.py", "from app import f\n\n\n"
           "def test_ac_9_st_001_ac_9():\n    assert f() == 1\n\n\n"
@@ -134,7 +134,7 @@ def test_uncovered_criterion_reported(tmp_path):
     assert check(tmp_path, ok, task=BUG, story=None) == []
     other = delivery([("tests/test_booking.py::test_book_slot_st_001_ac_1", ["ST-001/AC-1"])])
     assert check(tmp_path, other, task=BUG, story=STORY) == [
-        "No test declares the bug ID BUG-007."]
+        "No test references the bug ID BUG-007."]
 
 
 def test_missing_red_evidence_reported(tmp_path):
@@ -204,7 +204,8 @@ def test_missing_or_outside_file_is_a_problem_not_crash(tmp_path):
         "../elsewhere/test_e.py::test_st_001_ac_1: outside the project",
         f"{tmp_path / 'elsewhere' / 'test_e.py'}::test_st_001_ac_1: outside the project",
         "tests/test_ok.py::test_nope: test not found",
-        "tests/broken.py::test_st_001_ac_1: test not found"]
+        "tests/broken.py::test_st_001_ac_1: test not found",
+        "Criterion ST-001/AC-1 (task Covers) has no test."]
     assert testcheck.find_test(root, "../elsewhere/test_e.py", "test_st_001_ac_1") is None
     assert testcheck.delivery_warnings(parsed, root) == [
         "spec/booking_spec.rb::books ST-001/AC-2: language not analysed "
@@ -224,3 +225,78 @@ def test_id_pattern_variants():
     bug = testcheck.id_pattern("BUG-007")
     assert bug.search("test_bug_007_regression") and bug.search("BUG-007") and bug.search("BUG007")
     assert not bug.search("BUG-0071")
+
+
+# ─── review fix round 1: regressions ─────────────────────────────────────
+
+def one_file(root, source, tests, task=TASK, story=STORY, rel="tests/test_r.py"):
+    """Check `tests` [(name, ids)] of a single fixture file."""
+    write(root, rel, source)
+    return check(root, delivery([(f"{rel}::{n}", ids) for n, ids in tests]), task, story)
+
+
+def test_every_declared_id_must_be_referenced(tmp_path):
+    src = "from app import book\n\n\ndef test_st_001_ac_1():\n    assert book('a') == 1\n"
+    assert one_file(tmp_path, src, [("test_st_001_ac_1", ["ST-001/AC-1", "ST-001/AC-2"])]) == [
+        "tests/test_r.py::test_st_001_ac_1: does not reference ST-001/AC-2",
+        "Criterion ST-001/AC-2 (task Covers) has no test."]
+    assert one_file(tmp_path, src, [("test_st_001_ac_1", ["BUG-007", "ST-001/AC-1"])],
+                    task=BUG, story=STORY) == [
+        "tests/test_r.py::test_st_001_ac_1: does not reference BUG-007",
+        "No test references the bug ID BUG-007."]
+
+
+def test_delivery_name_suffix_is_not_a_reference(tmp_path):
+    src = ("from app import book\n\n\ndef test_x():\n    assert book('a') == 1\n\n\n"
+           "def test_st_001_ac_2():\n    assert book('b') == 1\n")
+    assert one_file(tmp_path, src, [("test_x[ST-001/AC-1]", ["ST-001/AC-1"]),
+                                    ("test_st_001_ac_2", ["ST-001/AC-2"])]) == [
+        "tests/test_r.py::test_x[ST-001/AC-1]: does not reference ST-001/AC-1",
+        "Criterion ST-001/AC-1 (task Covers) has no test."]
+
+
+def test_fixtures_and_setup_objects_count_as_project_code(tmp_path):
+    src = (
+        "import unittest\n\n\n"
+        "def test_fixture_st_001_ac_1(booking):\n    assert booking.status == 'ok'\n\n\n"
+        "class TestB(unittest.TestCase):\n"
+        "    def test_attr_st_001_ac_2(self):\n        self.assertEqual(self.b.status, 'new')\n\n"
+        "    def test_raises_st_001_ac_2(self):\n        self.assertRaises(ValueError, self.b.cancel)\n\n"
+        "    def test_with_st_001_ac_2(self):\n"
+        "        with self.assertRaises(ValueError):\n            self.b.cancel()\n")
+    assert one_file(tmp_path, src, [("test_fixture_st_001_ac_1", ["ST-001/AC-1"]),
+                                    ("TestB::test_attr_st_001_ac_2", ["ST-001/AC-2"]),
+                                    ("TestB::test_raises_st_001_ac_2", ["ST-001/AC-2"]),
+                                    ("TestB::test_with_st_001_ac_2", ["ST-001/AC-2"])]) == []
+
+
+def test_tautologies_rejected(tmp_path):
+    for body in ("x = book('a')\n    assert x == x", "f = book\n    f('a')\n    assert f is f",
+                 "book('a')\n    assert True or book('b')", "book('a')\n    assert not (1 > 2)",
+                 "book('a')\n    foo = 5\n    assert foo is not None"):
+        assert bad_test(tmp_path, f"    {body}") == [
+            "tests/test_x.py::test_bad_st_001_ac_1: only asserts constants (trivial)"], body
+    # same expression on both sides but with calls: the two calls may differ (side effects)
+    assert bad_test(tmp_path, "    assert book('a') != book('a')") == []
+
+
+def test_method_calls_named_like_builtins_count_as_code(tmp_path):
+    assert bad_test(tmp_path, "    assert svc.open('x') == 1") == []
+    assert bad_test(tmp_path, "    assert df.sum() == 3") == []
+
+
+def test_pytest_aliases_are_assertions(tmp_path):
+    src = ("from pytest import raises\nimport pytest as pt\nfrom app import book\n\n\n"
+           "def test_st_001_ac_1():\n    with raises(ValueError):\n        book(None)\n\n\n"
+           "def test_st_001_ac_2():\n    with pt.raises(ValueError):\n        book(None)\n")
+    assert one_file(tmp_path, src, [("test_st_001_ac_1", ["ST-001/AC-1"]),
+                                    ("test_st_001_ac_2", ["ST-001/AC-2"])]) == []
+
+
+def test_declared_ids_are_normalised(tmp_path):
+    src = ("from app import book\n\n\ndef test_st_001_ac_1():\n    assert book('a') == 1\n\n\n"
+           "def test_st_001_ac_2():\n    assert book('b') == 1\n")
+    assert one_file(tmp_path, src, [("test_st_001_ac_1", ["st-001/ac-1"]),
+                                    ("test_st_001_ac_2", ["ST001-AC2"])]) == []
+    bug = "from app import book\n\n\ndef test_bug_007():\n    assert book('a') == 1\n"
+    assert one_file(tmp_path, bug, [("test_bug_007", ["bug_007"])], task=BUG, story=None) == []

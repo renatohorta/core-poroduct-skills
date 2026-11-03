@@ -4,20 +4,18 @@ testcheck.py — value checks of the tests listed in a delivery (INIT-03 §7.7, 
 Declaration-based: the tests are never run. Each listed test must exist, be tied
 to an acceptance criterion (or the bug ID), assert something that is not a
 constant, exercise project code, and come with the red output the agent saw.
-Python is analysed with `ast`; JS/TS with regexes (`testcheck_js`); any other
+Python is analysed with `ast` (`testcheck_py`); JS/TS with regexes (`testcheck_js`); any other
 language only by name (with a warning).
 
 Pure standard library.
 """
 from __future__ import annotations
 
-import ast
-import builtins
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from _shared import testcheck_js
+from _shared import testcheck_js, testcheck_py
 from _shared.cards import Card, acceptance_criteria, covers
 from _shared.discipline import _norm, missing_artifacts
 
@@ -28,7 +26,6 @@ ABOVE = 3  # comment lines directly above a test that count as "on the test"
 _TEST_LINE = re.compile(r"^\s*[-*]\s+`?(?P<ref>.+?::.+?)`?\s+(?:—|–|-)\s+covers\s+(?P<ids>.+?)\s*$",
                         re.IGNORECASE)
 _FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
-_BUILTINS = set(dir(builtins))
 
 
 @dataclass
@@ -117,78 +114,6 @@ def _resolve(project_root: Path, path: str):
     return file, None
 
 
-def comments_above(lines: list, start: int, markers: tuple) -> list:
-    """The run of comment lines (at most ABOVE) directly above line index `start`."""
-    taken = []
-    for line in reversed(lines[max(0, start - ABOVE):start]):
-        if not line.strip().startswith(markers):
-            break
-        taken.insert(0, line)
-    return taken
-
-
-def _callee(func: ast.expr):
-    """(final name, root name) of a call target: `a.b.c()` -> ("c", "a")."""
-    final = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-    root = func
-    while isinstance(root, (ast.Attribute, ast.Call, ast.Subscript)):
-        root = root.func if isinstance(root, ast.Call) else root.value
-    return final, getattr(root, "id", None)
-
-
-_NOT_CONSTANT = (ast.Name, ast.Attribute, ast.Call, ast.Subscript, ast.Starred, ast.NamedExpr)
-
-
-def _constant_only(node: ast.AST) -> bool:
-    return not any(isinstance(n, _NOT_CONSTANT) for n in ast.walk(node))
-
-
-def _analyse_py(func) -> tuple:
-    """(has_assertion, trivial, calls_code) of a test function."""
-    tested, any_assert, calls_code = [], False, False  # tested: [is constant-only]
-    for node in ast.walk(func):
-        if isinstance(node, ast.Assert):
-            any_assert = True
-            tested.append(_constant_only(node.test))
-        elif isinstance(node, ast.Call):
-            final, root = _callee(node.func)
-            if final and final.startswith("assert"):
-                any_assert = True
-                exprs = list(node.args) + [k.value for k in node.keywords]
-                if isinstance(node.func, ast.Attribute) and root != "self":
-                    exprs.append(node.func.value)  # `mock.assert_called_once()`
-                tested.append(all(_constant_only(e) for e in exprs))
-            elif root == "pytest" and final == "raises":
-                any_assert = True
-                tested.append(False)  # the guarded code is what is tested
-                calls_code = calls_code or len(node.args) > 1  # pytest.raises(E, func, ...)
-            elif root not in ("pytest", "unittest") and final not in _BUILTINS:
-                calls_code = True
-    return any_assert, any_assert and all(tested), calls_code
-
-
-def _find_py(text: str, name: str):
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return None
-    *classes, func_name = re.sub(r"\[.*\]$", "", name).split("::")
-    scope = tree.body
-    for cls in classes:
-        node = next((n for n in scope if isinstance(n, ast.ClassDef) and n.name == cls), None)
-        if node is None:
-            return None
-        scope = node.body
-    func = next((n for n in scope if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                 and n.name == func_name), None)
-    if func is None:
-        return None
-    lines = text.splitlines()
-    start = min([func.lineno] + [d.lineno for d in func.decorator_list]) - 1
-    source = comments_above(lines, start, ("#",)) + lines[start:func.end_lineno]
-    return TestInfo(name, "\n".join(source), *_analyse_py(func))
-
-
 def _find_by_name(text: str, name: str):
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -209,7 +134,8 @@ def find_test(project_root: Path, path: str, name: str):
         return None
     suffix = file.suffix.lower()
     if suffix == ".py":
-        return _find_py(text, name)
+        found = testcheck_py.find(text, name)
+        return TestInfo(name, *found) if found else None
     if suffix in JS_SUFFIXES:
         found = testcheck_js.find(text, name)
         return TestInfo(name, *found) if found else None
@@ -223,8 +149,14 @@ def _analysed(path: str) -> bool:
 
 # ─── the checks ──────────────────────────────────────────────────────────
 
-def _test_problems(delivery, path, name, ids, allowed, owner, project_root) -> list:
-    ref, out = _ref(path, name), []
+def _canonical(declared: str, known) -> str | None:
+    """The known ID that `declared` spells (`st_001_ac_1` -> `ST-001/AC-1`), if any."""
+    return next((k for k in sorted(known) if id_pattern(k).fullmatch(declared.strip())), None)
+
+
+def _test_problems(delivery, path, name, ids, allowed, owner, project_root) -> tuple:
+    """(problems, canonical IDs the test both declares and references)."""
+    ref, out, referenced = _ref(path, name), [], set()
     file, problem = _resolve(project_root, path)
     info = find_test(project_root, path, name) if file else None
     if problem:
@@ -234,13 +166,14 @@ def _test_problems(delivery, path, name, ids, allowed, owner, project_root) -> l
     if not ids:
         out.append(f"{ref}: declares no covered ID")
     for i in ids:
-        if i not in allowed:
+        if _canonical(i, allowed) is None:
             out.append(f"{ref}: {i} is not {owner}")
     if info is not None:
-        haystack = f"{name}\n{info.text}"
-        if ids and not any(id_pattern(i).search(haystack) for i in ids):
-            out.append(f"{ref}: references none of its covered IDs ({', '.join(ids)}) "
-                       "in its name, docstring or comments")
+        for i in ids:  # the test source only: the delivery's name is a claim, not the test
+            if id_pattern(i).search(info.text):
+                referenced.add(_canonical(i, allowed) or i)
+            else:
+                out.append(f"{ref}: does not reference {i}")
         if not info.has_assertion:
             out.append(f"{ref}: has no assertion")
         elif info.trivial:
@@ -249,7 +182,7 @@ def _test_problems(delivery, path, name, ids, allowed, owner, project_root) -> l
             out.append(f"{ref}: never calls project code")
     if not delivery.red.get(ref):
         out.append(f"{ref}: no red evidence")
-    return out
+    return out, referenced
 
 
 def check_delivery(delivery: Delivery, task: Card, story, project_root: Path) -> list:
@@ -271,16 +204,17 @@ def check_delivery(delivery: Delivery, task: Card, story, project_root: Path) ->
         allowed, owner = {task.id, *criteria}, f"the bug ID {task.id} or a criterion of {story_name}"
     else:
         allowed, owner = set(criteria), f"a criterion of {story_name}"
+    covered = set()  # only IDs a found test both declares and references count
     for path, name, ids in delivery.tests:
-        problems += _test_problems(delivery, path, name, ids, allowed, owner, project_root)
-
-    declared = {i for _, _, ids in delivery.tests for i in ids}
+        found, referenced = _test_problems(delivery, path, name, ids, allowed, owner, project_root)
+        problems += found
+        covered |= referenced
     if task.type == "bug":
-        if task.id not in declared:
-            problems.append(f"No test declares the bug ID {task.id}.")
+        if task.id not in covered:
+            problems.append(f"No test references the bug ID {task.id}.")
     else:
         problems += [f"Criterion {c} (task Covers) has no test." for c in covers(task)
-                     if c not in declared]
+                     if c not in covered]
     return problems
 
 
