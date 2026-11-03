@@ -32,7 +32,7 @@ PROTOCOL = [
     "Find the ROOT cause (references/debugging.md): why it happens, not where it shows.",
     "Record it: `{diagnose}`. The document needs a non-empty `## Root cause`.",
     "Fix the root cause with the minimum change; the regression test turns green.",
-    "Deliver: `{start}` (if not started), then `{finish}`.",
+    "Deliver: `{finish}`. Run `{start}` first (only if not diagnosed): --diagnose already starts the bug and sets its branch.",
 ]
 
 
@@ -69,6 +69,8 @@ def diagnose(context_dir, card_id, source) -> None:
     card = cards.set_section(card, "Root cause", cause)
     if again:
         card = cards.add_history(card, "root cause updated")
+    if not card.meta.get("branch"):
+        card = cards.set_meta(card, "branch", cards.branch_name(card))
     if card.status != "3-doing":
         card = cards.move(context_dir, card_id, "3-doing", "diagnosed")
     print(f"{card.id} root cause recorded -> {card.status}")

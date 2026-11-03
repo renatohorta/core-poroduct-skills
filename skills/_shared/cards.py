@@ -81,6 +81,16 @@ def load_all(context_dir) -> dict:
     return found
 
 
+def _slug(text: str, limit=None) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return s[:limit].strip("-") if limit else s
+
+
+def branch_name(card: Card) -> str:
+    """`<id-lowercase>-<slug of the title, at most 40>`: the git branch of a card."""
+    return f"{_slug(card.id)}-{_slug(card.title, 40)}".rstrip("-")
+
+
 def get(context_dir, card_id: str) -> Card:
     card = load_all(context_dir).get(card_id)
     if card is None:
@@ -308,7 +318,8 @@ def move(context_dir, card_id, column, reason, *, actor="agent", now=None,
     now = now or datetime.now()
     src = card.status
     line = f"{src} → {column} — {reason} ({actor})"
-    if "blocked" not in (src, column):
+    normal = actor == "rup-backlog" or (src in ("1-backlog", "2-todo") and column == "3-doing")
+    if "blocked" not in (src, column) and not normal:
         a, b = COLUMNS.index(src), COLUMNS.index(column)
         if b - a > 1:
             line += " ⚠️ skipped " + ", ".join(COLUMNS[a + 1:b])

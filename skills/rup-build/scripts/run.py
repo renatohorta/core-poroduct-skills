@@ -8,7 +8,6 @@ Usage:
 """
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -40,15 +39,6 @@ TDD_RULES = [
 ]
 
 
-def slug(text: str, limit=None) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return s[:limit].strip("-") if limit else s
-
-
-def branch_name(card) -> str:
-    return f"{slug(card.id)}-{slug(card.title, 40)}".rstrip("-")
-
-
 def parent_of(context_dir, card):
     pid = card.meta.get("parent")
     return cards.load_all(context_dir).get(pid) if pid else None
@@ -74,7 +64,7 @@ def start(context_dir, card_id) -> None:
     card = buildable(context_dir, card_id)
     if card.status not in STARTABLE:
         fail(f"{card_id} is in {card.status}; --start needs {', '.join(STARTABLE)}")
-    cards.set_meta(card, "branch", branch_name(card))
+    cards.set_meta(card, "branch", cards.branch_name(card))
     card = cards.move(context_dir, card_id, "3-doing", "started")
     story = parent_of(context_dir, card)
     phase = packet_phase(context_dir, card)
