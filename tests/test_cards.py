@@ -1,4 +1,6 @@
 """Cards: model, IDs, creation and the rup-backlog --new/--show/--list CLI."""
+from pathlib import Path
+
 import pytest
 
 from conftest import EXIT_NEEDS_CONSENT, EXIT_OK, EXIT_USAGE, authorize
@@ -362,3 +364,75 @@ def test_cli_move(ctx_env, python_cmd, tmp_path):
     assert r.returncode == EXIT_USAGE
     r = run_skill(SKILL, ["--move", "EP-001", "nope", "--reason", "x"], ctx_env, python_cmd)
     assert r.returncode == EXIT_USAGE
+
+
+# ─── derive from requirements ───
+
+REQUIREMENTS = """# Requirements Specifier
+
+## Use-Case Packages
+
+### Booking
+Visits.
+
+### Billing ###
+
+## Use Cases
+
+### Book a visit
+Flow.
+
+### Cancel a visit
+
+## Supplementary Specifications
+
+### Not a candidate
+"""
+
+
+def write_requirements(ctx, text=REQUIREMENTS, phase="Elaboration"):
+    from _shared import context
+    path = context.artifact_path(ctx, phase, "rup-requirements")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# header\n\n## Artifacts\n" + text, encoding="utf-8")
+
+
+def test_derive_requires_requirements_artifact(ctx_env, python_cmd):
+    r = run_skill(SKILL, ["--derive"], ctx_env, python_cmd)
+    assert r.returncode == EXIT_USAGE, r.stdout + r.stderr
+    assert "record rup-requirements first" in r.stdout + r.stderr
+
+
+def test_derive_report_pending_derived_orphans(ctx):
+    write_requirements(ctx)
+    cards.create(ctx, "epic", "Booking", EPIC, source="rup-requirements#Booking")
+    cards.create(ctx, "epic", "Gone", EPIC, source="rup-requirements#Removed package")
+    cards.create(ctx, "epic", "Manual", EPIC, source="other.md#X")
+    report = cards.derivation_report(ctx, "Elaboration")
+    assert report["derived"] == ["rup-requirements#Booking"]
+    assert report["pending"] == ["rup-requirements#Billing", "rup-requirements#Book a visit",
+                                 "rup-requirements#Cancel a visit"]
+    assert report["orphans"] == ["rup-requirements#Removed package"]
+
+
+def test_derive_cli_prints_commands(ctx_env, python_cmd, tmp_path):
+    write_requirements(Path(ctx_env["RUP_CONTEXT_DIR"]))
+    r = run_skill(SKILL, ["--derive"], ctx_env, python_cmd)
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    assert "Not yet derived" in r.stdout and "Already derived" in r.stdout
+    assert "Orphan cards" in r.stdout
+    assert "--new epic --title Billing" in r.stdout
+    assert "--new story --title 'Book a visit'" in r.stdout
+    assert "--source 'rup-requirements#Book a visit'" in r.stdout
+    assert "<epic ID>" in r.stdout
+
+
+def test_derive_never_modifies_existing_cards(ctx_env, python_cmd, tmp_path):
+    ctx = Path(ctx_env["RUP_CONTEXT_DIR"])
+    write_requirements(ctx)
+    card = cards.create(ctx, "epic", "Booking", EPIC, source="rup-requirements#Booking")
+    before = card.path.read_bytes()
+    r = run_skill(SKILL, ["--derive"], ctx_env, python_cmd)
+    assert r.returncode == EXIT_OK, r.stdout + r.stderr
+    assert card.path.read_bytes() == before
+    assert sorted(p.name for p in (ctx / "kanban" / "1-backlog").iterdir()) == ["EP-001.md"]

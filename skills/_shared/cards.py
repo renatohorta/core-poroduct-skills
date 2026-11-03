@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from _shared import context, frontmatter, roadmap
-from _shared.discipline import fail, missing_artifacts
+from _shared.discipline import _norm, artifact_body, fail, missing_artifacts
 
 COLUMNS = ["1-backlog", "2-todo", "3-doing", "4-review", "5-testing",
            "6-staging", "7-done", "blocked"]
@@ -342,3 +342,41 @@ def rollup(context_dir, card: Card, *, now=None) -> list:
 
 
 _rollup = rollup  # `move` has a parameter named `rollup`
+
+
+# ─── derivation from rup-requirements ────────────────────────────────────
+
+REQUIREMENTS_SKILL = "rup-requirements"
+SOURCE_PREFIX = f"{REQUIREMENTS_SKILL}#"
+
+
+def requirements_candidates(context_dir, phase: str) -> list:
+    """`(type, heading)` candidates in document order: the `###` headings of
+    `## Use-Case Packages` (epic) then of `## Use Cases` (story)."""
+    path = context.artifact_path(context_dir, phase, REQUIREMENTS_SKILL)
+    if not path.is_file():
+        fail(f"{path} not found: record rup-requirements first "
+             f"(phase {phase}) before deriving epics and stories")
+    found: dict = {"epic": [], "story": []}
+    section = None
+    for line in artifact_body(path.read_text(encoding="utf-8")).splitlines():
+        if line.startswith("## "):
+            name = _norm(line[3:])
+            section = ("epic" if name == _norm("Use-Case Packages")
+                       else "story" if name == _norm("Use Cases") else None)
+        elif line.startswith("### ") and section:
+            heading = line[4:].rstrip("# \t").strip()
+            if heading and heading not in found[section]:
+                found[section].append(heading)
+    return [("epic", h) for h in found["epic"]] + [("story", h) for h in found["story"]]
+
+
+def derivation_report(context_dir, phase: str) -> dict:
+    """`derived` / `pending` / `orphans` source strings (`rup-requirements#<heading>`)."""
+    sources = [SOURCE_PREFIX + h for _, h in requirements_candidates(context_dir, phase)]
+    used = {str(c.meta.get("source", "")) for c in load_all(context_dir).values()}
+    return {
+        "derived": sorted(s for s in sources if s in used),
+        "pending": [s for s in sources if s not in used],
+        "orphans": sorted(u for u in used if u.startswith(SOURCE_PREFIX) and u not in sources),
+    }

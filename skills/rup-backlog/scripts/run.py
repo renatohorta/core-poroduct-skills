@@ -10,6 +10,7 @@ Usage:
   python run.py --release-new --title T [--milestone M] [--goal G] [--target-date D]
   python run.py --iteration-new --release R --phase P --goal G [--start S] [--end E]
   python run.py --plan EPIC --iteration I
+  python run.py --derive [--phase P]       (read-only; default phase Elaboration)
   python run.py --roadmap                  (regenerate docs/06-roadmap.md, 06-board.md)
   python run.py --list [--column C] [--type T] [--context-dir D]
 """
@@ -28,7 +29,7 @@ for _root in (_SKILL_DIR.parent, _SKILL_DIR.parent.parent):
         break
 
 from _shared import cards, context, roadmap  # noqa: E402
-from _shared.discipline import fail, read_document  # noqa: E402
+from _shared.discipline import artifact_body, cmdline, fail, read_document  # noqa: E402
 from _shared.rup import EXIT_OK, setup_console  # noqa: E402
 
 
@@ -40,6 +41,41 @@ def print_list(context_dir, column=None, type=None) -> None:
     print("|----|------|-------|--------|--------|")
     for c in rows:
         print(f"| {c.id} | {c.type} | {c.title} | {c.status} | {c.meta.get('parent', '')} |")
+
+
+def print_derive(context_dir, phase) -> None:
+    """Read-only work packet: requirements body, cards, derivation report, `--new` commands."""
+    candidates = cards.requirements_candidates(context_dir, phase)  # exits 1 if absent
+    report = cards.derivation_report(context_dir, phase)
+    path = context.artifact_path(context_dir, phase, cards.REQUIREMENTS_SKILL)
+    print(f"# Derive epics and stories from {cards.REQUIREMENTS_SKILL} ({phase})\n")
+    print("One epic per use-case package, one story per use case. Create each pending "
+          "candidate with the command shown (write its `--doc` first); skip sources "
+          "already derived. Existing cards are never changed.\n")
+    print("## Requirements\n")
+    print(artifact_body(path.read_text(encoding="utf-8")).strip(), "\n")
+    print("## Existing cards\n")
+    print("| ID | Type | Title | Source |")
+    print("|----|------|-------|--------|")
+    for c in sorted(cards.load_all(context_dir).values(), key=lambda c: c.id):
+        print(f"| {c.id} | {c.type} | {c.title} | {c.meta.get('source', '')} |")
+    for label, key in (("Already derived", "derived"), ("Not yet derived", "pending"),
+                       ("Orphan cards", "orphans")):
+        print(f"\n## {label}\n")
+        for item in report[key] or ["(none)"]:
+            print(f"- {item}" if report[key] else item)
+    print("\n## Commands for pending candidates\n")
+    me = Path(__file__).resolve()
+    for type_, heading in candidates:
+        source = cards.SOURCE_PREFIX + heading
+        if source not in report["pending"]:
+            continue
+        args = [sys.executable, me, "--new", type_, "--title", heading,
+                "--doc", "FILE|-", "--source", source]
+        line = cmdline(args)
+        if type_ == "story":
+            line += " --parent '<epic ID>'"
+        print(f"    {line}")
 
 
 def main(argv=None) -> int:
@@ -68,10 +104,16 @@ def main(argv=None) -> int:
     p.add_argument("--end", default="", help="iteration end date")
     p.add_argument("--plan", metavar="EPIC", help="plan an epic into --iteration")
     p.add_argument("--iteration", help="iteration ID (with --plan)")
+    p.add_argument("--derive", action="store_true",
+                   help="derive epics/stories from rup-requirements (read-only; --phase, default Elaboration)")
     p.add_argument("--roadmap", action="store_true", help="regenerate the roadmap and board views")
     p.add_argument("--context-dir", help="target .context/ (default: auto-detect)")
     args = p.parse_args(argv)
     context_dir = context.resolve_context_dir(args.context_dir)
+
+    if args.derive:
+        print_derive(context_dir, args.phase or "Elaboration")
+        return EXIT_OK
 
     if args.new:
         if not args.title or not args.doc:
