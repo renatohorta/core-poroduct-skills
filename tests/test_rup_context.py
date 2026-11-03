@@ -24,7 +24,8 @@ def test_status_reports_missing_marker_and_doc_dirs(clean_env, python_cmd, tmp_p
     r = run_skill(SKILL, ["--status"], env_for(clean_env, extra), python_cmd)
     assert r.returncode == EXIT_OK, r.stdout + r.stderr
     assert "authorized: no" in r.stdout and "exists: no" in r.stdout
-    assert ".specs" in r.stdout and "docs" in r.stdout
+    line = next(l for l in r.stdout.splitlines() if l.startswith("other doc dirs:"))
+    assert ".specs" in line and "docs" in line
     assert not (root / ".context").exists()
 
 
@@ -124,3 +125,13 @@ def test_status_after_init(clean_env, python_cmd, tmp_path):
     init(env, python_cmd)
     r = run_skill(SKILL, ["--status"], env, python_cmd)
     assert "authorized: yes" in r.stdout and "missing: 0" in r.stdout
+
+
+def test_init_refuses_to_overwrite_invalid_marker(clean_env, python_cmd, tmp_path):
+    root, extra = project(tmp_path, ".context")
+    marker = root / ".context" / ".rup-standard"
+    marker.write_bytes(b"authorized_by: x\n")
+    r = init(env_for(clean_env, extra), python_cmd)
+    assert r.returncode == EXIT_USAGE and "invalid" in r.stdout
+    assert marker.read_bytes() == b"authorized_by: x\n"
+    assert not (root / ".context" / "kanban").exists()

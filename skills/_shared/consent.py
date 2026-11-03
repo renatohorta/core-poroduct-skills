@@ -122,6 +122,11 @@ def init_context(context_dir, *, authorized_by: str, now=None) -> list:
         print(f"[X] The project root {context_dir.parent} does not exist; "
               "refusing to create it. Check --context-dir.")
         sys.exit(1)
+    marker = context_dir / context.MARKER
+    if marker.exists() and not context.has_consent(context_dir):
+        print(f"[X] {marker} exists but is invalid (no `version:` line). "
+              "Refusing to overwrite it: fix or remove it, then run --init again.")
+        sys.exit(1)
     created = []
     if not context_dir.exists():
         context_dir.mkdir()
@@ -136,8 +141,7 @@ def init_context(context_dir, *, authorized_by: str, now=None) -> list:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
         created.append(path)
-    marker = context_dir / context.MARKER
-    if not context.has_consent(context_dir):
+    if not marker.exists():
         marker.write_text(
             f"version: {STANDARD_VERSION}\nauthorized_by: {authorized_by}\n"
             f"authorized_at: {now.isoformat(timespec='seconds')}\n", encoding="utf-8")

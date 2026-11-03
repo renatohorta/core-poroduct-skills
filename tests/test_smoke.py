@@ -119,7 +119,14 @@ def test_agent_count_matches_the_rup_specification():
 # ─── orchestrator ────────────────────────────────────────────────────────
 
 def test_registry_matches_discipline_skills():
-    assert sorted(d["skill"] for d in DISCIPLINES.values()) == DISCIPLINE_SKILLS
+    from _shared.rup import ORCHESTRATOR_SKILL
+    for skill in [ORCHESTRATOR_SKILL] + [d["skill"] for d in DISCIPLINES.values()]:
+        assert skill_script(skill).is_file(), f"{skill}: registered but has no run.py"
+    for skill in skill_names():
+        spec = getattr(load_skill(skill), "SPEC", None)
+        if isinstance(spec, dict) and spec.get("key") is not None:
+            assert spec["key"] in DISCIPLINES, f"{skill}: SPEC key not in the registry"
+            assert DISCIPLINES[spec["key"]]["skill"] == skill
 
 
 def test_orchestrator_lists_all_disciplines(clean_env, python_cmd):
