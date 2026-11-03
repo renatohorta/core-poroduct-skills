@@ -112,6 +112,11 @@ def _section_lines(body: str, name: str) -> list:
     return lines[span[0] + 1:span[1]] if span else []
 
 
+def section_text(card: Card, name: str) -> str:
+    """Stripped body of `## name` in the card ("" when absent)."""
+    return "\n".join(_section_lines(card.body, name)).strip()
+
+
 def number_criteria(story_id: str, body: str) -> str:
     lines = body.splitlines()
     span = _section_span(lines, "Acceptance criteria")

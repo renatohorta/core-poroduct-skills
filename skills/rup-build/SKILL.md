@@ -27,7 +27,7 @@ tests or git; it checks what you declare.
 - `--start ID` — task/bug in `1-backlog`, `2-todo` or `blocked`.
 - `--finish ID --delivery FILE|- [--project-root DIR]` — card in `3-doing`;
   project root defaults to the parent of `.context/`. Bugs also get `## Fix`
-  and `## Regression test`.
+  and `## Regression test`, and need a `## Root cause` first (`rup-debug --diagnose`).
 - `--context-dir D` — another `.context/` (default: auto-detect or `RUP_CONTEXT_DIR`).
 
 Exit codes: 0 ok · 1 usage/rejected delivery · 4 not writable · 5 not authorized.

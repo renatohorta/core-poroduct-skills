@@ -107,6 +107,12 @@ def finish(context_dir, card_id, source, project_root) -> None:
     if card.status != "3-doing":
         fail(f"{card_id} is in {card.status}; --finish needs 3-doing (run --start first)")
     story = parent_of(context_dir, card)
+    if card.type == "bug":
+        if not cards.section_text(card, "Root cause"):
+            fail(f"{card_id} has no `## Root cause`: diagnose it first with "
+                 f"`rup-debug --diagnose {card_id} --doc FILE|-`")
+        if story is not None and story.type != "story":
+            story = None
     if card.type == "task" and (story is None or story.type != "story"):
         fail(f"{card_id} has no parent story")
     text = read_document(source).strip()
@@ -121,8 +127,8 @@ def finish(context_dir, card_id, source, project_root) -> None:
         print(f"⚠️ {warning}")
     cards.set_section(card, "Delivery", text)
     if card.type == "bug":
-        cards.set_section(card, "Fix", testcheck._section(delivery.sections, "What was done"))
-        cards.set_section(card, "Regression test", testcheck._section(delivery.sections, "Tests"))
+        cards.set_section(card, "Fix", delivery.section("What was done"))
+        cards.set_section(card, "Regression test", delivery.section("Tests"))
     card = cards.move(context_dir, card_id, "4-review", "delivered")
     print(f"{card.id} -> {card.status}")
 

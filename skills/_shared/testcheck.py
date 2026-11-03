@@ -35,6 +35,10 @@ class Delivery:
     red: dict = field(default_factory=dict)       # "path::name" -> failing output
     unparsed: list = field(default_factory=list)  # `- ` lines of ## Tests not understood
 
+    def section(self, name: str) -> str:
+        """Body of the `## ` section whose heading matches `name` (tolerant), or ""."""
+        return _section(self.sections, name)
+
 
 @dataclass
 class TestInfo:
