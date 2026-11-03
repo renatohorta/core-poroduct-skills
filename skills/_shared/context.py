@@ -30,6 +30,9 @@ from datetime import datetime
 from pathlib import Path
 
 EXIT_CONTEXT_NOT_WRITABLE = 4
+EXIT_NEEDS_CONSENT = 5
+
+MARKER = ".rup-standard"
 
 CONTEXT_ENV_VAR = "RUP_CONTEXT_DIR"
 
@@ -80,14 +83,37 @@ def artifact_path(context_dir, phase: str, skill: str, suffix: str = "") -> Path
     return Path(context_dir) / "docs" / PHASE_DIRS[phase] / f"{skill}{suffix}.md"
 
 
-def ensure_writable(context_dir, phase: str, exit_code: int = EXIT_CONTEXT_NOT_WRITABLE) -> Path:
-    """Create the phase dir and the tracking dir, or exit with code 4.
+def has_consent(context_dir) -> bool:
+    """True when the user authorized the RUP standard in this `.context/`."""
+    return (Path(context_dir) / MARKER).is_file()
+
+
+def require_consent(context_dir) -> None:
+    """Exit 5 (writing nothing) unless `<context>/.rup-standard` exists."""
+    if has_consent(context_dir):
+        return
+    context_dir = Path(context_dir)
+    found = (".context/ without the .rup-standard marker" if context_dir.is_dir()
+             else "no .context/")
+    print()
+    print(f"[!] {context_dir} is not authorized for the RUP standard (found: {found}).")
+    print("    Nothing was written. To adopt the RUP standard in .context/: ask the user;")
+    print("    on approval run `rup-context --init`.")
+    sys.exit(EXIT_NEEDS_CONSENT)
+
+
+def ensure_writable(context_dir, phase=None, exit_code: int = EXIT_CONTEXT_NOT_WRITABLE) -> Path:
+    """Check authorization (exit 5), then create the phase dir and the tracking
+    dir, or exit with code 4. `phase=None` checks only the root and `tracking/`.
 
     Persisting into `.context/` is mandatory: a record that cannot be written
     must fail loudly, never silently drop the agent's work.
     """
     context_dir = Path(context_dir)
-    targets = [context_dir / "docs" / PHASE_DIRS[phase], context_dir / LOG_RELATIVE.parent]
+    require_consent(context_dir)
+    targets = [context_dir / LOG_RELATIVE.parent]
+    if phase is not None:
+        targets.insert(0, context_dir / "docs" / PHASE_DIRS[phase])
     try:
         for t in targets:
             t.mkdir(parents=True, exist_ok=True)

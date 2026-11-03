@@ -132,7 +132,11 @@ def record_command(script, phase, context_dir, briefing_file=None, briefing=None
 
 def render_packet(spec, *, skill, script, briefing, phase, context_dir, briefing_file=None):
     target = ctx.artifact_path(context_dir, phase, skill)
-    lines = [
+    lines = []
+    if not ctx.has_consent(context_dir):
+        lines += ["⚠️ .context/ not authorized yet — recording will ask for authorization "
+                  "(rup-context --init).", ""]
+    lines += [
         f"# RUP work packet — {spec['title']} (`{skill}`)",
         "",
         f"- **Phase**: {phase} — milestone {ctx.PHASE_MILESTONES[phase]}",

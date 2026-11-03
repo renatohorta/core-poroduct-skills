@@ -24,6 +24,7 @@ if str(SKILLS_DIR) not in sys.path:
 EXIT_OK = 0
 EXIT_USAGE = 1
 EXIT_CONTEXT_NOT_WRITABLE = 4
+EXIT_NEEDS_CONSENT = 5
 
 
 def skill_names():
@@ -49,6 +50,18 @@ def load_skill(name: str):
     return mod
 
 
+def authorize(context_dir) -> Path:
+    """Write a valid `.rup-standard` marker (creating the dir if needed)."""
+    from datetime import datetime
+    context_dir = Path(context_dir)
+    context_dir.mkdir(parents=True, exist_ok=True)
+    marker = context_dir / ".rup-standard"
+    marker.write_text("version: 1\nauthorized_by: tests\n"
+                      f"authorized_at: {datetime.now().isoformat(timespec='seconds')}\n",
+                      encoding="utf-8")
+    return marker
+
+
 def full_document(spec) -> str:
     """A document with one `## <Artifact>` section per required artifact."""
     parts = []
@@ -70,6 +83,7 @@ def clean_env(tmp_path_factory):
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
     env["RUP_CONTEXT_DIR"] = str(tmp_path_factory.mktemp("session-context") / ".context")
+    authorize(env["RUP_CONTEXT_DIR"])
     return env
 
 
@@ -78,6 +92,7 @@ def ctx_env(clean_env, tmp_path):
     """clean_env with a per-test .context/ (returned in env["RUP_CONTEXT_DIR"])."""
     env = dict(clean_env)
     env["RUP_CONTEXT_DIR"] = str(tmp_path / "project" / ".context")
+    authorize(env["RUP_CONTEXT_DIR"])
     return env
 
 

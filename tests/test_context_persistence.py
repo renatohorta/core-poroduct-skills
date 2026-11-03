@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (EXIT_CONTEXT_NOT_WRITABLE, EXIT_OK, EXIT_USAGE, ORCHESTRATOR,
+from conftest import (EXIT_CONTEXT_NOT_WRITABLE, authorize, EXIT_OK, EXIT_USAGE, ORCHESTRATOR,
                       REPO_ROOT, discipline_names, full_document, load_skill, skill_script)
 from _shared import context as ctx
 from _shared.rup import DISCIPLINES
@@ -148,12 +148,12 @@ def test_long_briefing_is_excerpted(tmp_path):
 @pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
                     reason="POSIX permissions (and not root)")
 def test_ensure_writable_exits_4(tmp_path, capsys):
-    ro = tmp_path / "ro"
-    ro.mkdir()
+    ro = tmp_path / "ro" / ".context"
+    authorize(ro)
     ro.chmod(0o500)
     try:
         with pytest.raises(SystemExit) as exc:
-            ctx.ensure_writable(ro / ".context", "Elaboration")
+            ctx.ensure_writable(ro, "Elaboration")
         assert exc.value.code == EXIT_CONTEXT_NOT_WRITABLE
         assert "mandatory" in capsys.readouterr().out
     finally:
@@ -188,7 +188,7 @@ def test_record_rejects_missing_artifacts(skill, ctx_env, python_cmd, tmp_path):
     r = record(skill, ctx_env, python_cmd, tmp_path, doc=doc)
     assert r.returncode == EXIT_USAGE, r.stdout
     assert f"  - {dropped}" in r.stdout and "Nothing was written" in r.stdout
-    assert not Path(ctx_env["RUP_CONTEXT_DIR"]).exists()
+    assert not (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs").exists()
 
 
 def test_heading_matching_tolerates_qualifiers_and_case():
@@ -225,10 +225,10 @@ def test_record_without_briefing_still_writes(ctx_env, python_cmd, tmp_path):
 
 @POSIX_NON_ROOT
 def test_unwritable_context_exits_4(ctx_env, python_cmd, tmp_path):
-    ro = tmp_path / "ro"
-    ro.mkdir()
+    ro = tmp_path / "ro" / ".context"
+    authorize(ro)
     ro.chmod(0o500)
-    env = dict(ctx_env, RUP_CONTEXT_DIR=str(ro / ".context"))
+    env = dict(ctx_env, RUP_CONTEXT_DIR=str(ro))
     try:
         r = record("rup-requirements", env, python_cmd, tmp_path)
     finally:
@@ -240,7 +240,8 @@ def test_packet_is_read_only(ctx_env, python_cmd):
     r = run_skill("rup-test", ["briefing", "--phase", "Transition"], ctx_env, python_cmd)
     assert r.returncode == EXIT_OK
     assert "04-transition" in r.stdout and "rup-test.md" in r.stdout
-    assert not Path(ctx_env["RUP_CONTEXT_DIR"]).exists(), "a packet must not write anything"
+    assert not (Path(ctx_env["RUP_CONTEXT_DIR"]) / "docs").exists(), \
+        "a packet must not write anything"
 
 
 def test_packets_chain_through_context_in_rup_order(ctx_env, python_cmd, tmp_path):

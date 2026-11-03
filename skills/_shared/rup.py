@@ -11,6 +11,7 @@ import sys
 EXIT_OK = 0
 EXIT_USAGE = 1            # bad arguments, unreadable input, incomplete artifact
 EXIT_CONTEXT_NOT_WRITABLE = 4
+EXIT_NEEDS_CONSENT = 5     # .context/ not authorized (no .rup-standard marker)
 # (2 = "no LLM" and 3 = "crewai missing" were retired with ADR-0012: the host
 #  agent is the LLM and the skills have no runtime dependency.)
 
