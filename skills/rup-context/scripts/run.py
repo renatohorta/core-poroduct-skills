@@ -10,6 +10,8 @@ CLAUDE.md / AGENT.md pointer note. Existing files are never overwritten.
 Usage:
   python run.py --status [--context-dir D]
   python run.py --init --authorized-by "Ana" [--context-dir D]
+  python run.py --import [--context-dir D]            (packet; needs authorization)
+  python run.py --record-import FILE|- [--context-dir D]
 """
 
 import argparse
@@ -26,6 +28,7 @@ for _root in (_SKILL_DIR.parent, _SKILL_DIR.parent.parent):
         break
 
 from _shared import consent, context  # noqa: E402
+from _shared.discipline import cmdline, read_document  # noqa: E402
 from _shared.rup import EXIT_OK, EXIT_USAGE, setup_console  # noqa: E402
 
 
@@ -39,6 +42,29 @@ def print_status(state) -> None:
     print("other doc dirs: " + (", ".join(state.other_doc_dirs) or "none"))
 
 
+def print_import_packet(context_dir) -> None:
+    files = consent.inventory(context_dir)
+    if not files:
+        print("nothing to import: no other doc dirs with .md/.txt/.adoc/.rst files.")
+        return
+    root = context_dir.parent
+    print("# Import packet — existing documentation")
+    print("\n## Inventory (originals are never moved or changed)")
+    for f in files:
+        print(f"- {f.relative_to(root)} ({f.stat().st_size} bytes)")
+    print("\n## Targets in .context/")
+    for key, target in consent.IMPORT_TARGETS.items():
+        print(f"- {key}: {target}")
+    print("\n## Instructions")
+    print("Read the inventory files. Write ONE document with one `## <target path>` "
+          "section per target that has material to import (heading = the exact path above; "
+          "omit targets with nothing to import). The first line of each section must be "
+          "`Source: <original path(s)>`, followed by the content, reorganized to fit "
+          "the target. Then record it:")
+    print("\n    " + cmdline(["python", Path(__file__).resolve(), "--record-import", "-",
+                              "--context-dir", context_dir]))
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         description="RUP context — detect `.context/` and adopt the RUP standard "
@@ -47,6 +73,10 @@ def main(argv=None) -> int:
     p.add_argument("--init", action="store_true",
                    help="add the missing standard tree, marker and pointer note")
     p.add_argument("--authorized-by", help="who approved --init (the user)")
+    p.add_argument("--import", dest="import_docs", action="store_true",
+                   help="print the import packet for the existing doc dirs")
+    p.add_argument("--record-import", metavar="FILE|-",
+                   help="validate the import document and write it into .context/")
     p.add_argument("--context-dir", help="target .context/ (default: auto-detect)")
     args = p.parse_args(argv)
     context_dir = context.resolve_context_dir(args.context_dir)
@@ -59,6 +89,19 @@ def main(argv=None) -> int:
         created = consent.init_context(context_dir, authorized_by=args.authorized_by)
         print(f"Authorized by {args.authorized_by}. Created {len(created)} entries:")
         for path in created:
+            print(f"  + {path}")
+        return EXIT_OK
+
+    if args.import_docs:
+        context.require_consent(context_dir)
+        print_import_packet(context_dir)
+        return EXIT_OK
+
+    if args.record_import:
+        context.require_consent(context_dir)
+        written = consent.record_import(context_dir, read_document(args.record_import))
+        print(f"Imported into {len(written)} files:")
+        for path in written:
             print(f"  + {path}")
         return EXIT_OK
 

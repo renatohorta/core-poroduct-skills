@@ -152,3 +152,94 @@ def init_context(context_dir, *, authorized_by: str, now=None) -> list:
             context_dir, skill="rup-context", now=now,
             what=f"init: {len(created)} entries created, authorized by {authorized_by}")
     return created
+
+
+# ─── importing existing documentation (spec INIT-03 §7.3) ────────────────
+IMPORT_TARGETS = {
+    "vision": "docs/01-inception/vision-and-scope.md",
+    "requirements": "docs/01-inception/requirements.md",
+    "architecture": "docs/02-elaboration/architecture.md",
+    "domain": "docs/02-elaboration/domain-model.md",
+    "contracts": "docs/03-construction/api-contracts.md",
+    "ui": "docs/03-construction/ui-spec.md",
+    "data": "docs/03-construction/data-dictionary.md",
+    "tests": "docs/04-transition/test-strategy.md",
+    "devops": "docs/04-transition/devops-infra.md",
+}
+DOC_SUFFIXES = (".md", ".txt", ".adoc", ".rst")
+
+
+def inventory(context_dir) -> list:
+    """Every `*.md`/`*.txt`/`*.adoc`/`*.rst` under the other doc dirs (sorted).
+    Never descends into `.context/` itself; skips hidden subdirectories."""
+    context_dir = Path(context_dir)
+    root = context_dir.parent
+    found = []
+    for name in detect(context_dir).other_doc_dirs:
+        base = root / name
+        for path in base.rglob("*"):
+            rel = path.relative_to(base).parts
+            if any(part.startswith(".") for part in rel[:-1]):
+                continue
+            if context_dir in path.parents or not path.is_file():
+                continue
+            if path.suffix.lower() in DOC_SUFFIXES:
+                found.append(path)
+    return sorted(found)
+
+
+def _parse_import(text: str) -> list:
+    """[(target, sources, body)]. Exits 1 on any invalid section."""
+    import re
+    import sys
+    sections = re.split(r"(?m)^## +(.+?)\s*$", text)
+    pairs = list(zip(sections[1::2], sections[2::2]))
+    errors = []
+    parsed = []
+    if not pairs:
+        errors.append("no `## <target path>` sections found")
+    for heading, body in pairs:
+        if heading not in IMPORT_TARGETS.values():
+            errors.append(f"unknown target `## {heading}`")
+            continue
+        body = body.strip()
+        first = next((l for l in body.splitlines() if l.strip()), "")
+        if not first.startswith("Source:") or not first[len("Source:"):].strip():
+            errors.append(f"section `## {heading}` must start with `Source: <original path(s)>`")
+            continue
+        sources = first[len("Source:"):].strip().replace('"', "'")
+        parsed.append((heading, sources, body))
+    if errors:
+        print("[X] Invalid import document; nothing was written:")
+        for e in errors:
+            print(f"  - {e}")
+        print("Valid targets: " + ", ".join(IMPORT_TARGETS.values()))
+        sys.exit(1)
+    return parsed
+
+
+def record_import(context_dir, text: str, *, now=None) -> list:
+    """Validate ALL sections, then write: create a missing target, or append a
+    delimited, attributed block to an existing one. Returns the written paths."""
+    context_dir = Path(context_dir)
+    context.ensure_writable(context_dir)
+    now = now or datetime.now()
+    parsed = _parse_import(text)
+    stamp = now.isoformat(timespec="seconds")
+    written = []
+    for target, sources, body in parsed:
+        block = (f'<!-- rup-import source="{sources}" date="{stamp}" -->\n'
+                 f"{body}\n<!-- /rup-import -->\n")
+        path = context_dir / target
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            old = path.read_text(encoding="utf-8")
+            sep = "" if not old or old.endswith("\n\n") else ("\n" if old.endswith("\n") else "\n\n")
+            path.write_text(old + sep + block, encoding="utf-8")
+        else:
+            title = path.stem.replace("-", " ").capitalize()
+            path.write_text(f"# {title}\n\n{block}", encoding="utf-8")
+        written.append(path)
+        context.append_event(context_dir, skill="rup-context", now=now,
+                             what=f"import {target} from {sources}")
+    return written
