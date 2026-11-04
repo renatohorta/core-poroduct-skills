@@ -1,120 +1,42 @@
 # Core Product Skills
 
-Central repository for the **skills** propagated to the **Hermes Agent** and
-**Claude Code** — the **single source of truth**: any change is made here and then
-propagated to the agents via `scripts/install.sh`.
+## What this is
 
-The skills implement the **Rational Unified Process (RUP)** — 9 disciplines, 21
-roles — grounded in *The Rational Unified Process: An Introduction* (3rd ed.),
-Philippe Kruchten.
+Core Product Skills is a set of **15 skills** for **Claude Code** and the
+**Hermes Agent**. Together they bring the **Rational Unified Process (RUP)** into
+the agent. It covers the whole path of a piece of software, from the first idea
+to a reviewed delivery:
 
-**The agent running a skill is the LLM** (ADR-0012). The skills never call a
-model and have no runtime dependency (standard library only): they hand the agent
-a *work packet* — the RUP roles, missions, required artifacts and the context
-already recorded — and then validate and record the agent's document into the
-project's `.context/` (mandatory, ADR-0011). No API key, no proxy, no CrewAI: the
-same model, with the same conversation context, writes the artifacts.
+- discovery;
+- requirements;
+- a backlog of cards and a roadmap;
+- test-first development;
+- debugging;
+- review;
+- the RUP documentation;
+- an audit that measures whether the tests actually catch bugs.
 
-> History: the legacy Software Factory family (removed in ADR-0010) also used the
-> `cp-` prefix; the current `cp-*` skills are the RUP skills, renamed from `rup-*`
-> (ADR-0014). The CrewAI execution was replaced by the host-LLM model (ADR-0012).
+**The agent you already use does the work** (ADR-0012). The skills never call a
+model, need no API key and have no runtime dependency (Python standard library
+only). Each skill hands the agent a *work packet*: the RUP roles, missions,
+required artifacts and the context already recorded. The agent writes the
+document, and the skill validates it and records it in the project's
+`.context/` folder (ADR-0011). That folder is the single source of truth for
+docs, cards, roadmap and decisions.
 
-## Guia rápido para o time (pt-BR)
+The RUP part is grounded in *The Rational Unified Process: An Introduction*
+(3rd ed.) by Philippe Kruchten: 9 disciplines and 21 roles.
 
-São 15 skills que levam o RUP para dentro do Claude Code: discovery, backlog em
-cards, desenvolvimento com TDD, debug, revisão, documentação e uma auditoria que
-mede se os testes realmente pegam bugs. **O próprio Claude que você já usa faz
-todo o trabalho**: as skills não chamam outra IA, não pedem API key e só
-dependem do Python.
+This repository is the **single source of truth** for the skills. Every change
+is made here and propagated to the agents with `scripts/install.sh`.
 
-### 1. Pré-requisitos
+### The skills
 
-- Claude Code instalado
-- Python 3.10+ e git
-- bash (no Windows, use o **Git Bash**)
-
-### 2. Baixar e instalar
-
-```bash
-git clone https://github.com/renatohorta/core-poroduct-skills.git
-cd core-poroduct-skills
-bash scripts/install.sh --claude
-```
-
-As skills vão para `~/.claude/skills/`. Abra uma sessão nova do Claude Code e
-digite `/cp-` para ver a lista. Para conferir antes, sem instalar nada:
-`bash scripts/install.sh --claude --dry-run`.
-
-### 3. Atualizar
-
-```bash
-cd core-poroduct-skills && git pull && bash scripts/install.sh --claude
-```
-
-Nunca edite a cópia instalada em `~/.claude/skills`: ela é apagada e reescrita
-a cada instalação. Melhorias vão por PR neste repositório.
-
-### 4. Primeiro uso num projeto
-
-Todos os artefatos ficam na pasta `.context/` do projeto (docs, cards, roadmap,
-decisões).
-
-- Na primeira vez, o Claude **pede autorização** antes de criar ou alterar a
-  `.context/`. Basta aprovar.
-- Se o projeto já tiver documentação (`docs/`, `.specs/`, outra `.context/`),
-  nada é apagado: o Claude pergunta e pode importar o que já existe.
-- Projeto preparado antes desta versão? Peça "prepare o .context deste projeto"
-  de novo: a nota no `CLAUDE.md`/`AGENT.md` é atualizada para o roteamento
-  automático.
-- Recomendado: commitar a `.context/` junto com o código.
-
-### 5. Como usar: só peça
-
-**Você não precisa saber o nome de nenhuma skill.** Descreva o que quer, em
-linguagem natural, e o Claude passa pelo orquestrador
-(`cp-orchestrator --route`), que lê o estado do projeto, escolhe a skill certa e
-segue o fluxo sozinho (ADR-0017):
-
-| Você diz… | O Claude faz |
-|---|---|
-| "quero uma tela de login com Google" | discovery → requisitos → backlog → build de cada task → review |
-| "o checkout está dando erro 500" | abre um BUG, reproduz, teste de regressão, causa raiz, fix, review |
-| "muda o texto do botão de pagar" | task direto no backlog → build → review (sem discovery) |
-| "revisa o TK-012" | review do card e registro do veredito |
-| "nossos testes servem pra alguma coisa?" | auditoria estática + teste de mutação + cards para as lacunas |
-| "e agora?" / "continua" | o próximo passo que o estado do projeto indica |
-| "documenta o projeto inteiro no padrão RUP" | governança + as 8 disciplinas, em ordem |
-
-Ele só para e pergunta quando precisa de você: autorizar a `.context/`, a
-conversa de discovery, confirmar os cards gerados, uma ambiguidade real ou algo
-destrutivo/externo (push, deploy).
-
-### 6. As skills por trás (se quiser chamar direto)
-
-| Skill | Para quê |
-|---|---|
-| `cp-orchestrator` | Porta de entrada (`--route`), documentação RUP, estimativa (Use Case Points), plano de iteração |
-| `cp-discover` | Antes de construir algo novo: problema, usuários, objetivos, o que fica fora |
-| `cp-backlog` | Épicos, stories e tasks; releases e iterações; mover cards (`1-backlog` → `7-done`) |
-| `cp-build TK-001` | Implementa em TDD (teste vermelho primeiro); testes do tipo `assert True` são rejeitados |
-| `cp-debug` | BUG → reprodução → teste de regressão → causa raiz **antes** do fix |
-| `cp-review TK-001` | Revisa um card em `4-review`: `approved` ou `changes requested` |
-| `cp-test --audit` | "Os testes pegam bugs?": auditoria estática e teste de mutação. Num projeto nosso, 96% de cobertura pegaram só 76% dos mutantes |
-
-### 7. Dicas
-
-- Cada skill tem um `SKILL.md` com tudo o que faz; o catálogo está em
-  [`skills/README.md`](skills/README.md).
-- As skills nunca rodam git: branch, commit e merge continuam com você. A única
-  que roda testes é `cp-test --mutate`, e só em cópias temporárias do projeto.
-- Dúvidas, bugs ou ideias: abra uma issue neste repositório.
-> All of it remains in the git history.
-
-## The RUP skills (`skills/cp-*`)
+**Document skills.** They produce the RUP artifacts:
 
 | Skill | Discipline | Roles |
 |-------|------------|-------|
-| `cp-orchestrator` | Project Management (governance) | 1 |
+| `cp-orchestrator` | Front door (routing) + Project Management (governance) | 1 |
 | `cp-environment` | Environment | 1 |
 | `cp-business-modeling` | Business Modeling | 2 |
 | `cp-requirements` | Requirements | 2 |
@@ -124,27 +46,122 @@ destrutivo/externo (push, deploy).
 | `cp-ccm` | Configuration & Change Management | 2 |
 | `cp-deployment` | Deployment | 2 |
 
-## The execution skills (replace the superpowers plugin — ADR-0013)
-
-Six more skills conduct the work and keep its state readable in `.context/`:
-cards (epic, story, task, bug), a roadmap of releases and iterations, and cards
-that move between kanban columns.
+**Execution skills.** They conduct the work and keep its state in `.context/`
+(ADR-0013):
 
 | Skill | Use it to |
 |-------|-----------|
-| `cp-context` | Check the project's `.context/`, **ask the user**, then adopt the RUP standard (`--init`), import existing docs |
-| `cp-discover` | Talk before building: problem, users, goals, non-goals, anti-goals; recorded in Inception |
+| `cp-context` | Check the project's `.context/`, ask the user, adopt the standard (`--init`), import existing docs |
+| `cp-discover` | Talk before building: problem, users, goals, non-goals, anti-goals |
 | `cp-backlog` | Create epics/stories/tasks, derive them from requirements, move cards, plan releases/iterations, generate the roadmap and board |
-| `cp-build` | Start a task test-first, then finish it with a delivery whose tests are checked for value |
+| `cp-build` | Implement a task test-first, then deliver it with tests checked for value |
 | `cp-debug` | Open a bug card, pin it with a regression test, record the root cause before the fix |
 | `cp-review` | Review a card in `4-review` and record `approved` / `changes requested` |
 
-15 skills in total: 9 document skills + 6 execution skills.
+Full details are in [`skills/README.md`](skills/README.md) and in each skill's
+`SKILL.md`. Architecture and operation are in [`.context/docs/`](.context/docs/).
 
-Full details: [`skills/README.md`](skills/README.md) and each skill's `SKILL.md`; architecture and
-operation in [`.context/docs/`](.context/docs/).
+> History: the legacy Software Factory family (removed in ADR-0010) also used the
+> `cp-` prefix. The current `cp-*` skills are the RUP skills, renamed from `rup-*`
+> (ADR-0014). The CrewAI execution was replaced by the host-LLM model (ADR-0012).
 
-## How a skill runs
+## Installation
+
+### Prerequisites
+
+- Claude Code (or the Hermes Agent)
+- Python 3.10+ and git
+- bash (on Windows, use **Git Bash**)
+
+### Install
+
+```bash
+git clone https://github.com/renatohorta/core-poroduct-skills.git
+cd core-poroduct-skills
+bash scripts/install.sh --claude
+```
+
+The skills go to `~/.claude/skills/`. Open a new Claude Code session and type
+`/cp-` to see them.
+
+Other options:
+
+```bash
+bash scripts/install.sh                          # every skill, Hermes + Claude
+bash scripts/install.sh --hermes                 # Hermes only
+bash scripts/install.sh --skill cp-requirements  # one skill
+bash scripts/install.sh --claude --dry-run       # show the plan, install nothing
+```
+
+Destinations, overrides and the runbook are in
+[`.context/docs/04-transition/devops-infra.md`](.context/docs/04-transition/devops-infra.md).
+
+### Update
+
+```bash
+cd core-poroduct-skills && git pull && bash scripts/install.sh --claude
+```
+
+Never edit the installed copy in `~/.claude/skills`, because every install wipes
+it and writes it again. Improvements go through a PR to this repository.
+
+### First use in a project
+
+Every artifact lives in the project's `.context/` folder.
+
+- **Authorization.** The first time, the agent asks for authorization before it
+  creates or changes `.context/`; just approve. Without it, the skills write
+  nothing (exit 5).
+- **Existing documentation.** If the project already has documentation
+  (`docs/`, `.specs/`, another `.context/`), nothing is deleted. The agent asks
+  and can import what already exists.
+- **Projects set up before the front door (ADR-0017).** Ask "set up this
+  project's .context" again. This refreshes the note in `CLAUDE.md` and
+  `AGENT.md` so that routing is automatic.
+- **Version control.** Commit `.context/` together with the code.
+
+## Usage
+
+### Just ask
+
+**You don't need to know any skill name.** Describe what you want in plain
+words. The agent goes through the orchestrator (`cp-orchestrator --route`).
+The orchestrator reads the project state, picks the right skill and follows the
+flow on its own (ADR-0017):
+
+| You say… | The agent does |
+|---|---|
+| "I want a login screen with Google" | discovery → requirements → backlog → build each task → review |
+| "checkout is returning a 500 error" | opens a BUG, reproduces it, regression test, root cause, fix, review |
+| "change the text of the pay button" | task straight into the backlog → build → review (no discovery) |
+| "review TK-012" | reviews the card and records the verdict |
+| "are our tests worth anything?" | static audit + mutation testing + cards for the gaps |
+| "what now?" / "continue" | the next step the project state points to |
+| "document the whole project the RUP way" | governance + the 8 disciplines, in order |
+
+The agent stops to ask you only when it needs you:
+
+- authorizing `.context/`;
+- the discovery conversation;
+- confirming the generated cards;
+- a real ambiguity between two routes;
+- something destructive or outward-facing (push, deploy).
+
+### Calling a skill directly
+
+Every skill still works on its own:
+
+| Skill | What for |
+|---|---|
+| `cp-orchestrator` | Routing (`--route`), RUP documentation, estimation (Use Case Points), iteration plan |
+| `cp-discover` | Before building something new: problem, users, goals, what is out |
+| `cp-backlog` | Epics, stories and tasks; releases and iterations; moving cards (`1-backlog` → `7-done`) |
+| `cp-build TK-001` | Implements test-first (red test first); tests like `assert True` are rejected |
+| `cp-debug` | BUG → reproduction → regression test → root cause **before** the fix |
+| `cp-review TK-001` | Reviews a card in `4-review`: `approved` or `changes requested` |
+| `cp-test --audit` | "Do the tests catch bugs?": static audit and mutation testing. In one of our projects, 96% line coverage caught only 76% of the mutants |
+
+### How a skill runs
 
 ```
 agent ──► run.py "<briefing>" --phase P        ─► WORK PACKET (read-only)
@@ -156,48 +173,55 @@ agent ──► run.py --record doc.md --phase P     ─► validates every "## 
                                                    logs   .context/tracking/rup-log.md
 ```
 
-- **Front door**: the user never has to pick a skill. The agent runs
-  `cp-orchestrator --route "<request>"`, which reads the state of `.context/`
-  (authorization, discovery, requirements, board, open bugs), suggests the next
-  step and lists every route with its command; the agent classifies the request
-  and runs the chain itself (new feature: discover → requirements → backlog →
-  build → review; bug: debug → build → review), stopping only at the gates
-  (authorization, discovery answers, confirming cards, real ambiguity) (ADR-0017).
-- **Chaining**: a discipline's packet embeds the governance artifact and the
-  artifacts of the earlier disciplines recorded in the same phase. Run them in
-  order and each builds on the previous ones.
-- **Whole iteration**: `cp-orchestrator "<briefing>" --auto` prints the
-  protocol (governance + 8 disciplines, in order, with the commands);
-  `--status` shows what is recorded and the next pending step.
-- **Sizing**: Use Case Points are computed by code (`--estimate`), never by the
-  model; the governance packet tells the agent how.
-- **Which `.context/`**: `--context-dir`, else `$RUP_CONTEXT_DIR`, else the
-  nearest `.context/` up to the git root. Curated docs (`requirements.md`, …)
-  are never touched — generated artifacts carry the `rup-` prefix.
-- **Authorization**: every writing command needs the marker
-  `.context/.rup-standard`. Without it the skill writes nothing and exits 5; the
-  agent asks the user and, on approval, runs `cp-context --init` (ADR-0013).
-- **Execution skills**: `cp-backlog` creates and moves cards
-  (`.context/kanban/<column>/<ID>.md`), plans `.context/roadmap/` and generates
-  `docs/06-roadmap.md` and `docs/06-board.md`; `cp-build --start/--finish`,
-  `cp-debug --open/--diagnose` and `cp-review <ID>` / `--record` drive a task
-  from `3-doing` to review. The skills never run git or your tests — except
-  `cp-test --mutate` (below).
-- **Do the tests catch bugs?** `cp-test "<briefing>" --audit` prints the audit
-  protocol (A0–A8): baseline, static audit, mutation testing of the risky modules
-  in disposable copies, survivor triage, cards for the real gaps (ADR-0016).
+- **Front door.** `cp-orchestrator --route "<request>"` reads the state of
+  `.context/`: authorization, discovery, requirements, board, open bugs. It
+  suggests the next step and lists every route with its command. The agent
+  classifies the request and runs the chain itself.
+- **Chaining.** A discipline's packet embeds the governance artifact and the
+  artifacts of the earlier disciplines in the same phase, so each discipline
+  builds on the previous ones.
+- **Whole iteration.** `cp-orchestrator "<briefing>" --auto` prints the
+  protocol: governance and the 8 disciplines, in order. `--status` shows what is
+  recorded and the next pending step.
+- **Sizing.** Use Case Points are computed by code (`--estimate`), never by the
+  model.
+- **Cards and views.** `cp-backlog` keeps cards in
+  `.context/kanban/<column>/<ID>.md` and the roadmap in `.context/roadmap/`. It
+  generates `docs/06-roadmap.md` and `docs/06-board.md`. `cp-build`, `cp-debug`
+  and `cp-review` move a task from `3-doing` through review.
+- **Test-value audit.** `cp-test --audit` prints the A0–A8 protocol: baseline,
+  static audit, mutation testing of the risky modules in disposable copies,
+  survivor triage, and cards for the real gaps (ADR-0016).
+- **Which `.context/`.** The skills use `--context-dir`, else
+  `$RUP_CONTEXT_DIR`, else the nearest `.context/` up to the git root. Curated
+  docs are never touched.
+- **What the skills never run.** They never run git; branch, commit and merge
+  stay with you. They never run your tests either, except `cp-test --mutate`,
+  which runs them only in temporary copies of the project.
 
-## Repository structure
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Usage error, invalid document/card (missing required artifacts), rejected delivery, invalid sizing model |
+| 4 | `.context/` not writable |
+| 5 | Needs authorization: `.context/` lacks the `.rup-standard` marker. The agent asks the user, then runs `cp-context --init` |
+
+## Development
+
+### Repository structure
 
 ```
 core-poroduct-skills/
 ├── README.md                 # This file
+├── LICENSE                   # MIT
 ├── CLAUDE.md / AGENT.md      # Context for coding agents working on this repo
 ├── requirements.txt          # Runtime dependencies: none (stdlib only)
 ├── requirements-dev.txt      # pytest
 ├── .github/workflows/ci.yml  # CI
 ├── .context/                 # Operational context (source of truth for agents)
-├── tests/                    # Suite (no LLM, 309 tests, ~10 s)
+├── tests/                    # Suite (no LLM, ~10 s)
 ├── scripts/install.sh        # Installs/updates the skills in the agents
 └── skills/
     ├── README.md
@@ -206,30 +230,24 @@ core-poroduct-skills/
     │   ├── discipline.py     # work packet + --record engine
     │   ├── context.py        # .context/ resolution, writing, authorization marker
     │   ├── consent.py        # --status/--init/--import, pointer note
+    │   ├── router.py         # front door: state of .context/ + routes (--route)
     │   ├── frontmatter.py    # card frontmatter parser/writer
     │   ├── cards.py          # cards, moves, roll-up, derivation
     │   ├── roadmap.py        # releases, iterations, generated views
     │   ├── testcheck*.py     # test-value checks (Python ast, JS/TS patterns)
     │   ├── testaudit.py      # static audit of a whole suite
-    │   ├── router.py         # front door: state of .context/ + routes (--route)
     │   └── mutation.py       # mutation testing: mutants, runner, report, triage
-    ├── cp-orchestrator/     # front door (--route), governance, iteration protocol, UCP
-    ├── cp-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
+    ├── cp-orchestrator/      # front door (--route), governance, iteration protocol, UCP
+    ├── cp-<discipline>/      # SKILL.md + scripts/run.py (roles as data) + references/
     └── cp-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
 
-## Quick install
+Edit the skills here, in `skills/`, never in the installed copy. Each `run.py`
+finds `_shared/` next to the skill (repository, Claude Code) or one level up
+(Hermes, which nests skills in a category directory). There are no hardcoded
+OS/machine paths or personal values.
 
-```bash
-./scripts/install.sh                       # every skill, Hermes + Claude
-./scripts/install.sh --hermes | --claude   # one agent
-./scripts/install.sh --skill cp-requirements
-./scripts/install.sh --dry-run
-```
-
-Destinations, overrides and runbook: [`.context/docs/04-transition/devops-infra.md`](.context/docs/04-transition/devops-infra.md).
-
-## Development and testing
+### Tests
 
 ```bash
 uv venv --python 3.12 .venv
@@ -241,32 +259,19 @@ uv pip install --python .venv -r requirements-dev.txt
 |------|--------------------|
 | `tests/test_smoke.py` | Every skill: stdlib only (`python -S`), packet with roles/artifacts/record command, exit 1 on missing briefing or unreadable `--input`, `SKILL.md` teaches `--record`, well-formed specs (9 document skills, 21 roles). Orchestrator: registry == skill dirs, `--list`, `--discipline`, `--auto` protocol order, sizing instructions; UCP exact/validated/CLI. `install.sh` plan and installed copies running in the Claude and Hermes layouts |
 | `tests/test_context_persistence.py` | `.context/` resolution, layout, provenance, log, curated docs untouched; `--record` per skill (file/stdin), rejection of missing artifacts, exit 4; packets read-only; chaining in RUP order and per phase, cap on earlier artifacts; `--status`; caller's project resolution; sizing artifact; guard that the suite never writes into this repo |
+| `tests/test_router.py` | Front door: routing packet (request, state, every route, chains), read-only, works without consent, suggestion order, broken cards, pointer-note refresh |
 | `tests/test_consent.py`, `tests/test_rup_context.py` | Authorization marker and exit 5 on writing commands, non-destructive `--init`/upgrade, pointer note, import leaves originals untouched |
 | `tests/test_frontmatter.py`, `tests/test_cards.py`, `tests/test_roadmap.py` | Card parser/writer, IDs, criteria, moves, History, roll-up, derivation, roadmap files and generated views |
 | `tests/test_testcheck.py`, `tests/test_rup_{discover,build,debug,review}.py` | Test-value checks (trivial tests, criterion links, red evidence), start/finish with good and bad deliveries, bug flow, review verdicts |
 | `tests/test_rup_test_audit.py` | cp-test audit: mutant generator, runner (kill/survive/timeout/error, resume, changed-tree refusal, budget, lines), report, triage rules, static audit, CLI and consent; mutation steps in cp-build/cp-review/cp-debug/orchestrator |
 | `tests/test_higiene.py` | No committed secrets, no machine paths in code |
 
-CI (`.github/workflows/ci.yml`): Python 3.12/3.13 on Linux (blocking) and Windows
-(informative), plus `install.sh --dry-run`, on pushes to `main` and on PRs.
+CI (`.github/workflows/ci.yml`) runs Python 3.12/3.13 on Linux (blocking) and
+Windows (informative), plus `install.sh --dry-run`. It runs on pushes to `main`
+and on PRs.
 
-### Exit codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Usage error: missing briefing, unreadable `--input`, document missing required artifacts, invalid sizing model |
-| 4 | `.context/` not writable |
-| 5 | Needs authorization: `.context/` lacks the `.rup-standard` marker — ask the user, then `cp-context --init` |
-
-Exit 1 also covers an invalid card/document and a rejected delivery.
-
-## Portability
-
-No hardcoded OS/machine paths or personal values. Each `run.py` finds `_shared/`
-next to the skill (repository, Claude Code) or one level up (Hermes, which nests
-skills in a category directory).
+Questions, bugs or ideas: open an issue in this repository.
 
 ## License
 
-Internal use. © Renato Sacramento Horta.
+[MIT](LICENSE) © 2026 Renato Sacramento Horta.

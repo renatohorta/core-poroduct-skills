@@ -94,7 +94,7 @@ New requirements must enter through `.context/inbox/initiatives/`.
 
 | Aspect | Situation |
 |--------|-----------|
-| Type | Development tool (skills/CLI), **internal use** |
+| Type | Development tool (skills/CLI), open source under the **MIT license** |
 | Network exposure | None — no socket, no outbound call |
 | Personal data processed | **No third-party personal data** is collected or stored |
 | Attack surface | Local execution: reading the briefing/document, writing `.context/`, `subprocess` of sibling skills |
