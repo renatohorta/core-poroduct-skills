@@ -128,11 +128,11 @@ ADR: `.context/tracking/decisions.md` (ADR-0007).
 | Authorization | ✅ Marker `.rup-standard` gates every write (exit 5); this repo's `.context/` not yet authorized |
 | Cards / roadmap | ✅ `EP/ST/TK/BUG-NNN`, `.context/roadmap/`, generated views |
 | Execution model | ✅ The host agent is the LLM: work packet → document → `--record` |
-| Orchestration | ✅ Governance packet, `--discipline`, `--auto` protocol, `--status` |
+| Orchestration | ✅ Front door `--route` (ADR-0017), governance packet, `--discipline`, `--auto` protocol, `--status` |
 | Sizing | ✅ UCP deterministic (`--estimate`); FPA/COCOMO II estimated by the agent |
 | Dependencies | ✅ None at runtime (stdlib only) |
 | Distribution | ✅ `install.sh` (Hermes + Claude), tested in both layouts |
-| Automated tests | ✅ 268 tests, ~5 s, end to end through `.context/` |
+| Automated tests | ✅ 336 tests, ~10 s, end to end through `.context/` |
 | Persistence | ✅ Every artifact written to `.context/` (ADR-0011) |
 | CI/CD | ✅ GitHub Actions on `main` + PRs: Linux 3.12/3.13 + Windows informative |
 

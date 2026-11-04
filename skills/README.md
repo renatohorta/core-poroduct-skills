@@ -6,8 +6,11 @@ grounded in *The Rational Unified Process:
 An Introduction* (3rd ed.), Philippe Kruchten (Addison-Wesley / IBM Rational
 Software).
 
-The user interacts with `cp-orchestrator`, which governs the lifecycle and
-drives the 8 discipline skills. Together they cover the **9 RUP disciplines**
+The user interacts with `cp-orchestrator`, the front door: `--route
+"<request>"` gives the agent the project state and every route, so the agent
+picks and runs the right skill itself (discover, requirements, backlog, build,
+debug, review, test audit) — the user never names a skill (ADR-0017). It also
+governs the lifecycle and drives the 8 discipline skills. Together they cover the **9 RUP disciplines**
 and **21 roles** (1 orchestrator + 20 specialists).
 
 ## Disciplines
@@ -68,8 +71,9 @@ skills/
 │   ├── roadmap.py            # releases, iterations, generated views
 │   ├── testcheck*.py         # test-value checks of a delivery (Python ast, JS/TS patterns)
 │   ├── testaudit.py          # static audit of a whole suite
+│   ├── router.py             # front door: .context/ state + routes (--route)
 │   └── mutation.py           # mutants, parallel resumable runner, report, triage
-├── cp-orchestrator/         # governance, iteration protocol, UCP
+├── cp-orchestrator/         # front door (--route), governance, iteration protocol, UCP
 │   ├── SKILL.md
 │   ├── scripts/run.py
 │   └── references/           # lifecycle.md, sizing-estimation.md

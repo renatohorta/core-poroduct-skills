@@ -7,6 +7,7 @@ prints work packets and protocols for the agent, records the agent's documents
 into .context/ (mandatory, ADR-0011) and computes Use Case Points exactly.
 
 Usage:
+  python run.py --route "what the user asked"             # front door: route to the right skill
   python run.py "demand" --phase Inception                 # governance work packet
   python run.py --record doc.md --phase Inception "demand" # validate + write .context/
   python run.py "demand" --discipline requirements         # a discipline's work packet
@@ -32,6 +33,7 @@ for _root in (_SKILL_DIR.parent, _SKILL_DIR.parent.parent):
 
 from _shared import context as rup_context  # noqa: E402
 from _shared import discipline  # noqa: E402
+from _shared import router  # noqa: E402
 from _shared.rup import (DISCIPLINES, EXIT_USAGE, PHASES,  # noqa: E402
                          setup_console)
 
@@ -424,6 +426,17 @@ def print_protocol(args, context_dir):
     print_status(context_dir, phase)
 
 
+def skill_cmd(skill, *args):
+    """A command line running a sibling cp-* skill (or this one)."""
+    return discipline.cmdline([sys.executable,
+                               str(RUP_ROOT / skill / "scripts" / "run.py"), *args])
+
+
+def print_route(args, context_dir):
+    request = discipline.read_briefing(args, required=False)
+    print(router.render(request, router.read_state(context_dir), skill_cmd))
+
+
 def list_disciplines():
     print("RUP disciplines (in --auto order):")
     for k, v in DISCIPLINES.items():
@@ -442,6 +455,9 @@ def main():
     discipline.add_common_args(parser)
     parser.add_argument("--discipline", choices=list(DISCIPLINES.keys()),
                         help="Print that discipline's work packet (instead of governance)")
+    parser.add_argument("--route", action="store_true",
+                        help="Front door: print the routing packet (project state, suggested "
+                             "next step, every route with its command) for the user's request")
     parser.add_argument("--auto", action="store_true",
                         help="Print the iteration protocol: governance + the 8 disciplines, in order")
     parser.add_argument("--status", action="store_true",
@@ -465,6 +481,13 @@ def main():
         return
 
     context_dir = rup_context.resolve_context_dir(args.context_dir)
+
+    if args.route:
+        if args.record:
+            discipline.fail("--route only prints the routing packet; record with the "
+                            "skill the route points to")
+        print_route(args, context_dir)
+        return
 
     if args.status:
         print_status(context_dir, args.phase)

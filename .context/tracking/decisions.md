@@ -530,3 +530,35 @@ warning in cp-build can become a gate later. Items P1, P2, P3 and P5 of the
 source document (record overwrites a phase, commit hint, `--init` summary,
 estimate × actual) are not part of this decision.
 
+## ADR-0017 — cp-orchestrator is the front door: the agent routes, the user never names a skill
+
+**Date**: 2026-11-04 · **Status**: Accepted
+
+**Context**: The team guide showed that a user had to know and call each skill
+by name (`cp-discover` for discovery, `cp-requirements` for requirements, …).
+The orchestrator only knew governance and the 8 disciplines; it did not know
+the execution skills (discover, backlog, build, debug, review, test audit) and
+did not route a plain request.
+
+**Decision**:
+- `cp-orchestrator --route "<request>"` prints a read-only routing packet: the
+  request, the project state read from `.context/` (authorization, discovery,
+  requirements, governance, board per column, open bugs), a suggested next step,
+  every route with its exact command, the standard chains and the gates.
+- Classification stays with the agent (ADR-0012): no keyword matching in code.
+  The code only reads state and suggests, in this order: authorize → review →
+  finish what is in 3-doing → open bugs → discover → requirements → derive the
+  backlog → build what is in 2-todo → plan the backlog → ask the user.
+- The agent runs the chain itself and stops only at the gates: authorizing
+  `.context/`, the discovery conversation, confirming derived cards, a real
+  ambiguity (one question), destructive or outward-facing actions. It never
+  answers "call cp-xxx".
+- The orchestrator SKILL.md description says it is the front door for any
+  project request; the pointer note in CLAUDE.md / AGENT.md starts with the
+  `--route` line, and `cp-context --init` refreshes an outdated pointer block
+  between its markers (text outside the markers is never touched).
+
+**Consequences**: The other skills keep working when called directly. Projects
+initialized before this decision get the new pointer note by running
+`cp-context --init` again (it only adds what is missing, plus the refresh).
+

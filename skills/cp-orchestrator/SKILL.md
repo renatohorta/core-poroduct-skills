@@ -1,6 +1,6 @@
 ---
 name: cp-orchestrator
-description: "RUP-Orchestrator — single point of contact for the Rational Unified Process lifecycle. Classifies demands into RUP phases (Inception/Elaboration/Construction/Transition), maintains the Software Development Plan, Business Case and Risk List, emits formal Work Orders and drives the 8 discipline skills (20 specialized RUP roles) — the agent running the skill is the LLM; artifacts are recorded in .context/. Use when the user says 'run RUP', 'rational unified process', 'plan the iteration', 'manage the project', 'work orders', or wants the full RUP lifecycle governed end to end."
+description: "RUP-Orchestrator — the FRONT DOOR of the cp-* skills and single point of contact for the RUP lifecycle. Routes any plain request about the project (a new idea or feature, requirements, backlog, implement a task, a bug, a review, test quality, status, what next) to the right cp-* skill and runs it — the user never has to name a skill. Also classifies demands into RUP phases, maintains the Software Development Plan, Business Case and Risk List, emits Work Orders and drives the 8 discipline skills — the agent running the skill is the LLM; artifacts are recorded in .context/. Use whenever the user asks for software-project work without naming a specific cp-* skill, says 'what now / continue', or says 'run RUP', 'plan the iteration', 'manage the project', 'work orders'."
 ---
 
 # cp-orchestrator — RUP Lifecycle Governance
@@ -11,6 +11,35 @@ risks, formulates formal **Work Orders** and drives the discipline skills.
 
 Grounded in *The Rational Unified Process: An Introduction* (3rd ed.), Philippe
 Kruchten. Base role: **Project Manager** (supported by the Project Reviewer).
+
+## Front door — start every request here
+
+The user talks in plain words ("quero login com Google", "o checkout quebrou",
+"revisa o TK-012", "e agora?"). They **never** have to know or call a cp-*
+skill: you route the request and run the skills yourself.
+
+```bash
+python scripts/run.py --route "<what the user asked>"
+```
+
+The routing packet (read-only) shows the project state from `.context/`
+(authorization, discovery, requirements, board, open bugs), a **suggested next
+step**, every route with its exact command, and the standard chains:
+
+| Request | Chain you run |
+|---|---|
+| New product / feature / epic | `cp-discover` → requirements → `cp-backlog --derive` → *user confirms cards* → `cp-build` → `cp-review` |
+| Bug | `cp-debug --open` → failing test → `--diagnose` → `cp-build` → `cp-review` |
+| Small clear change | `cp-backlog --new task` → `cp-build` → `cp-review` |
+| "Are the tests any good?" | `cp-test --audit` → cards for the real gaps → `cp-build` |
+| "What now?" / "continue" | the suggested next step |
+
+Rules: say in one line what you will do, run the command, follow its packet, and
+continue the chain on your own. Stop for the user only at the gates —
+authorizing `.context/` (exit 5), the discovery conversation, confirming derived
+cards, a real ambiguity between two routes (one question, with your
+suggestion), and anything destructive or outward-facing. Never answer "call
+cp-xxx".
 
 ## Lifecycle
 
@@ -98,6 +127,7 @@ FPA (IFPUG/NESMA) and COCOMO II/SLOC are your estimates — show inputs and arit
 | `--phase {Inception,Elaboration,Construction,Transition}` | RUP phase (default: Elaboration) |
 | `--context-dir <dir>` | The `.context/` (default: `$RUP_CONTEXT_DIR`, else the nearest up to the git root) |
 | `--record <file\|->` | Validate your governance document and write it to `.context/` |
+| `--route` | Front door: routing packet for the request (state, suggestion, routes, chains); read-only |
 | `--discipline <key>` | Print that discipline's work packet |
 | `--auto` | Print the iteration protocol (governance + 8 disciplines, in order) |
 | `--status` | Show which steps are recorded in `.context/` for the phase |

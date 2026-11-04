@@ -24,7 +24,7 @@ source of truth and the only place agents read/write project context.
    discarded and rewritten on every `./scripts/install.sh`.
 2. **`_shared` is not a skill** — helpers (`rup.py`, `discipline.py`,
    `context.py`, `consent.py`, `frontmatter.py`, `cards.py`, `roadmap.py`,
-   `testcheck*.py`, `testaudit.py`, `mutation.py`); it goes to the agent's skills root, not to the category.
+   `testcheck*.py`, `testaudit.py`, `mutation.py`, `router.py`); it goes to the agent's skills root, not to the category.
    Every `run.py` looks for it next to the skill and one level up (Hermes).
 3. **Skill protocol** — `run.py "<briefing>" [--input F] [--phase P]
    [--context-dir D]` prints the work packet; the agent writes one document with
@@ -55,6 +55,8 @@ source of truth and the only place agents read/write project context.
 
 <!-- rup-skills:start -->
 ## RUP skills — which one to use
+- Any request, or not sure which: `cp-orchestrator --route "<request>"` — the
+  agent routes it and runs the skills itself; the user never has to name one.
 - Before building anything new: `cp-discover`
 - Plan epics/stories/tasks, roadmap, move cards: `cp-backlog`
 - Implement a task (TDD): `cp-build`

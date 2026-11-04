@@ -22,6 +22,8 @@ POINTER_START = "<!-- rup-skills:start -->"
 POINTER_END = "<!-- rup-skills:end -->"
 POINTER_FILES = ("CLAUDE.md", "AGENT.md")
 POINTER_BODY = """## RUP skills — which one to use
+- Any request, or not sure which: `cp-orchestrator --route "<request>"` — the
+  agent routes it and runs the skills itself; the user never has to name one.
 - Before building anything new: `cp-discover`
 - Plan epics/stories/tasks, roadmap, move cards: `cp-backlog`
 - Implement a task (TDD): `cp-build`
@@ -94,7 +96,8 @@ def detect(context_dir) -> ContextState:
 
 def ensure_pointer_note(project_root) -> list:
     """Create or append the RUP pointer block in CLAUDE.md and AGENT.md.
-    Existing text is preserved; the block is added once. Returns touched files."""
+    Existing text is preserved; the block is added once, and an outdated block
+    (between the markers) is refreshed. Returns touched files."""
     block = f"{POINTER_START}\n{POINTER_BODY}{POINTER_END}\n"
     touched = []
     for name in POINTER_FILES:
@@ -105,6 +108,15 @@ def ensure_pointer_note(project_root) -> list:
             continue
         text = path.read_text(encoding="utf-8")
         if POINTER_START in text:
+            head, rest = text.split(POINTER_START, 1)
+            if POINTER_END not in rest:
+                continue  # a broken block is the user's to fix; never guess
+            tail = rest.split(POINTER_END, 1)[1]
+            tail = tail[1:] if tail.startswith("\n") else tail
+            fresh = head + block + tail
+            if fresh != text:
+                path.write_text(fresh, encoding="utf-8")
+                touched.append(path)
             continue
         sep = "" if not text or text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")
         path.write_text(text + sep + block, encoding="utf-8")
@@ -114,7 +126,8 @@ def ensure_pointer_note(project_root) -> list:
 
 def init_context(context_dir, *, authorized_by: str, now=None) -> list:
     """Adopt the standard: add what is missing, write the marker, add the pointer
-    note, log one row. Never overwrites. Returns the created paths.
+    note (refreshing an outdated one between its markers), log one row. Never
+    overwrites anything else. Returns the created paths.
     Exits 1 when the project root (parent of `.context/`) does not exist."""
     import sys
     context_dir = Path(context_dir)

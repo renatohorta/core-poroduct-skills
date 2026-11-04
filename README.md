@@ -18,6 +18,96 @@ same model, with the same conversation context, writes the artifacts.
 > History: the legacy Software Factory family (removed in ADR-0010) also used the
 > `cp-` prefix; the current `cp-*` skills are the RUP skills, renamed from `rup-*`
 > (ADR-0014). The CrewAI execution was replaced by the host-LLM model (ADR-0012).
+
+## Guia rápido para o time (pt-BR)
+
+São 15 skills que levam o RUP para dentro do Claude Code: discovery, backlog em
+cards, desenvolvimento com TDD, debug, revisão, documentação e uma auditoria que
+mede se os testes realmente pegam bugs. **O próprio Claude que você já usa faz
+todo o trabalho**: as skills não chamam outra IA, não pedem API key e só
+dependem do Python.
+
+### 1. Pré-requisitos
+
+- Claude Code instalado
+- Python 3.10+ e git
+- bash (no Windows, use o **Git Bash**)
+
+### 2. Baixar e instalar
+
+```bash
+git clone https://github.com/renatohorta/core-poroduct-skills.git
+cd core-poroduct-skills
+bash scripts/install.sh --claude
+```
+
+As skills vão para `~/.claude/skills/`. Abra uma sessão nova do Claude Code e
+digite `/cp-` para ver a lista. Para conferir antes, sem instalar nada:
+`bash scripts/install.sh --claude --dry-run`.
+
+### 3. Atualizar
+
+```bash
+cd core-poroduct-skills && git pull && bash scripts/install.sh --claude
+```
+
+Nunca edite a cópia instalada em `~/.claude/skills`: ela é apagada e reescrita
+a cada instalação. Melhorias vão por PR neste repositório.
+
+### 4. Primeiro uso num projeto
+
+Todos os artefatos ficam na pasta `.context/` do projeto (docs, cards, roadmap,
+decisões).
+
+- Na primeira vez, o Claude **pede autorização** antes de criar ou alterar a
+  `.context/`. Basta aprovar.
+- Se o projeto já tiver documentação (`docs/`, `.specs/`, outra `.context/`),
+  nada é apagado: o Claude pergunta e pode importar o que já existe.
+- Projeto preparado antes desta versão? Peça "prepare o .context deste projeto"
+  de novo: a nota no `CLAUDE.md`/`AGENT.md` é atualizada para o roteamento
+  automático.
+- Recomendado: commitar a `.context/` junto com o código.
+
+### 5. Como usar: só peça
+
+**Você não precisa saber o nome de nenhuma skill.** Descreva o que quer, em
+linguagem natural, e o Claude passa pelo orquestrador
+(`cp-orchestrator --route`), que lê o estado do projeto, escolhe a skill certa e
+segue o fluxo sozinho (ADR-0017):
+
+| Você diz… | O Claude faz |
+|---|---|
+| "quero uma tela de login com Google" | discovery → requisitos → backlog → build de cada task → review |
+| "o checkout está dando erro 500" | abre um BUG, reproduz, teste de regressão, causa raiz, fix, review |
+| "muda o texto do botão de pagar" | task direto no backlog → build → review (sem discovery) |
+| "revisa o TK-012" | review do card e registro do veredito |
+| "nossos testes servem pra alguma coisa?" | auditoria estática + teste de mutação + cards para as lacunas |
+| "e agora?" / "continua" | o próximo passo que o estado do projeto indica |
+| "documenta o projeto inteiro no padrão RUP" | governança + as 8 disciplinas, em ordem |
+
+Ele só para e pergunta quando precisa de você: autorizar a `.context/`, a
+conversa de discovery, confirmar os cards gerados, uma ambiguidade real ou algo
+destrutivo/externo (push, deploy).
+
+### 6. As skills por trás (se quiser chamar direto)
+
+| Skill | Para quê |
+|---|---|
+| `cp-orchestrator` | Porta de entrada (`--route`), documentação RUP, estimativa (Use Case Points), plano de iteração |
+| `cp-discover` | Antes de construir algo novo: problema, usuários, objetivos, o que fica fora |
+| `cp-backlog` | Épicos, stories e tasks; releases e iterações; mover cards (`1-backlog` → `7-done`) |
+| `cp-build TK-001` | Implementa em TDD (teste vermelho primeiro); testes do tipo `assert True` são rejeitados |
+| `cp-debug` | BUG → reprodução → teste de regressão → causa raiz **antes** do fix |
+| `cp-review TK-001` | Revisa um card em `4-review`: `approved` ou `changes requested` |
+| `cp-test --audit` | "Os testes pegam bugs?": auditoria estática e teste de mutação. Num projeto nosso, 96% de cobertura pegaram só 76% dos mutantes |
+
+### 7. Dicas
+
+- Cada skill tem um `SKILL.md` com tudo o que faz; o catálogo está em
+  [`skills/README.md`](skills/README.md).
+- As skills nunca rodam git: branch, commit e merge continuam com você. A única
+  que roda testes é `cp-test --mutate`, e só em cópias temporárias do projeto.
+- Dúvidas, bugs ou ideias: abra uma issue neste repositório.
 > All of it remains in the git history.
 
 ## The RUP skills (`skills/cp-*`)
@@ -66,6 +156,13 @@ agent ──► run.py --record doc.md --phase P     ─► validates every "## 
                                                    logs   .context/tracking/rup-log.md
 ```
 
+- **Front door**: the user never has to pick a skill. The agent runs
+  `cp-orchestrator --route "<request>"`, which reads the state of `.context/`
+  (authorization, discovery, requirements, board, open bugs), suggests the next
+  step and lists every route with its command; the agent classifies the request
+  and runs the chain itself (new feature: discover → requirements → backlog →
+  build → review; bug: debug → build → review), stopping only at the gates
+  (authorization, discovery answers, confirming cards, real ambiguity) (ADR-0017).
 - **Chaining**: a discipline's packet embeds the governance artifact and the
   artifacts of the earlier disciplines recorded in the same phase. Run them in
   order and each builds on the previous ones.
@@ -114,8 +211,9 @@ core-poroduct-skills/
     │   ├── roadmap.py        # releases, iterations, generated views
     │   ├── testcheck*.py     # test-value checks (Python ast, JS/TS patterns)
     │   ├── testaudit.py      # static audit of a whole suite
+    │   ├── router.py         # front door: state of .context/ + routes (--route)
     │   └── mutation.py       # mutation testing: mutants, runner, report, triage
-    ├── cp-orchestrator/     # governance, iteration protocol, UCP
+    ├── cp-orchestrator/     # front door (--route), governance, iteration protocol, UCP
     ├── cp-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
     └── cp-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
