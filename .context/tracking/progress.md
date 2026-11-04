@@ -2,6 +2,21 @@
 
 > Last update: 2026-11-03.
 
+## cp-test measures the value of the tests — ADR-0016 (2026-11-04)
+
+Source: `MELHORIAS-cp-testes.md` (jusfy-lawsuit session: 96% coverage, 76% mutation score).
+
+| Change | Status | Date |
+|--------|--------|------|
+| `cp-test --audit`: protocol A0–A8 with the project's exact commands | ✅ Done | 2026-11-04 |
+| `_shared/mutation.py`: AST mutants, parallel resumable runner in copies, changed-tree refusal, budget, `--lines`, report, triage skeleton + `--triage-check` | ✅ Done | 2026-11-04 |
+| `_shared/testaudit.py`: no assert, trivial asserts, no project call, self-mock | ✅ Done | 2026-11-04 |
+| Packet: mandatory measured evidence, new artifact Test Value Assessment, evidence files embedded | ✅ Done | 2026-11-04 |
+| `references/audit.md` (protocol, profile, runner pitfalls), `references/triage.md` (classes, rules) | ✅ Done | 2026-11-04 |
+| cp-build (mutate changed lines, `## Mutation` warning), cp-review (mutation + adversarial review), cp-debug (fix must kill its mutants), orchestrator (routing + metric) | ✅ Done | 2026-11-04 |
+| Suite | ✅ 309 passed | 2026-11-04 |
+| Not done from the document: P1 (`--record` overwrites a phase), P2 (commit hint), P3 (`--init` lists files outside `.context/`), P5 (estimate × actual) | ⏳ Open | — |
+
 ## Skills renamed `rup-*` → `cp-*` (2026-11-03)
 
 | Change | Status | Date |

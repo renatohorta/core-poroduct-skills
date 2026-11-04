@@ -34,9 +34,17 @@ TDD_RULES = [
     "The test must assert real behavior and call project code: no `assert True`, "
     "no constant comparisons, no test without assertions.",
     "Implement the minimum, run again: green.",
+    "Check the tests would catch a wrong line: mutate only the lines you changed "
+    "(`{mutate}`, needs `.context/tests/profile.json` — see cp-test --audit A0) and "
+    "write `## Mutation` in the delivery: the score and, for every survivor, a new test "
+    "that kills it or the reason it cannot matter (references/tdd.md).",
     "Commit after every green step.",
     "Finish with the delivery document (references/tdd.md) and the --finish command below.",
 ]
+
+
+def sibling(skill: str) -> Path:
+    return Path(__file__).resolve().parents[2] / skill / "scripts" / "run.py"
 
 
 def parent_of(context_dir, card):
@@ -85,8 +93,12 @@ def start(context_dir, card_id) -> None:
     if not found:
         print("(none recorded)\n")
     print("## TDD rules\n")
+    targets = [l.strip().lstrip("-* ").strip("`") for l in
+               cards.section_text(card, "Target files").splitlines() if l.strip()]
+    mutate = cmdline([sys.executable, sibling("cp-test"), "--mutate", "--lines",
+                      (targets[0] if targets else "<file>") + ":<start>-<end>"])
     for i, rule in enumerate(TDD_RULES, 1):
-        print(f"{i}. {rule}")
+        print(f"{i}. {rule.format(mutate=mutate)}")
     finish = cmdline([sys.executable, me, "--finish", card.id, "--delivery", "FILE|-"])
     print(f"\n## When done\n\n    {finish}\n")
 
@@ -115,6 +127,9 @@ def finish(context_dir, card_id, source, project_root) -> None:
         sys.exit(1)
     for warning in testcheck.delivery_warnings(delivery, Path(project_root)):
         print(f"⚠️ {warning}")
+    if not delivery.section("Mutation").strip():
+        print("⚠️ no `## Mutation` section: the changed lines were not mutated, so nothing "
+              "shows the tests would catch a wrong line (cp-test --mutate --lines FILE:A-B).")
     cards.set_section(card, "Delivery", testcheck.embed_delivery(text))
     if card.type == "bug":
         cards.set_section(card, "Fix", delivery.section("What was done"))

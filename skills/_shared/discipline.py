@@ -181,6 +181,18 @@ def render_packet(spec, *, skill, script, briefing, phase, context_dir, briefing
         for label, path, body in prior:
             lines += [f"### {label} — `{path}`", "", body, ""]
 
+    # Measured evidence a discipline keeps outside docs/ (e.g. cp-test: tests/*.md).
+    evidence = [(rel, Path(context_dir) / rel) for rel in spec.get("context_files", [])]
+    evidence = [(rel, p) for rel, p in evidence if p.is_file()]
+    if evidence:
+        lines += ["## Measured evidence in `.context/` (use these numbers, do not invent)", ""]
+        for rel, path in evidence:
+            body = path.read_text(encoding="utf-8", errors="replace").strip()
+            if len(body) > MAX_PRIOR_ARTIFACT_CHARS:
+                body = (body[:MAX_PRIOR_ARTIFACT_CHARS]
+                        + f"\n[… truncated — full file in {path}]")
+            lines += [f"### `{rel}`", "", body, ""]
+
     lines += ["## Roles", ""]
     for i, agent in enumerate(spec["agents"], start=1):
         lines += [

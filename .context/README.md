@@ -62,7 +62,7 @@ One `.md` file per item.
 ### tracking/ — Tracking
 - `progress.md` — Overall progress and next steps
 - `rup-log.md` — One line per artifact written by the `cp-*` skills (created on first run)
-- `decisions.md` — Decision log (ADR-0001 … ADR-0015)
+- `decisions.md` — Decision log (ADR-0001 … ADR-0016)
 
 ### kanban/ — Execution pipeline (cards managed by `cp-backlog`)
 Source of truth for the task flow; Trello, when connected, is only a

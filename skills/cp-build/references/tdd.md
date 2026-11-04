@@ -11,10 +11,13 @@
   assertion at all, or a test that never calls project code.
 - Every listed test needs red evidence: the failing output you saw.
 - JS/TS tests are checked by pattern; other languages only by name (a warning).
+- Green is not enough: mutate the lines you changed and show the tests catch a
+  wrong line (below). `--finish` warns when `## Mutation` is missing.
 
 ## Delivery document
 
 Required sections: `What was done`, `Files changed`, `Tests`, `Red evidence`.
+Recommended: `Mutation` (shown to the reviewer; its absence is a warning).
 Each test is one line `- <path>::<test> — covers <ID>[, <ID>]`; red evidence is
 one `### <path>::<test>` block with a fenced output per test.
 
@@ -39,4 +42,25 @@ Booking endpoint that returns the booked slot.
 ```
 E   ImportError: cannot import name 'book' from 'app.booking'
 ```
+````
+
+## Mutation of the changed lines
+
+With `.context/tests/profile.json` in place (cp-test `--audit`, step A0), run the
+mutants of the lines the task changed:
+
+```bash
+python <skills>/cp-test/scripts/run.py --mutate --lines app/booking.py:10-42 --fresh
+python <skills>/cp-test/scripts/run.py --mutation-status
+```
+
+Then write the section. Every survivor needs a test that kills it (re-run with
+`--rerun-survivors`) or the reason it cannot matter (cp-test `references/triage.md`):
+
+````markdown
+## Mutation
+
+app/booking.py:10-42 — 14 mutants, 13 killed, 1 survived (93%).
+
+- #22 line 31 `return None` — equivalent: the return value of `log_slot` is not used by any caller.
 ````

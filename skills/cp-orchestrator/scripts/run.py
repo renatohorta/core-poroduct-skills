@@ -92,6 +92,14 @@ def governance_spec(phase, context_dir):
             f"Write one Work Order per discipline involved, addressed to its skill: {disciplines}.",
             "Allocate the epics of this iteration with cp-backlog --plan <EP-ID> "
             "--iteration <R<n>-I<m>> and reference that iteration ID in the Iteration Plan.",
+            "Demands about the value of the tests ('are our tests any good?', 'make sure "
+            "the tests are worth something', test quality) go to the Test discipline as a "
+            "Work Order for the audit protocol: `cp-test \"<briefing>\" --audit`. It is long "
+            "work (mutation can take hours): the state lives in `.context/tests/`, "
+            "`cp-test --mutation-status` shows progress, and the same command resumes it. "
+            "Coverage is not evidence of test value.",
+            "Measurement Plan: include the mutation score per critical module (target ≥ 80%) "
+            "and 'zero open real gaps in security modules', next to coverage.",
         ],
     }
 

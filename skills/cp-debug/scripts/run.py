@@ -32,6 +32,9 @@ PROTOCOL = [
     "Find the ROOT cause (references/debugging.md): why it happens, not where it shows.",
     "Record it: `{diagnose}`. The document needs a non-empty `## Root cause`.",
     "Fix the root cause with the minimum change; the regression test turns green.",
+    "Prove the regression test guards the fix: `{mutate}` on the lines you fixed — the "
+    "mutants that undo the fix (the flipped condition) must be killed. Report it in "
+    "`## Mutation` of the delivery.",
     "Deliver: `{finish}`. Run `{start}` first (only if not diagnosed): --diagnose already starts the bug and sets its branch.",
 ]
 
@@ -48,6 +51,8 @@ def open_bug(context_dir, title, source, parent, priority) -> None:
         "diagnose": cmdline([sys.executable, me, "--diagnose", card.id, "--doc", "FILE|-"]),
         "start": cmdline([sys.executable, build, "--start", card.id]),
         "finish": cmdline([sys.executable, build, "--finish", card.id, "--delivery", "FILE|-"]),
+        "mutate": cmdline([sys.executable, sibling("cp-test"), "--mutate", "--lines",
+                           "<fixed-file>:<start>-<end>"]),
     }
     print(f"{card.id} created in {card.status}: {card.title}\n")
     print("## Debugging protocol\n")

@@ -6,4 +6,5 @@
 4. **Evidence over guesses.** One hypothesis at a time; confirm it with a log, a debugger or a smaller test before changing code.
 5. **Record it.** `## Root cause` states what is wrong, why it happens and what proves it, in a few sentences.
 6. **Fix minimally.** Change the cause; do not refactor around it. The regression test must go green and the rest of the suite stay green.
-7. **Look for siblings.** If the same mistake can occur elsewhere, add tests or open another bug.
+7. **Prove the test guards the fix.** Mutate the fixed lines (`cp-test --mutate --lines <file>:<a>-<b>`): the mutants that undo the fix (the flipped condition, the removed check) must die. A survivor there means the regression test does not pin the bug. Report it in the delivery's `## Mutation`.
+8. **Look for siblings.** If the same mistake can occur elsewhere, add tests or open another bug.

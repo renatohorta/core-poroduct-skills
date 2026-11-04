@@ -1,6 +1,6 @@
 ---
 name: cp-test
-description: "RUP Test Discipline (6/9). This skill covers the RUP **Test Discipline**: test planning, analysis, design, execution and evaluation. Use when the user says 'test plan, test cases, test strategy, run tests, test evaluation' or needs the RUP test artifacts."
+description: "RUP Test Discipline (6/9). This skill covers the RUP **Test Discipline**: test planning, analysis, design, execution and evaluation, plus a test-value audit (static audit, mutation testing, survivor triage). Use when the user says 'test plan, test cases, test strategy, run tests, test evaluation', asks whether the tests are any good / worth something, wants mutation testing, or needs the RUP test artifacts."
 ---
 
 # cp-test — RUP Test Discipline
@@ -15,7 +15,7 @@ Kruchten. Part of the `rup` family — drive the whole lifecycle through
 
 | Agent (slug) | Role | Artifacts |
 |--------------|------|-----------|
-| `test-manager` | Test Manager | Test Plan, Test Evaluation Summary |
+| `test-manager` | Test Manager | Test Plan, Test Evaluation Summary, Test Value Assessment |
 | `test-analyst` | Test Analyst | Test Ideas List, Test Cases, Test Data, Workload Analysis Model |
 | `test-designer` | Test Designer | Test Strategy, Test Automation Architecture, Test Environment Configuration, Test Interface Specification |
 | `tester` | Tester | Test Scripts, Test Suites, Test Log, Test Results |
@@ -57,6 +57,41 @@ artifacts**. The script gives you the work packet and records your result.
    again) and writes `.context/docs/<NN-phase>/cp-test.md` with a provenance header,
    plus a row in `.context/tracking/rup-log.md`.
 
+   **Evidence is mandatory**: run the suite (and coverage) yourself and put the
+   command, commit SHA, duration and result of every execution in the Test Log.
+   Never write a number you did not measure.
+
+## Test-value audit — do the tests catch bugs? (ADR-0016)
+
+Coverage says which lines ran, not whether a test would notice a wrong line.
+When the question is the value of the tests, run the audit protocol:
+
+```bash
+python scripts/run.py "<briefing>" --audit [--files a.py b.py] [--workers N] [--budget 2h]
+```
+
+It prints steps A0–A8 with the exact commands: profile the project
+(`.context/tests/profile.json`), baseline, inventory, static audit, choose the
+modules by risk, mutate, triage the survivors, act (cards/CRs), record. The tools:
+
+| Command | Does |
+|---------|------|
+| `--profile-template` | Prints the `profile.json` to fill (suite command, isolation per worker) |
+| `--static-audit [DIR]` | Tests with no assertion, trivial asserts, no project call, self-mocks → `tests/static-audit.md` |
+| `--mutants --files F… [--verbose]` | Counts/lists the mutants (read-only) |
+| `--mutate --files F… [--lines F:A-B] [--workers N] [--budget 2h] [--fresh] [--rerun-survivors]` | Runs the mutants in disposable copies, in parallel, resumable → `tests/mutation/results.jsonl` |
+| `--mutation-status` | Progress of a long run |
+| `--mutation-report` | `tests/mutation/report.md` (score per module, worst first) + `triage.md` rows for the survivors |
+| `--triage-check` | Fails until every survivor is classified with its reason and action |
+| `--show-mutant F:IDX` | Diff of one mutant |
+
+The mutation run executes the project's own test command (from the profile) in
+copies of the project: the original is never written, git is never run, and the
+run refuses to continue if the code under test changed. Python mutants are
+generated here; other languages use their ecosystem tool with the same protocol.
+Rules: `references/audit.md` (protocol, profile, runner pitfalls) and
+`references/triage.md` (survivor classes).
+
 ## CLI contract
 
 | Argument | Meaning |
@@ -67,9 +102,11 @@ artifacts**. The script gives you the work packet and records your result.
 | `--context-dir <dir>` | The `.context/` (default: `$RUP_CONTEXT_DIR`, else the nearest up to the git root) |
 | `--record <file\|->` | Validate your document and write it to `.context/` |
 
-Exit codes: `0` success · `1` usage error / missing artifacts · `4` `.context/`
-not writable. Standard library only — no LLM key, no `crewai`.
+The audit options are listed above. Exit codes: `0` success · `1` usage error /
+missing artifacts / failed baseline / incomplete triage · `4` `.context/` not
+writable · `5` `.context/` not authorized. Standard library only — no LLM key.
 
 ## Reference
 
-Agent → artifact mapping and missions: `references/agents.md`.
+Agent → artifact mapping and missions: `references/agents.md`. Audit:
+`references/audit.md`, `references/triage.md`.

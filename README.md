@@ -30,7 +30,7 @@ same model, with the same conversation context, writes the artifacts.
 | `cp-requirements` | Requirements | 2 |
 | `cp-analysis-design` | Analysis & Design | 5 |
 | `cp-implementation` | Implementation | 2 |
-| `cp-test` | Test | 4 |
+| `cp-test` | Test + test-value audit (mutation) | 4 |
 | `cp-ccm` | Configuration & Change Management | 2 |
 | `cp-deployment` | Deployment | 2 |
 
@@ -84,7 +84,11 @@ agent ──► run.py --record doc.md --phase P     ─► validates every "## 
   (`.context/kanban/<column>/<ID>.md`), plans `.context/roadmap/` and generates
   `docs/06-roadmap.md` and `docs/06-board.md`; `cp-build --start/--finish`,
   `cp-debug --open/--diagnose` and `cp-review <ID>` / `--record` drive a task
-  from `3-doing` to review. The skills never run git or your tests.
+  from `3-doing` to review. The skills never run git or your tests — except
+  `cp-test --mutate` (below).
+- **Do the tests catch bugs?** `cp-test "<briefing>" --audit` prints the audit
+  protocol (A0–A8): baseline, static audit, mutation testing of the risky modules
+  in disposable copies, survivor triage, cards for the real gaps (ADR-0016).
 
 ## Repository structure
 
@@ -96,7 +100,7 @@ core-poroduct-skills/
 ├── requirements-dev.txt      # pytest
 ├── .github/workflows/ci.yml  # CI
 ├── .context/                 # Operational context (source of truth for agents)
-├── tests/                    # Suite (no LLM, 268 tests, ~5 s)
+├── tests/                    # Suite (no LLM, 309 tests, ~10 s)
 ├── scripts/install.sh        # Installs/updates the skills in the agents
 └── skills/
     ├── README.md
@@ -108,10 +112,12 @@ core-poroduct-skills/
     │   ├── frontmatter.py    # card frontmatter parser/writer
     │   ├── cards.py          # cards, moves, roll-up, derivation
     │   ├── roadmap.py        # releases, iterations, generated views
-    │   └── testcheck*.py     # test-value checks (Python ast, JS/TS patterns)
+    │   ├── testcheck*.py     # test-value checks (Python ast, JS/TS patterns)
+    │   ├── testaudit.py      # static audit of a whole suite
+    │   └── mutation.py       # mutation testing: mutants, runner, report, triage
     ├── cp-orchestrator/     # governance, iteration protocol, UCP
     ├── cp-<discipline>/     # SKILL.md + scripts/run.py (roles as data) + references/
-    └── rup-{context,discover,backlog,build,debug,review}/   # execution skills
+    └── cp-{context,discover,backlog,build,debug,review}/   # execution skills
 ```
 
 ## Quick install
@@ -140,6 +146,7 @@ uv pip install --python .venv -r requirements-dev.txt
 | `tests/test_consent.py`, `tests/test_rup_context.py` | Authorization marker and exit 5 on writing commands, non-destructive `--init`/upgrade, pointer note, import leaves originals untouched |
 | `tests/test_frontmatter.py`, `tests/test_cards.py`, `tests/test_roadmap.py` | Card parser/writer, IDs, criteria, moves, History, roll-up, derivation, roadmap files and generated views |
 | `tests/test_testcheck.py`, `tests/test_rup_{discover,build,debug,review}.py` | Test-value checks (trivial tests, criterion links, red evidence), start/finish with good and bad deliveries, bug flow, review verdicts |
+| `tests/test_rup_test_audit.py` | cp-test audit: mutant generator, runner (kill/survive/timeout/error, resume, changed-tree refusal, budget, lines), report, triage rules, static audit, CLI and consent; mutation steps in cp-build/cp-review/cp-debug/orchestrator |
 | `tests/test_higiene.py` | No committed secrets, no machine paths in code |
 
 CI (`.github/workflows/ci.yml`): Python 3.12/3.13 on Linux (blocking) and Windows

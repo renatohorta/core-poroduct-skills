@@ -484,3 +484,49 @@ removed files already lived in `.context/docs/02-elaboration/architecture.md`,
 **Consequences**: Links now point into `.context/docs/`. `cp-context --status`
 no longer reports `docs` as another documentation directory in this repository.
 The removed files remain in the git history.
+
+---
+
+## ADR-0016 — cp-test measures the value of the tests (mutation testing)
+
+**Date**: 2026-11-04 · **Status**: Accepted
+
+**Context**: In a real project (Django + DRF, 577 tests), the cp-test packet asked
+for the RUP test artifacts but never for measured numbers, and had no way to
+answer "are our tests worth anything?". Line coverage was 96%; a mutation run
+done by hand outside the skills scored 76%, with whole modules under 50%, and
+an independent review found 12 real defects with the suite green. The scripts
+were improvised (`MELHORIAS-cp-testes.md`).
+
+**Decision**:
+
+- The cp-test packet demands measured evidence (command, SHA, duration, result
+  for every execution) and a new Test Manager artifact, **Test Value
+  Assessment**. It embeds `.context/tests/{baseline,static-audit}.md` and
+  `tests/mutation/{report,triage}.md` when they exist.
+- `cp-test --audit` prints the protocol A0–A8 (profile, baseline, inventory,
+  static audit, module choice, mutation, triage, action, record).
+- Deterministic tools in `_shared/mutation.py` and `_shared/testaudit.py`
+  (stdlib): Python AST mutants; a parallel, resumable runner in disposable copies
+  of the project; per-module report; triage table checked against fixed rules
+  (equivalent / real gap / dead code / out of scope, each with a reason; real gap
+  → card; dead code → CR).
+- **Exception to "the skills never run the project's tests"**: `cp-test --mutate`
+  runs the suite command the agent wrote in `.context/tests/profile.json`, only in
+  copies (the original is never written). Git is still never run: the SHA is read
+  from `.git`. The run fingerprints every non-test file and refuses to continue
+  if the code under test changed (test files may change: that is how a gap is
+  closed, re-running the survivors).
+- cp-build asks for mutation of the changed lines (`## Mutation` in the
+  delivery; its absence is a warning, not a rejection); cp-review shows it and
+  recommends an adversarial review; cp-debug requires the fix's mutants to die;
+  the orchestrator routes test-value demands to `--audit` and adds the mutation
+  score to the Measurement Plan.
+
+**Consequences**: Mutation can take hours: `--budget` and resume, `--mutation-status`.
+Non-Python projects use their ecosystem tool (Stryker, PIT, go-mutesting,
+cargo-mutants) with the same protocol and JSONL format. The `## Mutation`
+warning in cp-build can become a gate later. Items P1, P2, P3 and P5 of the
+source document (record overwrites a phase, commit hint, `--init` summary,
+estimate × actual) are not part of this decision.
+

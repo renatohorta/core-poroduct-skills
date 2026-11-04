@@ -26,6 +26,7 @@ POINTER_BODY = """## RUP skills — which one to use
 - Plan epics/stories/tasks, roadmap, move cards: `cp-backlog`
 - Implement a task (TDD): `cp-build`
 - Fix a bug: `cp-debug`
+- Do the tests catch bugs? (static audit, mutation): `cp-test --audit`
 - Review a delivered card: `cp-review`
 - RUP documents (governance, disciplines): `cp-orchestrator`
 - Project context lives in `.context/` (set up with `cp-context`).

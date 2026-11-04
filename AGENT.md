@@ -24,7 +24,7 @@ source of truth and the only place agents read/write project context.
    discarded and rewritten on every `./scripts/install.sh`.
 2. **`_shared` is not a skill** — helpers (`rup.py`, `discipline.py`,
    `context.py`, `consent.py`, `frontmatter.py`, `cards.py`, `roadmap.py`,
-   `testcheck*.py`); it goes to the agent's skills root, not to the category.
+   `testcheck*.py`, `testaudit.py`, `mutation.py`); it goes to the agent's skills root, not to the category.
    Every `run.py` looks for it next to the skill and one level up (Hermes).
 3. **Skill protocol** — `run.py "<briefing>" [--input F] [--phase P]
    [--context-dir D]` prints the work packet; the agent writes one document with
@@ -46,7 +46,9 @@ source of truth and the only place agents read/write project context.
 6. **Cards and views** — cards are `.context/kanban/<column>/<ID>.md`
    (`EP/ST/TK/BUG-NNN`, criteria `ST-NNN/AC-n`, `## History` last); the roadmap
    lives in `.context/roadmap/`; `docs/06-roadmap.md` and `docs/06-board.md` are
-   generated, never hand-edited. The skills never run git or the project's tests.
+   generated, never hand-edited. The skills never run git, and never run the
+   project's tests — except `cp-test --mutate`, which runs the command of
+   `.context/tests/profile.json` in disposable copies of the project (ADR-0016).
 7. **Windows**: the skills force UTF-8 on stdout/stderr (`setup_console`).
 8. **Before committing**: `git status --short` (partial commits are the most
    common mistake here) and `.venv/bin/python -m pytest` (~5 s).
@@ -57,6 +59,7 @@ source of truth and the only place agents read/write project context.
 - Plan epics/stories/tasks, roadmap, move cards: `cp-backlog`
 - Implement a task (TDD): `cp-build`
 - Fix a bug: `cp-debug`
+- Do the tests catch bugs? (static audit, mutation): `cp-test --audit`
 - Review a delivered card: `cp-review`
 - RUP documents (governance, disciplines): `cp-orchestrator`
 - Project context lives in `.context/` (set up with `cp-context`).

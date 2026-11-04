@@ -103,13 +103,26 @@ def packet(context_dir, card_id, project_root) -> None:
     else:
         print("Test checks: OK")
 
-    print("\n## 4. Traceability\n")
+    print("\n## 4. Mutation of the changed lines\n")
+    mutation = delivery.section("Mutation").strip()
+    print(mutation if mutation else
+          "Not run: the delivery has no `## Mutation`. Ask for it (cp-test --mutate --lines "
+          "FILE:A-B) or check that every survivor is explained.")
+
+    print("\n## 5. Adversarial review (recommended for non-trivial cards)\n")
+    print("Have an agent WITHOUT the builder's context review the diff against the story: "
+          "concurrency, retries/idempotency, transactions and migrations, queries without "
+          "an index, wrong counts, stale data, error paths. A green suite does not answer "
+          "these. Each real finding is a `changes requested` item that starts with a test "
+          "that reproduces it.")
+
+    print("\n## 6. Traceability\n")
     print(f"Source: {card.meta.get('source') or '(none)'}")
     print("Parent chain: " + (" -> ".join(f"{c.id} ({c.title})" for c in chain) or "(none)"))
     epic = next((c for c in chain if c.type == "epic"), None)
     print(f"Iteration: {(epic.meta.get('iteration') if epic else '') or '(none)'}")
 
-    print("\n## 5. Integration toward 7-done\n")
+    print("\n## 7. Integration toward 7-done\n")
     print(f"1. Merge the card's branch `{card.meta.get('branch') or '(not recorded)'}` "
           "into the main line (git, by you).")
     print("2. Run the project's full test suite on the merged result.")
@@ -117,7 +130,7 @@ def packet(context_dir, card_id, project_root) -> None:
         move = cmdline([sys.executable, backlog, "--move", card.id, col, "--reason", "<why>"])
         print(f"{step}. As each stage is reached: `{move}`")
 
-    print("\n## 6. Record the verdict\n")
+    print("\n## 8. Record the verdict\n")
     print("Write `## Verdict` (first line `approved` or `changes requested`) and "
           "`## Findings` (references/review.md), then:\n")
     print("    " + cmdline([sys.executable, me, "--record", card.id, "--doc", "FILE|-"]))

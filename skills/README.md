@@ -20,7 +20,7 @@ and **21 roles** (1 orchestrator + 20 specialists).
 | `cp-requirements` | Requirements | 2 | `system-analyst`, `requirements-specifier` |
 | `cp-analysis-design` | Analysis & Design | 5 | `software-architect`, `designer`, `user-interface-designer`, `database-designer`, `capsule-designer` |
 | `cp-implementation` | Implementation | 2 | `system-integrator`, `implementer` |
-| `cp-test` | Test | 4 | `test-manager`, `test-analyst`, `test-designer`, `tester` |
+| `cp-test` | Test (+ test-value audit: static audit, mutation, triage — ADR-0016) | 4 | `test-manager`, `test-analyst`, `test-designer`, `tester` |
 | `cp-ccm` | Configuration & Change Management | 2 | `configuration-manager`, `change-control-manager` |
 | `cp-deployment` | Deployment | 2 | `deployment-manager`, `technical-writer` |
 
@@ -43,7 +43,8 @@ it: ask the user, then `cp-context --init`). Cards: `EP/ST/TK/BUG-NNN`, one file
 in `.context/kanban/<column>/`; criteria `ST-NNN/AC-n`; roadmap in
 `.context/roadmap/`; generated `docs/06-roadmap.md` and `docs/06-board.md`.
 Moves are declarations (`--move ID COLUMN --reason`); the skills never run git or
-the project's tests.
+the project's tests, except `cp-test --mutate` (mutation testing in disposable
+copies, with the suite command the agent wrote in `.context/tests/profile.json`).
 
 ## Lifecycle
 
@@ -65,7 +66,9 @@ skills/
 │   ├── frontmatter.py        # card frontmatter parser/writer
 │   ├── cards.py              # cards, moves, roll-up, derivation
 │   ├── roadmap.py            # releases, iterations, generated views
-│   └── testcheck*.py         # test-value checks (Python ast, JS/TS patterns)
+│   ├── testcheck*.py         # test-value checks of a delivery (Python ast, JS/TS patterns)
+│   ├── testaudit.py          # static audit of a whole suite
+│   └── mutation.py           # mutants, parallel resumable runner, report, triage
 ├── cp-orchestrator/         # governance, iteration protocol, UCP
 │   ├── SKILL.md
 │   ├── scripts/run.py
